@@ -9,7 +9,7 @@ class SessionType(Enum):
     ASTRO_INSPECT = 2
 
 
-@dataclass
+@dataclass(frozen=True)
 class FileInfo():
     path: str
     size: int
