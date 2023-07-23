@@ -5,7 +5,9 @@ name: ci-python-unittest
 
 on:
   pull_request:
+    types: [review_requested]
     branches: [dev, main]
+  workflow_dispatch:
 
 jobs:
   build:
