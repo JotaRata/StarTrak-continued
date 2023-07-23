@@ -12,14 +12,17 @@ class SessionType(Enum):
 cdef class FileInfo():
     cdef readonly str path
     cdef readonly int size
-    cdef readonly list headers
+    cdef readonly dict[str, str] header
     cdef bint validated
 
-    def FromHDU(hdu_list: fits.HDUList):
-        if hdu_list is None: raise TypeError("No HDU list was given")
-        path = hdu_list.filename()
+    def FromHDU(hdu: fits.HDUList):
+        if hdu is None: raise TypeError("No HDU list was given")
+        if len(hdu) == 0: raise TypeError("Invalid HDU")
+        ver = hdu.verify('fix')
+        path = hdu.filename()
         sbytes = os.path.getsize(path)
-        ver = hdu_list.verify('fix')
-        headers = [hdu.header for hdu in hdu_list]
 
-        return FileInfo(path, sbytes, ver, headers)
+        _header = hdu[0].header
+        header = {key : _header[key] for key in _header}
+
+        return FileInfo(path, sbytes, header, ver)
