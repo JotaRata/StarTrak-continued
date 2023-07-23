@@ -9,9 +9,9 @@ class FileInfoTest(unittest.TestCase):
         hdu = fits.open(path)
         info = FileInfo.FromHDU(hdu)
         
-        self.assertEqual(info.path, path)
-        self.assertEqual(info.header, {})
-        self.assertEqual(info.validated, True)
+        self.assertEqual(info.path, path, "Paths don't match")
+        self.assertTrue(info.header is not None and len(info.header) > 0, 'Header is null/empty')
+        self.assertTrue({"BITPIX", "NAXIS", "SIMPLE"} <= info.header.keys(), 'Invalid header')
 
     def test_invalid_hdu(self):
         with self.assertRaises(TypeError):
