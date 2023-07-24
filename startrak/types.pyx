@@ -32,8 +32,10 @@ cdef class FileInfo():
 @dataclass
 class SessionBase(ABC):
     sessionName : str
-    sessionTime : datetime
     sessionType : SessionType
+    workingDirectory : str = None
+    sessionTime : datetime = datetime.now()
+    fileArchetype : dict[str, str] = None
 
     @abstractstaticmethod
     def create(name, *args, **kwargs) -> SessionBase: pass
@@ -42,20 +44,18 @@ class SessionBase(ABC):
 
 @dataclass
 class InspectionSession(SessionBase):
-    source_files  : list[FileInfo]
+    source_files  : list[FileInfo] = None
     # Add stars, trackers, settings
     def create(name : str, source_files : list[FileInfo],*args, **kwargs) -> SessionBase:
         time =  datetime.utcnow()
-        return InspectionSession(name, time, SessionType.ASTRO_INSPECT
-                , source_files)
+        return InspectionSession(name, SessionType.ASTRO_INSPECT)
     def save(self, out : str):
         pass    # todo: Add logic for saving sessions
 @dataclass
 class ScanSession(SessionBase):
-    scandir : str
     def create(name, scan_dir, *args, **kwargs) -> SessionBase:
         time =  datetime.utcnow()
-        return ScanSession(name, time, SessionType.ASTRO_SCAN, scan_dir)
+        return ScanSession(name, SessionType.ASTRO_SCAN, scan_dir)
     def save(self, out):
         pass
 # -------------------------------------
