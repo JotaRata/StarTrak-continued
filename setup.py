@@ -1,14 +1,14 @@
-import os
-import sys
-from setuptools import setup
+from setuptools import setup, Extension
 from Cython.Build import cythonize
 
-os.chdir("./startrak")
+extensions = [
+    Extension("startrak.io", ["startrak/io.pyx"]),
+    Extension("startrak.types", ["startrak/types.pyx"])
+]
+
 setup(
     name= 'startrak',
-    ext_modules=cythonize([
-        "io.pyx",
-        "types.pyx",
-        # Add Cython-optimized files for submodules if needed
-    ]),
+    version="0.1",
+    ext_modules=cythonize(extensions),
+    zip_safe=False,
 )
