@@ -7,7 +7,7 @@ from startrak.types import FileInfo
 # ----- Wrapper functions around astropy.io --------
 def load_file(path: str, *args, **kwargs) -> FileInfo:
     with fits.open(path, *args, **kwargs) as hdu:
-        return FileInfo.FromHDU(hdu)
+        return FileInfo.fromHDU(hdu)
 
 def retrieve_data(fileInfo : FileInfo):
     return fits.getdata(fileInfo.path)
