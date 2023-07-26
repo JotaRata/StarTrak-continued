@@ -1,13 +1,14 @@
 import os
 from enum import Enum
 from datetime import datetime
-from abc import ABC, abstractmethod, abstractstaticmethod
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from astropy.io import fits
 
 class SessionType(Enum):
     ASTRO_SCAN = 1
     ASTRO_INSPECT = 2
+
 @dataclass(frozen=True)
 cdef class FileInfo():
     cdef readonly str path
@@ -29,33 +30,63 @@ cdef class FileInfo():
         return FileInfo(path, sbytes, header, ver)
 
 # ------------- Sessions --------------
-@dataclass
 class SessionBase(ABC):
-    sessionName : str
-    sessionType : SessionType
-    workingDirectory : str = None
-    sessionTime : datetime = datetime.now()
-    fileArchetype : dict[str, str] = None
+    currentSession : SessionBase = None
 
-    @abstractstaticmethod
-    def create(name, *args, **kwargs) -> SessionBase: pass
+    def __init__(self):
+        raise TypeError(f'{type(self).__name__} cannot be directly instantiated'+
+                        f'\nTry using {type(self).__name__}.Create()')
+
+    def __repr__(self) -> str:
+        return f'{type(self).__name__}: ' + str(", ".join(
+            [f'{k} = {v}' for k, v in self.__dict__.items()]))
+    
+    @staticmethod
+    def Create(sessionType : SessionType, name : str, *args, **kwargs):
+        session : SessionBase = None
+
+        if sessionType is SessionType.ASTRO_INSPECT:
+            session = object.__new__(InspectionSession).__post_init__()
+        elif sessionType is SessionType.ASTRO_SCAN:
+            session = object.__new__(ScanSession).__post_init__()
+        else: raise TypeError('Invalid case')
+
+        return session._create(name, *args, **kwargs)
+
+    def __post_init__(self):
+        self.name = 'New Session'
+        self.working_dir = ''
+        self.file_arch = None
+        self.creation_time = datetime.now()
+        return self
+    @abstractmethod
+    def _create(self, name, *args, **kwargs) -> SessionBase: pass
     @abstractmethod 
     def save(self, out): pass
 
-@dataclass
 class InspectionSession(SessionBase):
-    source_files  : list[FileInfo] = None
-    # Add stars, trackers, settings
-    def create(name : str, source_files : list[FileInfo],*args, **kwargs) -> SessionBase:
-        time =  datetime.utcnow()
-        return InspectionSession(name, SessionType.ASTRO_INSPECT)
+    def _create(session, name : str, *args, **kwargs) -> SessionBase:
+        session.name = name
+        session.source_files = []
+        return session
+
+    def add_file(self, file : FileInfo | list[FileInfo]):
+        if file is FileInfo:
+            self.source_files.append(file)
+        elif file is list:
+            self.source_files += file
+        else:
+            raise ValueError(type(file))
+    
     def save(self, out : str):
         pass    # todo: Add logic for saving sessions
-@dataclass
+
 class ScanSession(SessionBase):
-    def create(name, scan_dir, *args, **kwargs) -> SessionBase:
-        time =  datetime.utcnow()
-        return ScanSession(name, SessionType.ASTRO_SCAN, scan_dir)
+    def _create(session, name, scan_dir, *args, **kwargs) -> SessionBase:
+        session.name = name
+        session.working_dir = scan_dir
+        return session
+
     def save(self, out):
         pass
 # -------------------------------------
