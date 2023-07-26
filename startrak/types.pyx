@@ -5,10 +5,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from astropy.io import fits
 
-class SessionType(Enum):
-    ASTRO_SCAN = 1
-    ASTRO_INSPECT = 2
-
 @dataclass(frozen=True)
 cdef class FileInfo():
     cdef readonly str path
@@ -41,18 +37,6 @@ class SessionBase(ABC):
         return f'{type(self).__name__}: ' + str(", ".join(
             [f'{k} = {v}' for k, v in self.__dict__.items()]))
     
-    @staticmethod
-    def Create(sessionType : SessionType, name : str, *args, **kwargs):
-        session : SessionBase = None
-
-        if sessionType is SessionType.ASTRO_INSPECT:
-            session = object.__new__(InspectionSession).__post_init__()
-        elif sessionType is SessionType.ASTRO_SCAN:
-            session = object.__new__(ScanSession).__post_init__()
-        else: raise TypeError('Invalid case')
-
-        return session._create(name, *args, **kwargs)
-
     def __post_init__(self):
         self.name = 'New Session'
         self.working_dir = ''
