@@ -1,4 +1,4 @@
-from startrak.types import Session, InspectionSession, ScanSession
+from startrak.internals.types import Session, InspectionSession, ScanSession
 from startrak.utils import extension_method
 from enum import StrEnum
 

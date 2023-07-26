@@ -1,7 +1,6 @@
 import os
 import unittest
 from startrak.io import *
-from startrak.types import *
 
 paths = ["aefor4.fit", "aefor7.fit", "aefor16.fit", "aefor25.fit"]
 dir = "./tests/sample_files/"
