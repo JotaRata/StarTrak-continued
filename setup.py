@@ -1,10 +1,11 @@
 from setuptools import setup, Extension
 from Cython.Build import cythonize
+import os
+from os.path import relpath, splitext
 
-extensions = [
-    Extension("startrak.io", ["startrak/io.pyx"]),
-    Extension("startrak.types", ["startrak/types.pyx"])
-]
+cwd = os.getcwd() + '/startrak'
+extensions = [Extension("startrak." + splitext(path)[0], ['startrak/' + path ]) 
+              for path in os.listdir(cwd) if path.endswith('.pyx')]
 
 setup(
     name= 'startrak',
