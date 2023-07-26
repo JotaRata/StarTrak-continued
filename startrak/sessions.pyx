@@ -1,4 +1,4 @@
-from startrak.types import SessionBase, InspectionSession, ScanSession
+from startrak.types import Session, InspectionSession, ScanSession
 from startrak.utils import extension_method
 from enum import StrEnum
 
@@ -7,7 +7,7 @@ class SessionType(StrEnum):
 		ASTRO_INSPECT = 'inspect'
 		ASTRO_SCAN = 'scan'
 		
-@extension_method(SessionBase, static=True)
+@extension_method(Session, static=True)
 def Create(sessionType : SessionType, name : str, *args, **kwargs):
 		'''
 			Extesion factory method to create sessions using the SessionType enum
@@ -18,7 +18,7 @@ def Create(sessionType : SessionType, name : str, *args, **kwargs):
 
 			- name (str): Name of the new session.
 		'''
-		session : SessionBase = None
+		session : Session = None
 		if sessionType == SessionType.ASTRO_INSPECT:
 				session = object.__new__(InspectionSession).__post_init__()
 		elif sessionType == SessionType.ASTRO_SCAN:

@@ -26,8 +26,8 @@ cdef class FileInfo():
         return FileInfo(path, sbytes, header, ver)
 
 # ------------- Sessions --------------
-class SessionBase(ABC):
-    currentSession : SessionBase = None
+class Session(ABC):
+    currentSession : Session = None
 
     def __init__(self):
         raise TypeError(f'{type(self).__name__} cannot be directly instantiated'+
@@ -44,12 +44,12 @@ class SessionBase(ABC):
         self.creation_time = datetime.now()
         return self
     @abstractmethod
-    def _create(self, name, *args, **kwargs) -> SessionBase: pass
+    def _create(self, name, *args, **kwargs) -> Session: pass
     @abstractmethod 
     def save(self, out): pass
 
-class InspectionSession(SessionBase):
-    def _create(session, name : str, *args, **kwargs) -> SessionBase:
+class InspectionSession(Session):
+    def _create(session, name : str, *args, **kwargs) -> Session:
         session.name = name
         session.source_files = []
         return session
@@ -65,8 +65,8 @@ class InspectionSession(SessionBase):
     def save(self, out : str):
         pass    # todo: Add logic for saving sessions
 
-class ScanSession(SessionBase):
-    def _create(session, name, scan_dir, *args, **kwargs) -> SessionBase:
+class ScanSession(Session):
+    def _create(session, name, scan_dir, *args, **kwargs) -> Session:
         session.name = name
         session.working_dir = scan_dir
         return session
