@@ -20,7 +20,7 @@ def create_session(sessionType : SessionType, name : str, *args, **kwargs) -> Se
 
 			- name (str): Name of the new session.
 		'''
-		session : Session = None
+		session : Session
 		if sessionType == SessionType.ASTRO_INSPECT:
 				session = object.__new__(_inspect).__post_init__()
 		elif sessionType == SessionType.ASTRO_SCAN:

@@ -3,32 +3,34 @@ from enum import Enum
 from datetime import datetime
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any
-from astropy.io import fits
+from typing import Any, cast
+from astropy.io.fits import Header, HDUList
+from astropy.io.fits.convenience import PrimaryHDU
 
 @dataclass(frozen=True)
 cdef class FileInfo():
     cdef readonly str path
     cdef readonly int size
     cdef readonly dict[str, str] header
-    cdef bint validated
 
     @staticmethod
-    def fromHDU(hdu: fits.HDUList):
-        if hdu is None: raise TypeError("No HDU list was given")
-        if len(hdu) == 0: raise TypeError("Invalid HDU")
-        ver = hdu.verify('fix')
-        path = hdu.filename()
+    def fromHDU(hduList: HDUList | Any):
+        if hduList is None: raise TypeError("No HDU list was given")
+        if len(hduList) == 0: raise TypeError("Invalid HDU")
+        path = hduList.filename()
+        hdu = hduList[0]
+        assert isinstance(path, str)
+        assert isinstance(hdu, PrimaryHDU)
+
         sbytes = os.path.getsize(path)
+        _header = hdu.header
 
-        _header = hdu[0].header
-        header = {key : _header[key] for key in _header}
-
-        return FileInfo(path, sbytes, header, ver)
+        header = {cast(str, key) : cast(str, _header[key]) for key in _header}
+        return FileInfo(path, sbytes, header)
 
 # ------------- Sessions --------------
 class Session(ABC):
-    currentSession : Session = None
+    currentSession : Session
 
     def __init__(self):
         raise TypeError(f'{type(self).__name__} cannot be directly instantiated'+

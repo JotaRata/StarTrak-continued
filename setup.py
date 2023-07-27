@@ -1,6 +1,6 @@
 from setuptools import setup, Extension
 from Cython.Build import cythonize
-import os
+import os	
 from os.path import relpath, splitext, join
 
 def scan_files():

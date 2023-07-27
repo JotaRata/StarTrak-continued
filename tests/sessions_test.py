@@ -40,7 +40,7 @@ class SessionTests(unittest.TestCase):
 
 	def test_invalid_case(self):
 		with self.assertRaises(TypeError):
-			session = Session.Create('invalid')
+			session = Session.Create('invalid', 'Invalid Session') # type: ignore
 
 if __name__ == '__main__':
 		unittest.main()
