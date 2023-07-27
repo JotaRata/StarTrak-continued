@@ -8,13 +8,13 @@ class SessionType(StrEnum):
 		ASTRO_SCAN = 'scan'
 		
 @extension_method(Session, static=True)
-def Create(sessionType : SessionType, name : str, *args, **kwargs):
+def Create(sessionType : SessionType, name : str, *args, **kwargs) -> Session:
 		'''
 			Extesion factory method to create sessions using the SessionType enum
 			Parameters:
 			- sessionType (SessionType): The type of the new session. Accepted values are:
-				- - SessionType.ASTRO_INSPECT = Analyze already saved files in the disk
-				- - SessionType.ASTRO_SCAN = Load and Analyze files as they are being created in a folder
+				- - SessionType.ASTRO_INSPECT ('inspect') = Analyze already saved files in the disk
+				- - SessionType.ASTRO_SCAN ('scan') = Load and Analyze files as they are being created in a folder
 
 			- name (str): Name of the new session.
 		'''
