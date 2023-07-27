@@ -3,6 +3,7 @@ from enum import Enum
 from datetime import datetime
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Any
 from astropy.io import fits
 
 @dataclass(frozen=True)
@@ -39,10 +40,23 @@ class Session(ABC):
     
     def __post_init__(self):
         self.name = 'New Session'
-        self.working_dir = ''
+        self.working_dir : str
+        self.tracked_items : set[FileInfo]
         self.file_arch = None
         self.creation_time = datetime.now()
         return self
+
+    def add_item(self, item : Any | list): 
+        _items = item if type(item) is list else [item]
+        _added = {_item for _item in _items if type(_item) is FileInfo}
+        self.tracked_items |= _added
+        # todo: raise warning if no items were added
+
+    def remove_item(self, item : Any | list): 
+        _items = item if type(item) is list else [item]
+        _removed = {_item for _item in _items if type(_item) is FileInfo}
+        self.tracked_items -= _removed
+    
     @abstractmethod
     def _create(self, name, *args, **kwargs) -> Session: pass
     @abstractmethod 
@@ -54,14 +68,7 @@ class InspectionSession(Session):
         session.source_files = []
         return session
 
-    def add_file(self, file : FileInfo | list[FileInfo]):
-        if file is FileInfo:
-            self.source_files.append(file)
-        elif file is list:
-            self.source_files += file
-        else:
-            raise ValueError(type(file))
-    
+
     def save(self, out : str):
         pass    # todo: Add logic for saving sessions
 
@@ -69,8 +76,9 @@ class ScanSession(Session):
     def _create(session, name, scan_dir, *args, **kwargs) -> Session:
         session.name = name
         session.working_dir = scan_dir
+        session.tracked_files = []
         return session
-
+    
     def save(self, out):
         pass
 # -------------------------------------
