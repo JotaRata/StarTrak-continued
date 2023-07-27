@@ -50,24 +50,31 @@ class Session(ABC):
         _items = item if type(item) is list else [item]
         _added = {_item for _item in _items if type(_item) is FileInfo}
         self.tracked_items |= _added
+        self.__item_added__(_added)
         # todo: raise warning if no items were added
 
     def remove_item(self, item : Any | list): 
         _items = item if type(item) is list else [item]
         _removed = {_item for _item in _items if type(_item) is FileInfo}
         self.tracked_items -= _removed
+        self.__item_removed__(_removed)
     
     @abstractmethod
     def _create(self, name, *args, **kwargs) -> Session: pass
+    @abstractmethod
+    def __item_added__(self, added): pass
+    @abstractmethod
+    def __item_removed__(self, removed): pass
     @abstractmethod 
     def save(self, out): pass
 
 class InspectionSession(Session):
     def _create(session, name : str, *args, **kwargs) -> Session:
         session.name = name
-        session.source_files = []
         return session
 
+    def __item_added__(self, added): pass
+    def __item_removed__(self, removed): pass
 
     def save(self, out : str):
         pass    # todo: Add logic for saving sessions
@@ -76,9 +83,11 @@ class ScanSession(Session):
     def _create(session, name, scan_dir, *args, **kwargs) -> Session:
         session.name = name
         session.working_dir = scan_dir
-        session.tracked_files = []
         return session
-    
+
+    def __item_added__(self, added): pass
+    def __item_removed__(self, removed): pass
+
     def save(self, out):
         pass
 # -------------------------------------
