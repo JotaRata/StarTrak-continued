@@ -1,6 +1,7 @@
 __unittest = True
 
-import unittest 
+import unittest
+from startrak.internals.exceptions import InstantiationError 
 from startrak.sessions import Session, SessionType
 from startrak.internals.types import *
 
@@ -32,10 +33,10 @@ class SessionTests(unittest.TestCase):
 
 # ------------- Test for exceptions ---------------
 	def test_direct_ctor(self):
-		with self.assertRaises(TypeError, msg= 'InspectionSession didnt fail'):
+		with self.assertRaises(InstantiationError, msg= 'InspectionSession didnt fail'):
 			session = InspectionSession()
 
-		with self.assertRaises(TypeError, msg= 'ScanSession didnt fail'):
+		with self.assertRaises(InstantiationError, msg= 'ScanSession didnt fail'):
 			session = ScanSession()
 
 	def test_invalid_case(self):

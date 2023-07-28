@@ -1,5 +1,6 @@
 import os
 from enum import Enum
+from startrak.internals.exceptions import *
 from datetime import datetime
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -40,7 +41,7 @@ cdef class Header():
     def __getattr__(self, __name: str) -> Any:
         return self.items[__name]
     def __setattr__(self, __name: str, __value: Any) -> None:
-        raise ValueError('Header class is immutable')
+        raise ImmutableError(self)
     def __repr__(self) -> str:
         return '\n'.join([f'{k} = {v}' for k,v in self.items.items()])
 
@@ -62,8 +63,7 @@ class Session(ABC):
     currentSession : Session
 
     def __init__(self):
-        raise TypeError(f'{type(self).__name__} cannot be directly instantiated'+
-                        f'\nTry using {type(self).__name__}.Create()')
+        raise InstantiationError(self, 'Session.Create')
 
     def __repr__(self) -> str:
         return f'{type(self).__name__}: ' + str(", ".join(
