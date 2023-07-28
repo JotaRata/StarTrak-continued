@@ -44,7 +44,7 @@ cdef class Header():
     def __repr__(self) -> str:
         return '\n'.join([f'{k} = {v}' for k,v in self.items.items()])
 
-cdef class FileArchetype(Header):
+cdef class HeaderArchetype(Header):
     def __init__(self, source : fits.Header | dict) -> None:
         _simple = source['SIMPLE'] == 1
         _bitpix = int(source['BITPIX'])
@@ -72,7 +72,7 @@ class Session(ABC):
     def __post_init__(self):
         self.name = 'New Session'
         self.working_dir : str
-        self.file_arch : FileArchetype
+        self.file_arch : HeaderArchetype
         self.tracked_items : set[FileInfo]
         self.creation_time = datetime.now()
         return self
