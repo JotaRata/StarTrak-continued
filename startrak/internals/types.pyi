@@ -13,6 +13,14 @@ class FileInfo():
 		@staticmethod
 		def fromHDU(hdu: HDUList) -> FileInfo: ...
 
+class FileArchetype():
+    '''Lightweight version of a FITS Header to store and compare critical keywords present in files'''
+    SIMPLE : bool
+    BITPIX : int
+    NAXIS : int
+    EXPTIME : float
+    NAXISn : tuple
+
 class Session():
 		currentSession : Session
 

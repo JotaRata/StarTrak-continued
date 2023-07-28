@@ -28,6 +28,26 @@ cdef class FileInfo():
         header = {cast(str, key) : cast(str, _header[key]) for key in _header}
         return FileInfo(path, sbytes, header)
 
+cdef class FileArchetype():
+    cdef readonly bint SIMPLE
+    cdef readonly int BITPIX
+    cdef readonly int NAXIS
+    cdef readonly float EXPTIME
+    cdef readonly tuple NAXISn
+    cdef dict items
+    
+    def __init__(self, header : Header) -> None:
+        self.SIMPLE = header['SIMPLE'] == 1
+        self.BITPIX = int(header['BITPIX'])
+        self.NAXIS = int(header['NAXIS'])
+        self.EXPTIME = float(header['EXPTIME'])
+        self.NAXISn = tuple(int(header[f'NAXIS{n + 1}']) for n in range(self.NAXIS))
+        self.items = {'SIMPLE':self.SIMPLE, 'BITPIX':self.BITPIX,
+                        'NAXIS':self.NAXIS, 'EXPTIME':self.EXPTIME}
+        for n in range(self.NAXIS): self.items[f'NAXIS{n+1}'] = self.NAXISn[n]
+
+    def __repr__(self) -> str:
+        return '\n'.join([f'{k} = {v}' for k,v in self.items.items()])
 # ------------- Sessions --------------
 class Session(ABC):
     currentSession : Session
@@ -43,8 +63,8 @@ class Session(ABC):
     def __post_init__(self):
         self.name = 'New Session'
         self.working_dir : str
+        self.file_arch : FileArchetype
         self.tracked_items : set[FileInfo]
-        self.file_arch = None
         self.creation_time = datetime.now()
         return self
 
