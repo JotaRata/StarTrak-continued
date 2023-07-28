@@ -4,8 +4,7 @@ from datetime import datetime
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, cast
-from astropy.io.fits import Header, HDUList
-from astropy.io.fits.convenience import PrimaryHDU
+from astropy.io import fits
 
 @dataclass(frozen=True)
 cdef class FileInfo():
@@ -14,13 +13,13 @@ cdef class FileInfo():
     cdef readonly dict[str, str] header
 
     @staticmethod
-    def fromHDU(hduList: HDUList | Any):
+    def fromHDU(hduList: fits.HDUList | Any):
         if hduList is None: raise TypeError("No HDU list was given")
         if len(hduList) == 0: raise TypeError("Invalid HDU")
         path = hduList.filename()
         hdu = hduList[0]
         assert isinstance(path, str)
-        assert isinstance(hdu, PrimaryHDU)
+        assert isinstance(hdu, fits.PrimaryHDU)
 
         sbytes = os.path.getsize(path)
         _header = hdu.header
@@ -28,26 +27,36 @@ cdef class FileInfo():
         header = {cast(str, key) : cast(str, _header[key]) for key in _header}
         return FileInfo(path, sbytes, header)
 
-cdef class FileArchetype():
-    cdef readonly bint SIMPLE
-    cdef readonly int BITPIX
-    cdef readonly int NAXIS
-    cdef readonly float EXPTIME
-    cdef readonly tuple NAXISn
-    cdef dict items
-    
-    def __init__(self, header : Header) -> None:
-        self.SIMPLE = header['SIMPLE'] == 1
-        self.BITPIX = int(header['BITPIX'])
-        self.NAXIS = int(header['NAXIS'])
-        self.EXPTIME = float(header['EXPTIME'])
-        self.NAXISn = tuple(int(header[f'NAXIS{n + 1}']) for n in range(self.NAXIS))
-        self.items = {'SIMPLE':self.SIMPLE, 'BITPIX':self.BITPIX,
-                        'NAXIS':self.NAXIS, 'EXPTIME':self.EXPTIME}
-        for n in range(self.NAXIS): self.items[f'NAXIS{n+1}'] = self.NAXISn[n]
+ctypedef fused HeaderType:
+    int
+    float
+    bint
+    str
 
+cdef class Header():
+    cdef dict[str, HeaderType] items
+    def __init__(self, source : fits.Header | dict):
+        self.items = {cast(str, key) : source[key] for key in source}
+    def __getattr__(self, __name: str) -> Any:
+        return self.items[__name]
+    def __setattr__(self, __name: str, __value: Any) -> None:
+        raise ValueError('Header class is immutable')
     def __repr__(self) -> str:
         return '\n'.join([f'{k} = {v}' for k,v in self.items.items()])
+
+cdef class FileArchetype(Header):
+    def __init__(self, source : fits.Header | dict) -> None:
+        _simple = source['SIMPLE'] == 1
+        _bitpix = int(source['BITPIX'])
+        _naxis = int(source['NAXIS'])
+        _exptime = float(source['EXPTIME'])
+        _naxisn = tuple(int(source[f'NAXIS{n + 1}']) for n in range(self.NAXIS))
+        
+        self.items = {'SIMPLE':_simple, 'BITPIX':_bitpix,
+                        'NAXIS':_naxis, 'EXPTIME':_exptime}
+        for n in range(_naxis): self.items[f'NAXIS{n+1}'] = _naxisn[n]
+
+
 # ------------- Sessions --------------
 class Session(ABC):
     currentSession : Session
