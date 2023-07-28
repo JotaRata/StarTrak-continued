@@ -28,16 +28,12 @@ cdef class FileInfo():
         header = {cast(str, key) : cast(str, _header[key]) for key in _header}
         return FileInfo(path, sbytes, header)
 
-ctypedef fused HeaderType:
-    int
-    float
-    bint
-    str
-
 cdef class Header():
-    cdef dict[str, HeaderType] items
+    cdef dict items
     def __init__(self, source : fits.Header | dict):
-        self.items = {cast(str, key) : source[key] for key in source}
+        allowed_types = (int, bool, float, str)
+        self.items = {str(key) : value for key, value in source.items() 
+            if type(value) in allowed_types}
     def __getattr__(self, __name: str) -> Any:
         return self.items[__name]
     def __setattr__(self, __name: str, __value: Any) -> None:
