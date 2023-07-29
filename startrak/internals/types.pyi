@@ -1,25 +1,24 @@
 # Stubs file for ./types.pyx
 from datetime import datetime
-from typing import Any, Literal
-from astropy.io.fits import HDUList
+from typing import Any, Callable, Literal
+from astropy.io import fits
 
 from startrak.sessions import SessionType
 
 class FileInfo():
 		path : str
 		size : int
-		header : dict[str, str]
+		header : Header
 		
 		@staticmethod
-		def fromHDU(hdu: HDUList) -> FileInfo: ...
+		def fromHDU(hdu: fits.HDUList) -> FileInfo: ...
 
-class FileArchetype():
-    '''Lightweight version of a FITS Header to store and compare critical keywords present in files'''
-    SIMPLE : bool
-    BITPIX : int
-    NAXIS : int
-    EXPTIME : float
-    NAXISn : tuple
+class Header():
+	'''Lightweight version of an astropy header'''
+	def __init__(self, source : fits.Header | dict): ...
+
+class HeaderArchetype(Header):
+	def validate(self, header : Header, failed : Callable[[str, Any, Any]] = None) -> bool: ...
 
 class Session():
 		currentSession : Session
@@ -27,7 +26,7 @@ class Session():
 		name : str
 		working_dir : str
 		tracked_items : set[FileInfo]
-		file_arch : Any
+		archetype : HeaderArchetype
 		creation_time : datetime
 
 		def __post_init__(self): ...
