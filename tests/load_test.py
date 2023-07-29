@@ -16,7 +16,9 @@ class FileLoadingTest(unittest.TestCase):
         info = load_file(dir + paths[0])
         self.assertEqual(info.path, dir + paths[0], "Paths don't match")
         self.assertTrue(info.header is not None and isinstance(info.header, Header), 'Header is null/empty')
-        self.assertTrue({"BITPIX", "NAXIS", "SIMPLE"} <= info.header.keys(), 'Invalid header')
+        self.assertTrue(info.header.contains_key("SIMPLE"), 'Invalid header')
+        self.assertTrue(info.header.contains_key("BITPIX"), 'Invalid header')
+        self.assertTrue(info.header.contains_key("NAXIS"), 'Invalid header')
 
     def test_load_multiple(self):
         infos = list(load_folder(dir))

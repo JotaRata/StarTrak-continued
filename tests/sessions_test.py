@@ -34,15 +34,22 @@ class SessionTests(unittest.TestCase):
 		self.assertEqual(session.name, sessionName)
 		self.assertEqual(session.working_dir, testDir)
 	
+	def test_inspect_tracked(self):
+		session = Session.Create('inspect', sessionName)
+		self.assertTrue(hasattr(session, 'tracked_items'))
+	def test_scan_tracked(self):
+		session = Session.Create('scan', sessionName, testDir)
+		self.assertTrue(hasattr(session, 'tracked_items'))
+
 	def test_session_load_file(self):
 			s = Session.Create('inspect', 'Test session')
 			s.add_item(load_file(dir + paths[0]))
-			self.assertEqual(1, s.tracked_items)
+			self.assertEqual(1, len(s.tracked_items))
 
 	def test_session_load_folder(self):
 			s = Session.Create('inspect', 'Test session')
 			s.add_item(list(load_folder(dir)))
-			self.assertEqual(len(paths), s.tracked_items)
+			self.assertEqual(len(paths), len(s.tracked_items))
 # ------------- Test for exceptions ---------------
 	def test_direct_ctor(self):
 		with self.assertRaises(InstantiationError, msg= 'InspectionSession didnt fail'):

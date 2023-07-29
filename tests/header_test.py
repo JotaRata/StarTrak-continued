@@ -10,6 +10,10 @@ class HeaderTest(unittest.TestCase):
 			f = load_file(dir + paths[0])
 			self.assertIsInstance(f.header, Header)
 		
+		def test_get_from_header(self):
+			f = load_file(dir + paths[0])
+			self.assertIsNotNone(f.header['SIMPLE'])
+		
 		def test_archetype(self):
 			f = load_file(dir + paths[0])
 			arch = HeaderArchetype(f.header)
