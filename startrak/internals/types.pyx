@@ -15,6 +15,11 @@ cdef class Header():
         allowed_types = (int, bool, float, str)
         self._items = {str(key) : value for key, value in source.items() 
             if type(value) in allowed_types}
+    
+    def contains_key(self, key : str):
+        return key in self._items.keys()
+    def __getitem__(self, key : str):
+        return self._items[key]
     def __getattr__(self, __name: str) -> Any:
         return self._items[__name]
     def __setattr__(self, __name: str, __value: Any) -> None:
@@ -23,12 +28,12 @@ cdef class Header():
         return '\n'.join([f'{k} = {v}' for k,v in self._items.items()])
 
 cdef class HeaderArchetype(Header):
-    def __init__(self, source : fits.Header | dict) -> None:
+    def __init__(self, source : Header | dict) -> None:
         _simple = source['SIMPLE'] == 1
         _bitpix = int(source['BITPIX'])
         _naxis = int(source['NAXIS'])
         _exptime = float(source['EXPTIME'])
-        _naxisn = tuple(int(source[f'NAXIS{n + 1}']) for n in range(self.NAXIS))
+        _naxisn = tuple(int(source[f'NAXIS{n + 1}']) for n in range(_naxis))
         
         self._items = {'SIMPLE':_simple, 'BITPIX':_bitpix,
                         'NAXIS':_naxis, 'EXPTIME':_exptime}
@@ -76,9 +81,9 @@ class Session(ABC):
     
     def __post_init__(self):
         self.name = 'New Session'
-        self.working_dir : str
-        self.archetype : HeaderArchetype
-        self.tracked_items : set[FileInfo]
+        self.working_dir : str = str()
+        self.archetype : HeaderArchetype = None
+        self.tracked_items : set[FileInfo] = set()
         self.creation_time = datetime.now()
         return self
 
@@ -86,7 +91,7 @@ class Session(ABC):
         _items = item if type(item) is list else [item]
         _added = {_item for _item in _items if type(_item) is FileInfo}
         if len(self.tracked_items) == 0:
-            first = _added[0]
+            first = next(iter(_added))
             assert isinstance(first, FileInfo)
             self.set_archetype(first.header)
         
