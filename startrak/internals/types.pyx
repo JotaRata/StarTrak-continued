@@ -75,7 +75,7 @@ class Session(ABC):
     def __post_init__(self):
         self.name = 'New Session'
         self.working_dir : str
-        self.file_arch : HeaderArchetype
+        self.archetype : HeaderArchetype
         self.tracked_items : set[FileInfo]
         self.creation_time = datetime.now()
         return self
@@ -99,8 +99,8 @@ class Session(ABC):
         self.__item_removed__(_removed)
     
     def set_archetype(self, header : Header):
-        if header is None: self.file_arch = None
-        self.file_arch = HeaderArchetype(header)
+        if header is None: self.archetype = None
+        self.archetype = HeaderArchetype(header)
     @abstractmethod
     def _create(self, name, *args, **kwargs) -> Session: pass
     @abstractmethod
