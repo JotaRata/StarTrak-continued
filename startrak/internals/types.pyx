@@ -8,27 +8,7 @@ from dataclasses import dataclass
 from typing import Any, cast, Callable
 from astropy.io import fits
 
-@dataclass(frozen=True)
-cdef class FileInfo():
-    cdef readonly str path
-    cdef readonly int size
-    cdef readonly dict[str, str] header
-
-    @staticmethod
-    def fromHDU(hduList: fits.HDUList | Any):
-        if hduList is None: raise TypeError("No HDU list was given")
-        if len(hduList) == 0: raise TypeError("Invalid HDU")
-        path = hduList.filename()
-        hdu = hduList[0]
-        assert isinstance(path, str)
-        assert isinstance(hdu, fits.PrimaryHDU)
-
-        sbytes = os.path.getsize(path)
-        _header = hdu.header
-
-        header = {cast(str, key) : cast(str, _header[key]) for key in _header}
-        return FileInfo(path, sbytes, header)
-
+# ---------------------- Headers -------------------------------
 cdef class Header():
     cdef dict _items
     def __init__(self, source : fits.Header | dict):
@@ -60,6 +40,28 @@ cdef class HeaderArchetype(Header):
                 if callable(failed): failed(key, value, header._items[key])
                 return False
         return True
+
+# -------------- Files ----------------
+@dataclass(frozen=True)
+cdef class FileInfo():
+    cdef readonly str path
+    cdef readonly int size
+    cdef readonly Header header
+
+    @staticmethod
+    def fromHDU(hduList: fits.HDUList | Any):
+        if hduList is None: raise TypeError("No HDU list was given")
+        if len(hduList) == 0: raise TypeError("Invalid HDU")
+        path = hduList.filename()
+        hdu = hduList[0]
+        assert isinstance(path, str)
+        assert isinstance(hdu, fits.PrimaryHDU)
+
+        sbytes = os.path.getsize(path)
+        _header = hdu.header
+        
+        header = Header(_header)
+        return FileInfo(path, sbytes, header)
 
 # ------------- Sessions --------------
 class Session(ABC):
