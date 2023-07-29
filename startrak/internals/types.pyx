@@ -76,6 +76,11 @@ class Session(ABC):
     def add_item(self, item : Any | list): 
         _items = item if type(item) is list else [item]
         _added = {_item for _item in _items if type(_item) is FileInfo}
+        if len(self.tracked_items) == 0:
+            first = _added[0]
+            assert isinstance(first, FileInfo)
+            self.set_archetype(first.header)
+        
         self.tracked_items |= _added
         self.__item_added__(_added)
         # todo: raise warning if no items were added
@@ -86,6 +91,9 @@ class Session(ABC):
         self.tracked_items -= _removed
         self.__item_removed__(_removed)
     
+    def set_archetype(self, header : Header):
+        if header is None: self.file_arch = None
+        self.file_arch = HeaderArchetype(header)
     @abstractmethod
     def _create(self, name, *args, **kwargs) -> Session: pass
     @abstractmethod
