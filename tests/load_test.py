@@ -1,5 +1,6 @@
 import os
 import unittest
+from startrak.internals.types import Header
 from startrak.io import *
 
 paths = ["aefor4.fit", "aefor7.fit", "aefor16.fit", "aefor25.fit"]
@@ -14,7 +15,7 @@ class FileLoadingTest(unittest.TestCase):
     def test_load_single(self):
         info = load_file(dir + paths[0])
         self.assertEqual(info.path, dir + paths[0], "Paths don't match")
-        self.assertTrue(info.header is not None and len(info.header) > 0, 'Header is null/empty')
+        self.assertTrue(info.header is not None and isinstance(info.header, Header), 'Header is null/empty')
         self.assertTrue({"BITPIX", "NAXIS", "SIMPLE"} <= info.header.keys(), 'Invalid header')
 
     def test_load_multiple(self):
@@ -23,7 +24,7 @@ class FileLoadingTest(unittest.TestCase):
         for i, info in enumerate(infos):
             self.assertIsInstance(info, FileInfo, "Object is not FileInfo")
             self.assertTrue(info.path is not None and len(info.path) > len(dir))
-            self.assertTrue(info.header is not None and len(info.header) > 0, 'Header is null/empty')
+            self.assertTrue(info.header is not None and isinstance(info.header, Header), 'Header is null/empty')
 
 if __name__ == "__main__":
     unittest.main()

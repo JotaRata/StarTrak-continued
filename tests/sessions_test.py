@@ -4,10 +4,13 @@ import unittest
 from startrak.internals.exceptions import InstantiationError 
 from startrak.sessions import Session, SessionType
 from startrak.internals.types import *
+from startrak.io import *
 
 sessionName = 'Test Session'
 testDir = '/test/'
 
+paths = ["aefor4.fit", "aefor7.fit", "aefor16.fit", "aefor25.fit"]
+dir = "./tests/sample_files/"
 class SessionTests(unittest.TestCase):
 
 	def test_literal_eq(self):
@@ -30,7 +33,16 @@ class SessionTests(unittest.TestCase):
 		self.assertIsInstance(session, Session)
 		self.assertEqual(session.name, sessionName)
 		self.assertEqual(session.working_dir, testDir)
+	
+	def test_session_load_file(self):
+			s = Session.Create('inspect', 'Test session')
+			s.add_item(load_file(dir + paths[0]))
+			self.assertEqual(1, s.tracked_items)
 
+	def test_session_load_folder(self):
+			s = Session.Create('inspect', 'Test session')
+			s.add_item(list(load_folder(dir)))
+			self.assertEqual(len(paths), s.tracked_items)
 # ------------- Test for exceptions ---------------
 	def test_direct_ctor(self):
 		with self.assertRaises(InstantiationError, msg= 'InspectionSession didnt fail'):
