@@ -10,6 +10,10 @@ class Event():
 		if function in self._methods: self._methods.remove(function)
 	def __call__(self, *args, **kwagrs):
 		for function in self._methods: function(*args, **kwagrs)
+	def __len__(self):
+		return self._methods.__len__()
+	def __repr__(self) -> str:
+		return f'{type(self).__name__} object with {self.__len__()} bound methods.'
 	
 class NamedEvent(Event):
 	_named_events = dict[str, Event]()
@@ -23,7 +27,7 @@ class NamedEvent(Event):
 	def forget(self):
 		NamedEvent._named_events.pop(self.name)
 	def __repr__(self) -> str:
-		return self.name +' : '+super().__repr__()
+		return f'{super().__repr__()} ({self.name = })'
 	
 	@staticmethod
 	def get_events():
@@ -45,7 +49,9 @@ class NamedEvent(Event):
 			NamedEvent._named_events[named_event].add(function)
 		else:
 			NamedEvent(named_event, function)
-	
+
+def get_named_events():
+		return list(NamedEvent._named_events.values())
 def get_event(name : str):
 	return NamedEvent.get_event(name)
 
