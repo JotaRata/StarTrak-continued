@@ -2,6 +2,18 @@ from typing import Callable
 
 
 class Event():
+	'''
+		### Event handler
+		Event handler class to delegate calls to other functions, use the event.add() method to subsribe a function to this event
+
+		Example:
+		```
+			def f(x): print(x)
+			def g(x): print(x + 1)
+			event = Event(f, g) # or use event.add
+			event(1) # prints: 1  2
+		```
+	'''
 	def __init__(self, *method_list):
 		self._methods : list = list(method_list)
 	def add(self, function : Callable):
@@ -16,6 +28,29 @@ class Event():
 		return f'{type(self).__name__} object with {self.__len__()} bound methods.'
 	
 class NamedEvent(Event):
+	'''
+		Use this class to create globally accessed singleton events using a name
+
+		Creating a NamedEvent will automatically register the event, you can use the default constuctor NamedEvent(name, *functions) but it's recommended to use the decorator '@called_by' from startrak.utils.
+
+		You can call a named event by using the method call_event(name), an event can be unregistered using the forget() method.
+
+		Example 1:
+		```
+			def f(x): print(x)
+			event = NamedEvent('my_event', f)
+			NamedEvent.call_event('my_event', 2) # you can also use event(2)
+		```
+		Example 2 (shortcut):
+		```
+			from startrak.utils import called_by
+			from startrak.events import call_event
+			# event will be created if it doesn't exist
+			@called_by('my_event')
+			def f(x): print(x)
+			call_event('my_event', 2) # prints: 2
+		```
+	'''
 	_named_events = dict[str, Event]()
 
 	def __init__(self, name : str, *method_list):
