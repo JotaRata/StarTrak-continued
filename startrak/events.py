@@ -3,7 +3,7 @@ from typing import Callable
 
 class Event():
 	def __init__(self, *method_list):
-		self._methods : list = method_list
+		self._methods : list = list(method_list)
 	def add(self, function : Callable):
 		if callable(function): self._methods.append(function)
 	def remove(self, function : callable):
@@ -49,8 +49,8 @@ class NamedEvent(Event):
 def get_event(name : str):
 	return NamedEvent.get_event(name)
 
-def call_event(name : str):
-	NamedEvent.call_event(name)
+def call_event(name : str, *args, **kwargs):
+	NamedEvent.call_event(name, *args, **kwargs)
 
 def register_to(named_event : str, function : Callable):
 	NamedEvent.register_to(named_event, function)
