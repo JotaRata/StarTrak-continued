@@ -71,7 +71,13 @@ cdef class FileInfo():
 # ------------- Sessions --------------
 class Session(ABC):
     currentSession : Session
-
+    
+    #@self.name = 'New Session'
+    #@self.working_dir : str 
+    #@self.archetype : HeaderArchetype 
+    #@self.tracked_items : set[FileInfo]
+    #@self.creation_time = datetime.now()
+    
     def __init__(self):
         raise InstantiationError(self, 'Session.Create')
 
