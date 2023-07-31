@@ -1,45 +1,45 @@
-# Stubs file for ./types.pyx
+# Auto generated stub
+# file: "c:\Users\jjbar\Documents\GitHub\StarTrak-continued/startrak\internals\types.pyx"
+
+from operator import call
+import os
+from enum import Enum
+from startrak.internals.exceptions import *
 from datetime import datetime
-from typing import Any, Callable, Literal
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import Any, cast, Callable
 from astropy.io import fits
-
-from startrak.sessions import SessionType
-
-class FileInfo():
-		path : str
-		size : int
-		header : Header
-		
-		@staticmethod
-		def fromHDU(hdu: fits.HDUList) -> FileInfo: ...
+# ---------------------- Headers -------------------------------
 
 class Header():
-	'''Lightweight version of an astropy header'''
-	def __init__(self, source : fits.Header | dict[str, Any]): ...
-	def contains_key(self, key : str) -> bool: ...
-	def __getitem__(self, key : str) -> Any: ...
-	def __getattr__(self, __name: str) -> Any: ...
+    def __init__(self, source : fits.Header | dict): ...
+
 class HeaderArchetype(Header):
-	def validate(self, header : Header, failed : Callable[[str, Any, Any]] = None) -> bool: ...
+    def __init__(self, source : Header | dict) -> None: ...
+    def validate(self, header : Header, failed : Callable[[str, Any, Any]] = None): ...
+# -------------- Files ----------------
 
-class Session():
-		currentSession : Session
+class FileInfo():
+    path : str
+    size : int
+    header : Header
+    def fromHDU(hduList: fits.HDUList | Any): ...
+# ------------- Sessions --------------
 
-		name : str
-		working_dir : str
-		tracked_items : set[FileInfo]
-		archetype : HeaderArchetype
-		creation_time : datetime
+class Session(ABC):
+    name = 'New Session'
+    working_dir : str 
+    archetype : HeaderArchetype 
+    tracked_items : set[FileInfo]
+    creation_time = datetime.now()
+    def __init__(self): ...
+        # todo: raise warning if no items were added
+    def save(self, out): ...
 
-		def __post_init__(self): ...
+class InspectionSession(Session):
+    def save(self, out : str): ...
 
-		def add_item(self, item : Any | list): ...
-		def remove_item(self, item : Any | list): ...
-		
-		@staticmethod
-		def Create(sessionType : SessionType | Literal['inspect', 'scan'], name : str, *args, **kwargs) -> Session: ...
-		def _create(self, name, *args, **kwargs) -> Session: ...
-		def save(self, out): ...
-
-class InspectionSession(Session): ...
-class ScanSession(Session): ...
+class ScanSession(Session):
+    def save(self, out): ...
+# -------------------------------------
