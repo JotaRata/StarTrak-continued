@@ -1,8 +1,6 @@
 from startrak.exceptions import *
 from startrak.internals.types cimport FileInfo, HeaderArchetype, Header
 from abc import ABC, abstractmethod, ABCMeta
-from typing import Any, Protocol
-import datetime
 
 ctypedef fused _FileOrList:
 	FileInfo
@@ -19,6 +17,8 @@ def abstract(func):
 		raise NotImplementedError(func.__name__)
 	return wrapper
 
+# -------------- Classes -------------------
+
 cdef class Session(Interface):
 		currentSession : Session 	# todo: move somewhere else
 		cdef str name
@@ -27,8 +27,9 @@ cdef class Session(Interface):
 		cdef set[FileInfo] included_files
 
 		def __repr__(self) -> str:
-				return f'{type(self).__name__}: ' + str(", ".join(
-						[f'{k} = {v}' for k, v in self.__dict__.items()]))
+				return f''' {type(self).__name__} : "{self.name}" 
+				Working directory: {self.working_dir}.
+				Included files: {self.included_files}'''
 		
 		def __post_init__(self):
 				self.name = 'New Session'
@@ -67,6 +68,3 @@ cdef class Session(Interface):
 		def __item_removed__(self, removed): pass
 		@abstract 
 		def save(self, out): pass
-
-class SubSession(Session):
-	pass
