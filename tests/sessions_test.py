@@ -1,7 +1,7 @@
 __unittest = True
 
 import unittest
-from startrak.internals.exceptions import InstantiationError 
+from startrak.exceptions import InstantiationError 
 from startrak.sessions import Session, SessionType
 from startrak.internals.types import *
 from startrak.io import *

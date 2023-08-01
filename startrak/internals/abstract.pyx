@@ -1,4 +1,4 @@
-from startrak.internals.exceptions import InstantiationError
+from startrak.exceptions import *
 from startrak.internals.types import FileInfo, HeaderArchetype, Header
 from abc import ABC, abstractmethod
 from typing import Any

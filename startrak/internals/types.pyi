@@ -4,7 +4,7 @@
 from operator import call
 import os
 from enum import Enum
-from startrak.internals.exceptions import *
+from startrak.exceptions import *
 from datetime import datetime
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
