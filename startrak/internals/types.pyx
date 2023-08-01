@@ -1,6 +1,8 @@
-from operator import call
+from operator import pos
+cimport numpy as np
 import os
 from enum import Enum
+
 from startrak.internals.exceptions import *
 from datetime import datetime
 from abc import ABC, abstractmethod
@@ -145,4 +147,14 @@ class ScanSession(Session):
 
     def save(self, out):
         pass
-# -------------------------------------
+
+# ----------------- Data types --------------------
+
+cdef class Star():
+    cdef public str name
+    cdef public int[2] position
+
+    def __init__(self, str name, tuple position):
+        self.name = name
+        assert len(position) == 2
+        self.position = position
