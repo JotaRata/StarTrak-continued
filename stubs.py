@@ -29,9 +29,16 @@ for path, name, dir in scan_files():
 			for line in file:
 				_line = line.lstrip()
 
+				# Ignore lines
+				if 'stub:ignore_all' in _line.replace(' ', ''):
+					break
+				if 'stub:ignore' in _line.replace(' ', ''):
+					continue
+
 				# include imports
-				if 'import' in _line:
-					write(_line[:-1], out)
+				if 'import' in _line or 'cimport' in _line:
+					write(_line[:-1].replace('cimport', 'import'), out)
+				
 
 				# include cython classes
 				if _line.startswith(('cdef class', 'class')):
@@ -65,7 +72,7 @@ for path, name, dir in scan_files():
 				# include functions
 				if _line.startswith(('def', 'cpdef')):
 					# include __init__ but  not private methods
-					if ('__' in _line or '_' in _line[len('def '):]) and not '__init__' in _line: continue
+					if ('__' in _line or _line[len('def '):].startswith('_')) and not '__init__' in _line: continue
 					
 					# replace pass with ellipsis
 					if  not _line.rstrip().endswith('pass'):

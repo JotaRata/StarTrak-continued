@@ -1,7 +1,8 @@
 # Auto generated stub
-# file: "c:\Users\jjbar\Documents\GitHub\StarTrak-continued/startrak\internals\types.pyx"
+# file: "C:\Users\jjbar\Documents\GitHub\StarTrak-continued/startrak\internals\types.pyx"
 
-from operator import call
+from operator import pos
+cimport numpy as np
 import os
 from enum import Enum
 from startrak.exceptions import *
@@ -14,6 +15,7 @@ from astropy.io import fits
 
 class Header():
     def __init__(self, source : fits.Header | dict): ...
+    def contains_key(self, key : str): ...
 
 class HeaderArchetype(Header):
     def __init__(self, source : Header | dict) -> None: ...
@@ -21,25 +23,28 @@ class HeaderArchetype(Header):
 # -------------- Files ----------------
 
 class FileInfo():
-    path : str
-    size : int
-    header : Header
     def fromHDU(hduList: fits.HDUList | Any): ...
 # ------------- Sessions --------------
+# class InspectionSession(Session):
+#     def _create(session, name : str, *args, **kwargs) -> Session:
+#         session.name = name
+#         return session
+#     def __item_added__(self, added): pass
+#     def __item_removed__(self, removed): pass
+#     def save(self, out : str):
+#         pass    # todo: Add logic for saving sessions
+# class ScanSession(Session):
+#     def _create(session, name, scan_dir, *args, **kwargs) -> Session:
+#         session.name = name
+#         session.working_dir = scan_dir
+#         return session
+#     def __item_added__(self, added): pass
+#     def __item_removed__(self, removed): pass
+#     def save(self, out):
+#         pass
+# ----------------- Data types --------------------
 
-class Session(ABC):
-    name = 'New Session'
-    working_dir : str 
-    archetype : HeaderArchetype 
-    tracked_items : set[FileInfo]
-    creation_time = datetime.now()
-    def __init__(self): ...
-        # todo: raise warning if no items were added
-    def save(self, out): ...
-
-class InspectionSession(Session):
-    def save(self, out : str): ...
-
-class ScanSession(Session):
-    def save(self, out): ...
-# -------------------------------------
+class Star():
+    name : str
+    position : int[2]
+    def __init__(self, str name, tuple position): ...

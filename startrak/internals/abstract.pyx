@@ -1,6 +1,5 @@
 from startrak.exceptions import *
 from startrak.internals.types cimport FileInfo, HeaderArchetype, Header
-from abc import ABC, abstractmethod, ABCMeta
 
 ctypedef fused _FileOrList:
 	FileInfo
@@ -13,7 +12,7 @@ cdef class Interface:
 			raise InstantiationError(self)
 		
 def abstract(func):
-	def wrapper(*args, **kwargs):
+	def wrapper(*args, **kwargs):  # stub: ignore
 		raise NotImplementedError(func.__name__)
 	return wrapper
 
@@ -21,10 +20,10 @@ def abstract(func):
 
 cdef class Session(Interface):
 		currentSession : Session 	# todo: move somewhere else
-		cdef str name
-		cdef str working_dir
-		cdef HeaderArchetype archetype
-		cdef set[FileInfo] included_files
+		cdef public str name
+		cdef public str working_dir
+		cdef readonly HeaderArchetype archetype
+		cdef readonly set[FileInfo] included_files
 
 		def __repr__(self) -> str:
 				return f''' {type(self).__name__} : "{self.name}" 
