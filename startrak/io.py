@@ -1,13 +1,13 @@
 import os
 import numpy as np
 from astropy.io import fits
-from startrak.internals.types import FileInfo
+from startrak.types import FileInfo
 
 
 # ----- Wrapper functions around astropy.io --------
 def load_file(path: str, *args, **kwargs) -> FileInfo:
     with fits.open(path, *args, **kwargs) as hdu:
-        return FileInfo.fromHDU(hdu)
+        return FileInfo(hdu)
 
 def retrieve_data(fileInfo : FileInfo):
     return fits.getdata(fileInfo.path)

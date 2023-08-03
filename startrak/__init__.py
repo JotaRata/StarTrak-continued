@@ -1,7 +1,6 @@
 import astropy.io
 
 from .types.sessions import InspectionSession, ScanSession, Session, SessionType
-from .internals import types
 from . import io
 
 APPNAME = "StarTrak"
