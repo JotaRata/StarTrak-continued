@@ -1,4 +1,4 @@
-from startrak.internals.types cimport FileInfo, HeaderArchetype, Header
+from startrak.types cimport FileInfo, HeaderArchetype, Header
 from startrak.types.abstract cimport Interface
 from startrak.types.abstract import abstract
 from enum import StrEnum
@@ -12,12 +12,6 @@ class SessionType(StrEnum):
 		ASTRO_SCAN = 'scan'
 
 cdef class Session(Interface):
-	currentSession : Session
-	cdef public str name
-	cdef public str working_dir
-	cdef readonly HeaderArchetype archetype
-	cdef readonly set[FileInfo] included_items
-
 	def __init__(self, str name, *args, **kwargs):
 		self.name = name
 		self.working_dir : str = str()
