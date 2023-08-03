@@ -1,3 +1,5 @@
+__methods__ = dict[str, list]()
+
 cdef class Interface:
 	def __cinit__(self):
 		cls = type(self)
@@ -10,27 +12,30 @@ cdef class Interface:
 	@classmethod
 	def __cls_init__(cls):
 		if cls is Interface: return
-		if not getattr(cls.__base__, "__initialized__", False):
+		if not cls.__base__.__name__ in __methods__:
 			cls.__base__.__cls_init__()
-		methods = set(getattr(cls, "__methods__", set()))
+		
+		if (_base := cls.__base__) is not Interface and _base.__name__ in __methods__:
+			__methods__[cls.__name__] = __methods__[_base.__name__] 
+		else:
+			__methods__[cls.__name__] = []
 		for name, value in cls.__dict__.items():
-			if callable(value) and getattr(value, "__isabstractmethod__", False):
-				methods.add(name)
-			if (_base := cls.__base__) is not Interface:
-				if callable(value) and name in _base.__methods__:
-					methods.remove(name)
-
-		cls.__methods__ = frozenset(methods)
-		cls.__initialized__ = True
+			if callable(value) and getattr(value, '__isabstractmethod__', False):
+				__methods__[cls.__name__].append(name)
+		
+		if cls.__base__ is not Interface:
+			for method in __methods__[_base.__name__]:
+				if method in cls.__dict__:
+					__methods__[cls.__name__].remove(method)
 	
 	@classmethod
 	def __initsubclass__(cls, subclass):
-		for method in cls.__methods__:
-				if not callable(subclass.__dict__.get(method, None)):
-						raise TypeError(f'{subclass.__name__} does not implement abstract method: {method}')
+		for method in __methods__[cls.__name__]:
+			if not callable(subclass.__dict__.get(method, None)):
+				raise TypeError(f'{subclass.__name__} does not implement abstract method: {method}')
 
 def abstract(func):
 	def wrapper(*args, **kwargs):
 		return func(*args, **kwargs)
-	setattr(wrapper, '__isabstractmethod__', True)
+	setattr(wrapper, "__isabstractmethod__", True)
 	return wrapper
