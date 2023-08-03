@@ -29,7 +29,7 @@ cdef class HeaderArchetype(Header):
 							'NAXIS':_naxis, 'EXPTIME':_exptime}
 		for n in range(_naxis): self._items[f'NAXIS{n+1}'] = _naxisn[n]
 	
-	def validate(self, Header header, failed : callable):
+	def validate(self, Header header, failed : callable = None):
 		for key, value in self._items.items():
 			if (key not in header._items.keys()) or (header._items[key] != value):
 					if callable(failed): failed(key, value, header._items[key])
