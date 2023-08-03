@@ -1,13 +1,8 @@
-from operator import pos
-cimport numpy as np
 import os
-from enum import Enum
 
 from startrak.internals.exceptions import *
-from datetime import datetime
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, cast, Callable
+from typing import Any, Callable
 from astropy.io import fits
 
 # ---------------------- Headers -------------------------------

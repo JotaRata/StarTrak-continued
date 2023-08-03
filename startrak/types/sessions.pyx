@@ -1,10 +1,15 @@
 from startrak.internals.types cimport FileInfo, HeaderArchetype, Header
 from startrak.types.abstract cimport Interface
 from startrak.types.abstract import abstract
+from enum import StrEnum
 
 ctypedef fused _FileOrList:
 	FileInfo
 	list
+
+class SessionType(StrEnum):
+		ASTRO_INSPECT = 'inspect'
+		ASTRO_SCAN = 'scan'
 
 cdef class Session(Interface):
 	currentSession : Session
@@ -13,7 +18,7 @@ cdef class Session(Interface):
 	cdef readonly HeaderArchetype archetype
 	cdef readonly set[FileInfo] included_items
 
-	def __init__(self, str name):
+	def __init__(self, str name, *args, **kwargs):
 		self.name = name
 		self.working_dir : str = str()
 		self.archetype : HeaderArchetype = None
