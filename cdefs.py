@@ -44,7 +44,7 @@ for path, name, dir in scan_files():
 					if '__' in _line and not '__init__' in _line: 
 						continue
 
-					if all([m in _line for m in ('(', ')', ':')]):
-						write(line[:-1] + ' pass', out)
+					# if all([m in _line for m in ('(', ')', ':')]):
+					write(line[:-1], out)
 
 				prev = line
