@@ -1,6 +1,6 @@
 import os
 import unittest
-from startrak.internals.types import Header
+from startrak.types import Header
 from startrak.io import *
 
 paths = ["aefor4.fit", "aefor7.fit", "aefor16.fit", "aefor25.fit"]

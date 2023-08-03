@@ -3,7 +3,7 @@ __unittest = True
 import unittest
 from startrak.internals.exceptions import InstantiationError 
 from startrak import *
-from startrak.internals.types import *
+from startrak.types import *
 from startrak.io import *
 
 sessionName = 'Test Session'

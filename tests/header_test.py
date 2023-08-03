@@ -1,5 +1,5 @@
 from startrak import *
-from startrak.internals.types import HeaderArchetype, Header
+from startrak.types import HeaderArchetype, Header
 from startrak.io import *
 import unittest
 
