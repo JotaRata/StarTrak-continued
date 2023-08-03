@@ -23,6 +23,7 @@ for path, name, dir in scan_files():
 		continue
 	with open(path, 'r') as file:
 		with open(out_path, 'w') as out: # Comment this line to preview
+			print('-'*50)
 			print('Writing stub file to', out_path)
 			write('# Auto generated stub', out)
 			write(f'# file: "{path}"\n', out)
