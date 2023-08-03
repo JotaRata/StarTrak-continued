@@ -2,7 +2,7 @@ __unittest = True
 
 import unittest
 from startrak.internals.exceptions import InstantiationError 
-from startrak.sessions import Session, SessionType
+from startrak import *
 from startrak.internals.types import *
 from startrak.io import *
 
@@ -17,50 +17,41 @@ class SessionTests(unittest.TestCase):
 		self.assertEqual(SessionType.ASTRO_INSPECT, 'inspect')
 		self.assertEqual(SessionType.ASTRO_SCAN, 'scan')
 
-	def test_ext_method(self):
-		self.assertTrue(hasattr(Session, 'Create'))
-# ------- Create sessions by using the extension method Session.Create
+# ------- Create sessions by using the extension method create_session
 
 	def test_insp_session(self):
-			session = Session.Create('inspect', sessionName)
+			session = create_session('inspect', sessionName)
 			self.assertIs(type(session), InspectionSession)
 			self.assertIsInstance(session, Session)
 			self.assertEqual(session.name, sessionName)
 		
 	def test_scan_session(self):
-		session = Session.Create('scan', sessionName, testDir)
+		session = create_session('scan', sessionName, testDir)
 		self.assertIs(type(session), ScanSession)
 		self.assertIsInstance(session, Session)
 		self.assertEqual(session.name, sessionName)
 		self.assertEqual(session.working_dir, testDir)
 	
 	def test_inspect_tracked(self):
-		session = Session.Create('inspect', sessionName)
-		self.assertTrue(hasattr(session, 'tracked_items'))
+		session = create_session('inspect', sessionName)
+		self.assertTrue(hasattr(session, 'included_items'))
 	def test_scan_tracked(self):
-		session = Session.Create('scan', sessionName, testDir)
-		self.assertTrue(hasattr(session, 'tracked_items'))
+		session = create_session('scan', sessionName, testDir)
+		self.assertTrue(hasattr(session, 'included_items'))
 
 	def test_session_load_file(self):
-			s = Session.Create('inspect', 'Test session')
+			s = create_session('inspect', 'Test session')
 			s.add_item(load_file(dir + paths[0]))
-			self.assertEqual(1, len(s.tracked_items))
+			self.assertEqual(1, len(s.included_items))
 
 	def test_session_load_folder(self):
-			s = Session.Create('inspect', 'Test session')
+			s = create_session('inspect', 'Test session')
 			s.add_item(list(load_folder(dir)))
-			self.assertEqual(len(paths), len(s.tracked_items))
+			self.assertEqual(len(paths), len(s.included_items))
 # ------------- Test for exceptions ---------------
-	def test_direct_ctor(self):
-		with self.assertRaises(InstantiationError, msg= 'InspectionSession didnt fail'):
-			session = InspectionSession()
-
-		with self.assertRaises(InstantiationError, msg= 'ScanSession didnt fail'):
-			session = ScanSession()
-
 	def test_invalid_case(self):
 		with self.assertRaises(TypeError):
-			session = Session.Create('invalid', 'Invalid Session') # type: ignore
+			session = create_session('invalid', 'Invalid Session') # type: ignore
 
 if __name__ == '__main__':
 		unittest.main()

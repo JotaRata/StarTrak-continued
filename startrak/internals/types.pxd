@@ -6,6 +6,6 @@ cdef class HeaderArchetype(Header):
 # -------------- Files ----------------
 
 cdef class FileInfo():
-	cdef str path
-	cdef int size
-	cdef Header header
+	cdef readonly str path
+	cdef readonly int size
+	cdef readonly Header header

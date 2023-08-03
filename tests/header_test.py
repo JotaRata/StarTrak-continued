@@ -1,6 +1,6 @@
+from startrak import *
 from startrak.internals.types import HeaderArchetype, Header
 from startrak.io import *
-from startrak.sessions import *
 import unittest
 
 paths = ["aefor4.fit", "aefor7.fit", "aefor16.fit", "aefor25.fit"]
@@ -28,10 +28,10 @@ class HeaderTest(unittest.TestCase):
 				self.assertTrue(arch.validate(s.header))
 		
 		def test_session_archetype(self):
-			s = Session.Create('inspect', 'Test session')
+			s = create_session('inspect', 'Test session')
 			s.add_item(list(load_folder(dir)))
 
-			for f in s.tracked_items:
+			for f in s.included_items:
 				self.assertTrue(s.archetype.validate(f.header))
 
 if __name__ == '__main__':
