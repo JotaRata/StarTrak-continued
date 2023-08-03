@@ -41,32 +41,3 @@ cdef class HeaderArchetype(Header):
                 if callable(failed): failed(key, value, header._items[key])
                 return False
         return True
-
-# -------------- Files ----------------
-@dataclass(frozen=True)
-cdef class FileInfo():
-    @staticmethod
-    def fromHDU(hduList: fits.HDUList | Any):
-        if hduList is None: raise TypeError("No HDU list was given")
-        if len(hduList) == 0: raise TypeError("Invalid HDU")
-        path = hduList.filename()
-        hdu = hduList[0]
-        assert isinstance(path, str)
-        assert isinstance(hdu, fits.PrimaryHDU)
-
-        sbytes = os.path.getsize(path)
-        _header = hdu.header
-        
-        header = Header(_header)
-        return FileInfo(path, sbytes, header)
-
-# ----------------- Data types --------------------
-
-cdef class Star():
-    cdef public str name
-    cdef public int[2] position
-
-    def __init__(self, str name, tuple position):
-        self.name = name
-        assert len(position) == 2
-        self.position = position
