@@ -1,9 +1,4 @@
-from startrak.internals.types import InstantiationError
-
-
 cdef class Interface:
-	cdef set __methods__
-	cdef bint __initialized__
 	def __cinit__(self):
 		cls = type(self)
 		if cls is Interface or cls.__base__ is Interface:
