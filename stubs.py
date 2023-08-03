@@ -1,7 +1,6 @@
 from io import TextIOWrapper
 import os
-from os.path import relpath, join, splitext
-from re import split
+from os.path import relpath, join, splitext, isfile
 
 def scan_files():
 	cwd = os.getcwd()
@@ -19,7 +18,9 @@ def write(line :str,  file : TextIOWrapper = None):
 for path, name, dir in scan_files():
 	out_path = join(dir, splitext(name)[0] + '.pyi')
 	out = None	# Used to preview
-
+	if isfile(out_path): 
+		print('Skipping alreaady written file: ', out_path)
+		continue
 	with open(path, 'r') as file:
 		with open(out_path, 'w') as out: # Comment this line to preview
 			print('Writing stub file to', out_path)
@@ -31,7 +32,7 @@ for path, name, dir in scan_files():
 
 				# include imports
 				if 'import' in _line:
-					write(_line[:-1], out)
+					write(_line[:-1].replace('cimport', 'import'), out)
 
 				# include cython classes
 				if _line.startswith(('cdef class', 'class')):
