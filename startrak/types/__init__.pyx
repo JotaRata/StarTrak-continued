@@ -48,6 +48,9 @@ cdef class FileInfo():
 		self.size = os.path.getsize(self.path)
 		_header = hdu.header
 		self.header = Header(_header)
+	
+	def __repr__(self):
+		return f'[File: {self.path} ({self.size}) bytes]\n'
 
 cdef class Star():
 	def __init__(self, str name, tuple position):
