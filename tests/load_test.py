@@ -14,7 +14,7 @@ class FileLoadingTest(unittest.TestCase):
 
     def test_load_single(self):
         info = load_file(dir + paths[0])
-        self.assertEqual(info.path, dir + paths[0], "Paths don't match")
+        self.assertEqual(info.path, os.path.abspath(dir + paths[0]), "Paths don't match")
         self.assertTrue(info.header is not None and isinstance(info.header, Header), 'Header is null/empty')
         self.assertTrue(info.header.contains_key("SIMPLE"), 'Invalid header')
         self.assertTrue(info.header.contains_key("BITPIX"), 'Invalid header')
