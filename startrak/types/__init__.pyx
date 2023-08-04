@@ -1,5 +1,6 @@
 import os.path
 from astropy.io import fits as _astropy
+from numpy cimport ndarray
 
 
 cdef class Header():
@@ -36,19 +37,36 @@ cdef class HeaderArchetype(Header):
 					return False
 		return True
 
+# This prevents the user for creating invalid FileInfo objects
+cdef object __startrak_factory_obj = object()
 cdef class FileInfo():
-	def __init__(self, hduList : _astropy.HDUList):
-		if hduList is None: raise TypeError("No HDU list was given")
-		if len(hduList) == 0: raise TypeError("Invalid HDU")
-		self.path = hduList.filename()
-		hdu = hduList[0]
-		assert isinstance(self.path, str)
-		assert isinstance(hdu, _astropy.PrimaryHDU)
-
-		self.size = os.path.getsize(self.path)
-		_header = hdu.header
-		self.header = Header(_header)
+	def __init__(self, str path, int size, Header header, *args):
+		assert len(args) == 1 and args[0] == __startrak_factory_obj, \
+			'FileInfo must only be created using one of the two factory methods\n FileInfo.from_path(str) and FileInfo.from_hdu(HDU-like).'
+		self.path = path
+		self.size = size
+		self.header = header
+	@staticmethod
+	def from_path(str path):
+		hdu = _astropy.open(path)
+		size = os.path.getsize(path)
+		assert isinstance(hdu[0], _astropy.PrimaryHDU)
+		header = Header(hdu[0].header)
+		path = os.path.abspath(path)
+		hdu.close()
+		return FileInfo(path, size, header, __startrak_factory_obj)
+	@staticmethod
+	def from_hdu(hdu):
+		if hdu is None: raise TypeError("No HDU list was given")
+		assert isinstance(hdu, _astropy.HDUList)
+		path = os.path.abspath(hdu.filename())
+		size = os.path.getsize(path)
+		phdu = hdu[0]
+		header = Header(phdu.header)
+		return FileInfo(path, size, header, __startrak_factory_obj)
 	
+	cpdef ndarray get_data(self):
+		return _astropy.getdata(self.path)
 	def __repr__(self):
 		return f'[File: {self.path} ({self.size}) bytes]\n'
 
