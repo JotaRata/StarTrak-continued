@@ -19,3 +19,5 @@ cdef class FileInfo():
 cdef class Star():
 	cdef public str name
 	cdef public int[2] position
+cdef class ReferenceStar(Star):
+	cdef public float magnitude

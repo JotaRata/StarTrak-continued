@@ -79,3 +79,8 @@ cdef class Star():
 		self.name = name
 		assert len(position) == 2
 		self.position = position
+	
+cdef class ReferenceStar(Star):
+	def __init__(self, Star star):
+		super().__init__(star.name, star.position)
+		self.magnitude = 0
