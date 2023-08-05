@@ -68,7 +68,7 @@ cdef class FileInfo():
 	cpdef ndarray get_data(self):
 		return _astropy.getdata(self.path)
 	def __repr__(self):
-		return f'[File: {self.path} ({self.size}) bytes]\n'
+		return f'\n[File: "{os.path.basename(self.path)}" ({self.size}) bytes]'
 
 cdef class Star():
 	def __init__(self, str name, tuple position):

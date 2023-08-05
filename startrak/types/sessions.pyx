@@ -19,9 +19,9 @@ cdef class Session(Interface):
 		self.included_items : set[FileInfo] = set()
 	
 	def __repr__(self) -> str:
-				return ( f'{type(self).__name__} : "{self.name}"'
-							f'Directory: {self.working_dir}'
-							f'Included : {self.included_items}')
+				return ( f'{type(self).__name__} : "{self.name}"\n'
+							f'Directory: {self.working_dir}\n'
+							f'Included : {self.included_items}\n')
 
 	def add_item(self, _FileOrList item): 
 		_items = item if type(item) is list else [item]
