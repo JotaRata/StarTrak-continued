@@ -14,13 +14,11 @@ class SessionType(StrEnum):
 cdef class Session(Interface):
 	def __init__(self, str name, *args, **kwargs):
 		self.name = name
-		self.working_dir : str = str()
 		self.archetype : HeaderArchetype = None
 		self.included_items : set[FileInfo] = set()
 	
 	def __repr__(self) -> str:
-				return ( f'{type(self).__name__} : "{self.name}"\n'
-							f'Directory: {self.working_dir}\n'
+				return ( f'{type(self).__name__} : "{self.name}"\x7f\n'
 							f'Included : {self.included_items}\n')
 
 	def add_item(self, _FileOrList item): 
@@ -67,5 +65,8 @@ class ScanSession(Session):
 	def __item_added__(self, added): pass
 	def __item_removed__(self, removed): pass
 
+	def __repr__(self) -> str:
+		return super().__repr__().replace('\x7f\n',
+		f'\nDirectory: {self.working_dir}\n')
 	def save(self, out):
 		pass

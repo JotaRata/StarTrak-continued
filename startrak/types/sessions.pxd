@@ -7,6 +7,5 @@ from startrak.types.abstract import abstract
 from enum import StrEnum
 cdef class Session(Interface):
 	cdef public str name
-	cdef public str working_dir
 	cdef readonly HeaderArchetype archetype
 	cdef readonly set[FileInfo] included_items
