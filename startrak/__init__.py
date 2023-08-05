@@ -8,7 +8,7 @@ VERSION = "1.0.0"
 
 __session__ : Session = None
 
-def create_session(sessionType : SessionType, name : str, *args, **kwargs) -> Session:
+def new_session(sessionType : SessionType, name : str, *args, **kwargs) -> Session:
 	'''
 		Parameters:
 		- sessionType (SessionType): The type of the new session. Accepted values are:
