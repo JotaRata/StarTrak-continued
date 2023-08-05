@@ -3,11 +3,14 @@ from astropy.io import fits as _astropy
 from numpy cimport ndarray
 
 
+cdef tuple __header_allowed_types = (int, bool, float, str)
+cdef dict __archetype_entries = {'SIMPLE' : int, 'BITPIX' : int,
+											'NAXIS' : int, 'EXPTIME' : float}
+cdef dict __archetype_user_entries = dict()
 cdef class Header():
 	def __init__(self, source : _astropy.Header | dict):
-		allowed_types = (int, bool, float, str)
 		self._items = {str(key) : value for key, value in source.items() 
-			if type(value) in allowed_types}
+			if type(value) in __header_allowed_types}
 	
 	def contains_key(self, key : str):
 		return key in self._items.keys()
@@ -20,14 +23,16 @@ cdef class Header():
 
 cdef class HeaderArchetype(Header):
 	def __init__(self, source : Header | dict):
-		_simple = source['SIMPLE'] == 1
-		_bitpix = int(source['BITPIX'])
-		_naxis = int(source['NAXIS'])
-		_exptime = float(source['EXPTIME'])
-		_naxisn = tuple(int(source[f'NAXIS{n + 1}']) for n in range(_naxis))
+		self._items = dict()
+		for key, _type in __archetype_entries.items():
+			self._items[key] = _type(source[key])
 		
-		self._items = {'SIMPLE':_simple, 'BITPIX':_bitpix,
-							'NAXIS':_naxis, 'EXPTIME':_exptime}
+		for key, _type in __archetype_user_entries.items():
+			self._items[key] = _type(source[key])
+		
+		assert 'NAXIS' in self._items
+		_naxis = self._items['NAXIS']
+		_naxisn = tuple(int(source[f'NAXIS{n + 1}']) for n in range(_naxis))
 		for n in range(_naxis): self._items[f'NAXIS{n+1}'] = _naxisn[n]
 	
 	def validate(self, Header header, failed : callable = None):
@@ -36,6 +41,13 @@ cdef class HeaderArchetype(Header):
 					if callable(failed): failed(key, value, header._items[key])
 					return False
 		return True
+
+	@staticmethod
+	def set_keywords(dict user_keys):
+		assert all([ type(key) is str  for key in user_keys])
+		assert all([ value in __header_allowed_types for value in user_keys.values])
+		global __archetype_user_entries
+		__archetype_user_entries = user_keys
 
 # This prevents the user for creating invalid FileInfo objects
 cdef object __startrak_factory_obj = object()

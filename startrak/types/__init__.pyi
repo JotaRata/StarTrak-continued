@@ -11,7 +11,7 @@ class Header():
 class HeaderArchetype(Header):
 	def __init__(self, source : Header | dict): ...
 	def validate(self, header : Header, failed : callable = None): ...
-
+	def set_keywords(user_keys : dict[str, type]):
 class FileInfo():
 	path : str
 	size : int
