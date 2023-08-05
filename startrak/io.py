@@ -5,7 +5,7 @@ from startrak.types import FileInfo
 
 # ----- Wrapper functions around astropy.io --------
 def load_file(path: str) -> FileInfo:
-    return FileInfo.from_path(path)
+    return FileInfo(path)
 
 def retrieve_data(fileInfo : FileInfo):
     return fileInfo.get_data()

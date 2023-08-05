@@ -49,33 +49,25 @@ cdef class HeaderArchetype(Header):
 		global __archetype_user_entries
 		__archetype_user_entries = user_keys
 
-# This prevents the user for creating invalid FileInfo objects
-cdef object __startrak_factory_obj = object()
 cdef class FileInfo():
-	def __init__(self, str path, int size, Header header, *args):
-		assert len(args) == 1 and args[0] == __startrak_factory_obj, \
-			'FileInfo must only be created using one of the two factory methods\n FileInfo.from_path(str) and FileInfo.from_hdu(HDU-like).'
-		self.path = path
-		self.size = size
-		self.header = header
-	@staticmethod
-	def from_path(str path):
-		hdu = _astropy.open(path)
-		size = os.path.getsize(path)
-		assert isinstance(hdu[0], _astropy.PrimaryHDU)
-		header = Header(hdu[0].header)
-		path = os.path.abspath(path)
-		hdu.close()
-		return FileInfo(path, size, header, __startrak_factory_obj)
-	@staticmethod
-	def from_hdu(hdu):
-		if hdu is None: raise TypeError("No HDU list was given")
-		assert isinstance(hdu, _astropy.HDUList)
-		path = os.path.abspath(hdu.filename())
-		size = os.path.getsize(path)
-		phdu = hdu[0]
-		header = Header(phdu.header)
-		return FileInfo(path, size, header, __startrak_factory_obj)
+	def __init__(self, *args):
+		if len(args) == 1 and type(path := args[0]) is str:
+			with _astropy.open(path) as hdu:
+				self.path = os.path.abspath(path)
+				self.size = os.path.getsize(path)
+				phdu = hdu[0]
+				assert isinstance(phdu, _astropy.PrimaryHDU)
+				self.header = Header(phdu.header)
+				return
+		elif len(args) == 1 and type(hdu := args[0]) is _astropy.HDUList:
+				self.path = os.path.abspath(hdu.filename())
+				self.size = os.path.getsize(self.path)
+				phdu = hdu[0]
+				assert isinstance(phdu, _astropy.PrimaryHDU)
+				self.header = Header(phdu.header)
+				return
+		else:
+			raise TypeError('Expected one argument of type str or HDUList')
 	
 	cpdef ndarray get_data(self):
 		return _astropy.getdata(self.path)
