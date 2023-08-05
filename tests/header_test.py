@@ -28,7 +28,7 @@ class HeaderTest(unittest.TestCase):
 				self.assertTrue(arch.validate(s.header))
 		
 		def test_session_archetype(self):
-			s = create_session('inspect', 'Test session')
+			s = new_session('inspect', 'Test session')
 			s.add_item(list(load_folder(dir)))
 
 			for f in s.included_items:
