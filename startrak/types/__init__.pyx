@@ -1,5 +1,6 @@
 import os.path
 from astropy.io import fits as _astropy
+from erfa import aper
 from numpy cimport ndarray
 
 
@@ -75,15 +76,19 @@ cdef class FileInfo():
 		return f'\n[File: "{os.path.basename(self.path)}" ({self.size}) bytes]'
 
 cdef class Star():
-	def __init__(self, str name, tuple position):
+	def __init__(self, str name, tuple position, int aperture):
 		self.name = name
 		assert len(position) == 2
 		self.position = position
+		self.aperture = aperture
 	@classmethod
 	def From(cls, Star other):
-		return cls(other.name, other.position)
-	
+		return cls(other.name, other.position, other.aperture)
+
 cdef class ReferenceStar(Star):
-	def __init__(self, str name, tuple position, float apparent_magnitude):
-		super().__init__(name, position)
-		self.magnitude = apparent_magnitude
+	def __init__(self, *star_args, float magnitude):
+		super().__init__(*star_args)
+		self.magnitude = magnitude
+	@classmethod
+	def From(cls, Star other, float magnitude):
+		return cls(other.name, other.position, other.aperture, magnitude)
