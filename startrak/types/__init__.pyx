@@ -79,8 +79,11 @@ cdef class Star():
 		self.name = name
 		assert len(position) == 2
 		self.position = position
+	@classmethod
+	def From(cls, Star other):
+		return cls(other.name, other.position)
 	
 cdef class ReferenceStar(Star):
-	def __init__(self, Star star):
-		super().__init__(star.name, star.position)
-		self.magnitude = 0
+	def __init__(self, str name, tuple position, float apparent_magnitude):
+		super().__init__(name, position)
+		self.magnitude = apparent_magnitude
