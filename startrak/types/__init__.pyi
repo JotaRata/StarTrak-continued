@@ -27,7 +27,8 @@ class Star():
 	def __init__(self, name : str, position : tuple[int, int], aperture:int): ...
 	@classmethod
 	def From(cls, other : Star) -> Star: ...
-
+class TrackingStar(Star):
+	pass
 class ReferenceStar(Star):
 	magnitude : float
 	def __init__(self, *star_args, magnitude : float): ...

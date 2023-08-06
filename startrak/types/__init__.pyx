@@ -85,6 +85,8 @@ cdef class Star():
 	def From(cls, Star other):
 		return cls(other.name, other.position, other.aperture)
 
+cdef class TrackingStar(Star):
+	pass
 cdef class ReferenceStar(Star):
 	def __init__(self, *star_args, float magnitude):
 		super().__init__(*star_args)

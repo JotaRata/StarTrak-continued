@@ -20,5 +20,7 @@ cdef class Star():
 	cdef public str name
 	cdef public int[2] position
 	cdef public int aperture
+cdef class TrackingStar(Star):
+	pass
 cdef class ReferenceStar(Star):
 	cdef public float magnitude
