@@ -5,6 +5,8 @@ import os.path
 from astropy.io import fits as _astropy
 import numpy
 
+from startrak.types.abstract import Interface
+
 class Header():
 	def __init__(self, source : _astropy.Header | dict): ...
 
@@ -32,3 +34,7 @@ class TrackingStar(Star):
 class ReferenceStar(Star):
 	magnitude : float
 	def __init__(self, *star_args, magnitude : float): ...
+
+class TrackingMethod(Interface):
+	def setup_model(self, *args): ...
+	def track(self): ...

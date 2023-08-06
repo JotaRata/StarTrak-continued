@@ -1,8 +1,9 @@
 import os.path
+from .abstract cimport Interface
+from .abstract import abstract
 from astropy.io import fits as _astropy
 from erfa import aper
 from numpy cimport ndarray
-
 
 cdef tuple __header_allowed_types = (int, bool, float, str)
 cdef dict __archetype_entries = {'SIMPLE' : int, 'BITPIX' : int,
@@ -94,3 +95,11 @@ cdef class ReferenceStar(Star):
 	@classmethod
 	def From(cls, Star other, float magnitude):
 		return cls(other.name, other.position, other.aperture, magnitude)
+
+cdef class TrackingMethod(Interface):
+	@abstract
+	def setup_model(self, *args):
+		pass
+	@abstract
+	def track(self):
+		pass

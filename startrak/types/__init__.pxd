@@ -5,6 +5,7 @@ import os.path
 from typing import Any
 from astropy.io import fits as _astropy
 from numpy cimport ndarray
+from .abstract cimport Interface
 
 cdef class Header():
 	cdef dict _items
@@ -24,3 +25,6 @@ cdef class TrackingStar(Star):
 	pass
 cdef class ReferenceStar(Star):
 	cdef public float magnitude
+
+cdef class TrackingMethod(Interface): 
+	pass
