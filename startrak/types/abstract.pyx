@@ -36,6 +36,7 @@ cdef class Interface:
 
 def abstract(func):
 	def wrapper(*args, **kwargs):
-		return func(*args, **kwargs)
+		raise NotImplementedError(func.__name__)
+		# return func(*args, **kwargs)
 	setattr(wrapper, "__isabstractmethod__", True)
 	return wrapper
