@@ -1,7 +1,9 @@
 import os.path
+from .abstract cimport Interface
+from .abstract import abstract
 from astropy.io import fits as _astropy
+from erfa import aper
 from numpy cimport ndarray
-
 
 cdef tuple __header_allowed_types = (int, bool, float, str)
 cdef dict __archetype_entries = {'SIMPLE' : int, 'BITPIX' : int,
@@ -75,7 +77,34 @@ cdef class FileInfo():
 		return f'\n[File: "{os.path.basename(self.path)}" ({self.size}) bytes]'
 
 cdef class Star():
-	def __init__(self, str name, tuple position):
+	def __init__(self, str name, tuple position, int aperture):
 		self.name = name
 		assert len(position) == 2
 		self.position = position
+		self.aperture = aperture
+	@classmethod
+	def From(cls, Star other):
+		return cls(other.name, other.position, other.aperture)
+	def export(self):
+		return type(self).__name__, self.name, self.position, self.aperture
+	def __repr__(self):
+		return f'{type(self).__name__}: {self.name}'
+cdef class TrackingStar(Star):
+	pass
+cdef class ReferenceStar(Star):
+	def __init__(self, str name, tuple position, int aperture, float magnitude):
+		super().__init__(name, position, aperture)
+		self.magnitude = magnitude
+	@classmethod
+	def From(cls, Star other, float magnitude):
+		return cls(other.name, other.position, other.aperture, magnitude)
+	def export(self):
+		return (*super().export(), self.magnitude)
+
+cdef class TrackingMethod(Interface):
+	@abstract
+	def setup_model(self, *args):
+		pass
+	@abstract
+	def track(self):
+		pass
