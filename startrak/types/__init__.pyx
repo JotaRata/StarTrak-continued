@@ -85,7 +85,8 @@ cdef class Star():
 	@classmethod
 	def From(cls, Star other):
 		return cls(other.name, other.position, other.aperture)
-
+	def export(self):
+		return type(self).__name__, self.name, self.position, self.aperture
 cdef class TrackingStar(Star):
 	pass
 cdef class ReferenceStar(Star):
@@ -95,6 +96,8 @@ cdef class ReferenceStar(Star):
 	@classmethod
 	def From(cls, Star other, float magnitude):
 		return cls(other.name, other.position, other.aperture, magnitude)
+	def export(self):
+		return (*super().export(), self.magnitude)
 
 cdef class TrackingMethod(Interface):
 	@abstract
