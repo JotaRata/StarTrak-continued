@@ -7,7 +7,7 @@ from .io import *
 APPNAME = "StarTrak"
 VERSION = "1.0.0"
 
-__session__ : _Session = None
+__session__ : _Session | None = None
 
 def new_session(sessionType : SessionType, name : str, *args, **kwargs) -> _Session:
 	'''
@@ -29,6 +29,6 @@ def new_session(sessionType : SessionType, name : str, *args, **kwargs) -> _Sess
 	__session__ = session
 	return session
 
-def get_session() -> _Session:
+def get_session() -> _Session | None:
 	'''Returns the current session'''
 	return __session__

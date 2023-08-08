@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, ClassVar, Dict, Self
 
 
 class Event():
@@ -18,7 +18,7 @@ class Event():
 		self._methods : list = list(method_list)
 	def add(self, function : Callable):
 		if callable(function): self._methods.append(function)
-	def remove(self, function : callable):
+	def remove(self, function : Callable):
 		if function in self._methods: self._methods.remove(function)
 	def __call__(self, *args, **kwagrs):
 		for function in self._methods: function(*args, **kwagrs)
@@ -51,7 +51,7 @@ class NamedEvent(Event):
 			call_event('my_event', 2) # prints: 2
 		```
 	'''
-	_named_events = dict[str, Event]()
+	_named_events : ClassVar[Dict[str, Self]]
 
 	def __init__(self, name : str, *method_list):
 		if not name: raise NameError('Name cannot be empty')
