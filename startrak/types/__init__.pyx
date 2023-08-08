@@ -89,8 +89,7 @@ cdef class Star():
 		return type(self).__name__, self.name, self.position, self.aperture
 	def __repr__(self):
 		return f'{type(self).__name__}: {self.name}'
-cdef class TrackingStar(Star):
-	pass
+
 cdef class ReferenceStar(Star):
 	def __init__(self, str name, tuple position, int aperture, float magnitude):
 		super().__init__(name, position, aperture)

@@ -21,6 +21,7 @@ cdef class Star():
 	cdef public str name
 	cdef public int[2] position
 	cdef public int aperture
+	cdef public bint trackable
 cdef class TrackingStar(Star):
 	pass
 cdef class ReferenceStar(Star):
