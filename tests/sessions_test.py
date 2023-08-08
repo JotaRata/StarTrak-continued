@@ -15,8 +15,8 @@ dir = "./tests/sample_files/"
 class SessionTests(unittest.TestCase):
 
 	def test_literal_eq(self):
-		self.assertEqual(SessionType.ASTRO_INSPECT, 'inspect')
-		self.assertEqual(SessionType.ASTRO_SCAN, 'scan')
+		self.assertEqual(SessionType.ASTRO_INSPECT._value_, 'inspect')
+		self.assertEqual(SessionType.ASTRO_SCAN._value_, 'scan')
 
 # ------- Create sessions by using the extension method new_session
 

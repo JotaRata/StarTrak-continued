@@ -19,9 +19,9 @@ def new_session(sessionType : SessionType, name : str, *args, **kwargs) -> _Sess
 		- name (str): Name of the new session.
 	'''
 	session : _Session
-	if sessionType == SessionType.ASTRO_INSPECT:
+	if sessionType == SessionType.ASTRO_INSPECT._value_:
 			session = _InspectionSession(name, *args, **kwargs)
-	elif sessionType == SessionType.ASTRO_SCAN:
+	elif sessionType == SessionType.ASTRO_SCAN._value_:
 			session = _ScanSession(name, *args, **kwargs)
 	else: raise TypeError('Invalid case')
 
