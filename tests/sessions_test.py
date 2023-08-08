@@ -5,6 +5,7 @@ from startrak.internals.exceptions import InstantiationError
 from startrak import *
 from startrak.types import *
 from startrak.io import *
+from startrak.types.sessions import *
 
 sessionName = 'Test Session'
 testDir = '/test/'
