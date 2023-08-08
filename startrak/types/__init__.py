@@ -1,15 +1,17 @@
+from ast import Tuple
 import os.path
-from .abstract cimport Interface
+from typing import Callable, Dict, Self
+from .abstract import Interface
 from .abstract import abstract
 from astropy.io import fits as _astropy
-from erfa import aper
-from numpy cimport ndarray
+from numpy import ndarray
 
-cdef tuple __header_allowed_types = (int, bool, float, str)
-cdef dict __archetype_entries = {'SIMPLE' : int, 'BITPIX' : int,
+__header_allowed_types : Tuple[type] = (int, bool, float, str)
+__archetype_entries : Dict[str, type] = {'SIMPLE' : int, 'BITPIX' : int,
 											'NAXIS' : int, 'EXPTIME' : float}
-cdef dict __archetype_user_entries = dict()
-cdef class Header():
+__archetype_user_entries : Dict[str, type] = {}
+
+class Header():
 	def __init__(self, source : _astropy.Header | dict):
 		self._items = {str(key) : value for key, value in source.items() 
 			if type(value) in __header_allowed_types}
@@ -23,7 +25,7 @@ cdef class Header():
 	def __repr__(self) -> str:
 		return '\n'.join([f'{k} = {v}' for k,v in self._items.items()])
 
-cdef class HeaderArchetype(Header):
+class HeaderArchetype(Header):
 	def __init__(self, source : Header | dict):
 		self._items = dict()
 		for key, _type in __archetype_entries.items():
@@ -37,7 +39,7 @@ cdef class HeaderArchetype(Header):
 		_naxisn = tuple(int(source[f'NAXIS{n + 1}']) for n in range(_naxis))
 		for n in range(_naxis): self._items[f'NAXIS{n+1}'] = _naxisn[n]
 	
-	def validate(self, Header header, failed : callable = None):
+	def validate(self, header : Header, failed : Callable = None) -> bool:
 		for key, value in self._items.items():
 			if (key not in header._items.keys()) or (header._items[key] != value):
 					if callable(failed): failed(key, value, header._items[key])
@@ -45,13 +47,13 @@ cdef class HeaderArchetype(Header):
 		return True
 
 	@staticmethod
-	def set_keywords(dict user_keys):
+	def set_keywords(user_keys : Dict[str, type]):
 		assert all([ type(key) is str  for key in user_keys])
 		assert all([ value in __header_allowed_types for value in user_keys.values])
 		global __archetype_user_entries
 		__archetype_user_entries = user_keys
 
-cdef class FileInfo():
+class FileInfo():
 	def __init__(self, *args):
 		if len(args) == 1 and type(path := args[0]) is str:
 			with _astropy.open(path) as hdu:
@@ -71,36 +73,36 @@ cdef class FileInfo():
 		else:
 			raise TypeError('Expected one argument of type str or HDUList')
 	
-	cpdef ndarray get_data(self):
+	def get_data(self) -> ndarray:
 		return _astropy.getdata(self.path)
 	def __repr__(self):
 		return f'\n[File: "{os.path.basename(self.path)}" ({self.size}) bytes]'
 
-cdef class Star():
-	def __init__(self, str name, tuple position, int aperture):
+class Star():
+	def __init__(self, name : str, position : Tuple[int, int], aperture : int):
 		self.name = name
 		assert len(position) == 2
 		self.position = position
 		self.aperture = aperture
 	@classmethod
-	def From(cls, Star other):
+	def From(cls, other : Self) -> Self:
 		return cls(other.name, other.position, other.aperture)
-	def export(self):
+	def export(self) -> Tuple[str, str, Tuple, int]:
 		return type(self).__name__, self.name, self.position, self.aperture
 	def __repr__(self):
 		return f'{type(self).__name__}: {self.name}'
 
-cdef class ReferenceStar(Star):
-	def __init__(self, str name, tuple position, int aperture, float magnitude):
+class ReferenceStar(Star):
+	def __init__(self, name : str, position : Tuple[int, int], aperture : int, magnitude : float):
 		super().__init__(name, position, aperture)
 		self.magnitude = magnitude
 	@classmethod
-	def From(cls, Star other, float magnitude):
+	def From(cls, other : Self, magnitude : float):
 		return cls(other.name, other.position, other.aperture, magnitude)
 	def export(self):
 		return (*super().export(), self.magnitude)
 
-cdef class TrackingMethod(Interface):
+class TrackingMethod(Interface):
 	@abstract
 	def setup_model(self, *args):
 		pass
