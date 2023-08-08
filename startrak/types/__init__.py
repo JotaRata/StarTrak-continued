@@ -1,8 +1,7 @@
+from abc import ABC, abstractmethod
 import os.path
 from typing import Callable, Dict, Optional, Self, Tuple
-from .abstract import Interface
-from .abstract import abstract
-from astropy.io import fits as _astropy
+from astropy.io import fits as _astropy # type: ignore
 from numpy import ndarray
 
 __header_allowed_types : Tuple[type, type, type, type]  = (int, bool, float, str)
@@ -96,15 +95,15 @@ class ReferenceStar(Star):
 		super().__init__(name, position, aperture)
 		self.magnitude = magnitude
 	@classmethod
-	def From(cls, other : Star, magnitude : float = 0.0, **kwargs) -> Self:
-		return cls(other.name, other.position, other.aperture, magnitude)
+	def From(cls, other : Star, **kwargs) -> Self:
+		return cls(other.name, other.position, other.aperture, kwargs.get('magnitude', 0.0))
 	def export(self):
 		return (*super().export(), self.magnitude)
 
-class TrackingMethod(Interface):
-	@abstract
+class TrackingMethod(ABC):
+	@abstractmethod
 	def setup_model(self, *args):
 		pass
-	@abstract
+	@abstractmethod
 	def track(self):
 		pass
