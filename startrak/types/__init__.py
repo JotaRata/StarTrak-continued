@@ -1,12 +1,11 @@
-from ast import Tuple
 import os.path
-from typing import Callable, Dict, Self
+from typing import Callable, Dict, Optional, Self, Tuple
 from .abstract import Interface
 from .abstract import abstract
 from astropy.io import fits as _astropy
 from numpy import ndarray
 
-__header_allowed_types : Tuple[type] = (int, bool, float, str)
+__header_allowed_types : Tuple[type, type, type, type]  = (int, bool, float, str)
 __archetype_entries : Dict[str, type] = {'SIMPLE' : int, 'BITPIX' : int,
 											'NAXIS' : int, 'EXPTIME' : float}
 __archetype_user_entries : Dict[str, type] = {}
@@ -39,7 +38,7 @@ class HeaderArchetype(Header):
 		_naxisn = tuple(int(source[f'NAXIS{n + 1}']) for n in range(_naxis))
 		for n in range(_naxis): self._items[f'NAXIS{n+1}'] = _naxisn[n]
 	
-	def validate(self, header : Header, failed : Callable = None) -> bool:
+	def validate(self, header : Header, failed : Optional[Callable] = None) -> bool:
 		for key, value in self._items.items():
 			if (key not in header._items.keys()) or (header._items[key] != value):
 					if callable(failed): failed(key, value, header._items[key])
@@ -49,7 +48,7 @@ class HeaderArchetype(Header):
 	@staticmethod
 	def set_keywords(user_keys : Dict[str, type]):
 		assert all([ type(key) is str  for key in user_keys])
-		assert all([ value in __header_allowed_types for value in user_keys.values])
+		assert all([ value in __header_allowed_types for value in user_keys.values()])
 		global __archetype_user_entries
 		__archetype_user_entries = user_keys
 
@@ -85,7 +84,7 @@ class Star():
 		self.position = position
 		self.aperture = aperture
 	@classmethod
-	def From(cls, other : Self) -> Self:
+	def From(cls, other : Self, **kwargs) -> Self:
 		return cls(other.name, other.position, other.aperture)
 	def export(self) -> Tuple[str, str, Tuple, int]:
 		return type(self).__name__, self.name, self.position, self.aperture
@@ -97,7 +96,7 @@ class ReferenceStar(Star):
 		super().__init__(name, position, aperture)
 		self.magnitude = magnitude
 	@classmethod
-	def From(cls, other : Self, magnitude : float):
+	def From(cls, other : Star, magnitude : float = 0.0, **kwargs) -> Self:
 		return cls(other.name, other.position, other.aperture, magnitude)
 	def export(self):
 		return (*super().export(), self.magnitude)
