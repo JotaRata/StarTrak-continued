@@ -47,20 +47,22 @@ class Session(ABC):
 		self.included_items -= _removed
 		self.__item_removed__(_removed)
 	
-	def set_archetype(self, header : Header):
-		if header is None: self.archetype = None
+	def set_archetype(self, header : Optional[Header]):
+		if header is None: 
+			self.archetype = None
+			return
 		self.archetype = HeaderArchetype(header)
 
 	@abstractmethod
-	def __item_added__(self, added): pass
+	def __item_added__(self, added : Set[FileInfo]): pass
 	@abstractmethod
-	def __item_removed__(self, removed): pass
+	def __item_removed__(self, removed : Set[FileInfo]): pass
 	@abstractmethod
-	def save(self, out): pass
+	def save(self, out : str): pass
 
 class InspectionSession(Session):
-	def __item_added__(self, added): pass
-	def __item_removed__(self, removed): pass
+	def __item_added__(self, added : Set[FileInfo]): pass
+	def __item_removed__(self, removed : Set[FileInfo]): pass
 
 	def save(self, out : str):
 		pass    # todo: Add logic for saving sessions
@@ -71,11 +73,11 @@ class ScanSession(Session):
 		super().__init__(name)
 		self.working_dir = scan_dir
 
-	def __item_added__(self, added): pass
-	def __item_removed__(self, removed): pass
+	def __item_added__(self, added : Set[FileInfo]): pass
+	def __item_removed__(self, removed : Set[FileInfo]): pass
 
 	def __repr__(self) -> str:
 		return super().__repr__().replace('\x7f\n',
 		f'\nDirectory: {self.working_dir}\n')
-	def save(self, out):
+	def save(self, out : str):
 		pass

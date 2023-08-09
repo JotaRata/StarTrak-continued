@@ -12,7 +12,7 @@ def load_file(path: str) -> FileInfo:
 def retrieve_data(fileInfo : FileInfo):
     return fileInfo.get_data()
 
-def load_folder(dir: str, *args, **kwargs):
+def load_folder(dir: str):
     for entry in scandir(dir):
         if not entry.is_file() and not entry.name.endswith(
             ('.fit', '.fits', '.FIT', '.FITS')):

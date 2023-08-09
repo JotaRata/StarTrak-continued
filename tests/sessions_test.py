@@ -1,3 +1,4 @@
+# type: ignore
 __unittest = True
 
 import unittest

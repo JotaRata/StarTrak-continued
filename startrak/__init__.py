@@ -1,3 +1,4 @@
+# type: ignore
 from .types.sessions import SessionType
 from .types.sessions import Session as _Session
 from .types.sessions import InspectionSession as _InspectionSession

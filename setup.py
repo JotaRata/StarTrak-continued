@@ -1,7 +1,7 @@
 import numpy
-from setuptools import setup, Extension
+from setuptools import setup
 # from Cython.Build import cythonize
-from mypyc.build import mypycify
+from mypyc.build import mypycify # type: ignore
 import os	
 from os.path import relpath, splitext, join
 
@@ -13,7 +13,7 @@ def scan_files():
 			rel =  relpath(join(path, f), cwd)
 			yield (splitext(rel)[0].replace(os.sep, '.'),  rel)
 
-paths = [path for module, path in scan_files()]
+paths = [path for _, path in scan_files()]
 
 setup(
 		name= 'startrak',

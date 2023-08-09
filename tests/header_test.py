@@ -1,3 +1,4 @@
+# type: ignore
 from startrak import *
 from startrak.types import HeaderArchetype, Header
 from startrak.io import *
