@@ -4,7 +4,7 @@ from numpy.typing import NDArray
 from astropy.io import fits as _astropy # type: ignore
 from dataclasses import FrozenInstanceError, dataclass
 import os.path
-from typing import Any, Callable, ClassVar, Dict, Generator, Optional, Self, Tuple, Type, Union, cast
+from typing import Any, Callable, ClassVar, Dict, Final, Generator, Optional, Self, Tuple, Type, Union, cast
 
 _TVal = Union[int, bool, float, str]
 
@@ -25,8 +25,8 @@ class Header():
 		return '\n'.join([f'{k} = {v}' for k,v in self._items.items()])
 
 class HeaderArchetype(Header):
-	_defaults : ClassVar[Dict[str, Type[_TVal]]] = {'SIMPLE' : int, 'BITPIX' : int,
-																		'NAXIS' : int, 'EXPTIME' : float}
+	_defaults : Final[Dict[str, Type[_TVal]]] = \
+		{'SIMPLE' : int, 'BITPIX' : int, 'NAXIS' : int, 'EXPTIME' : float}
 	_entries : ClassVar[Dict[str, Type[_TVal]]] = {}
 
 	def __init__(self, source : Header | Dict[str, _TVal]):
