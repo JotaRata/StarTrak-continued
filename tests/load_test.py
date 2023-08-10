@@ -1,3 +1,4 @@
+# type: ignore
 import os
 import unittest
 from startrak.types import FileInfo, Header

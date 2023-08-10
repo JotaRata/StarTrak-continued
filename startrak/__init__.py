@@ -1,3 +1,4 @@
+# type: ignore
 from .types.sessions import SessionType
 from .types.sessions import Session as _Session
 from .types.sessions import InspectionSession as _InspectionSession
@@ -7,7 +8,7 @@ from .io import *
 APPNAME = "StarTrak"
 VERSION = "1.0.0"
 
-__session__ : _Session = None
+__session__ : _Session | None = None
 
 def new_session(sessionType : SessionType, name : str, *args, **kwargs) -> _Session:
 	'''
@@ -19,9 +20,9 @@ def new_session(sessionType : SessionType, name : str, *args, **kwargs) -> _Sess
 		- name (str): Name of the new session.
 	'''
 	session : _Session
-	if sessionType == SessionType.ASTRO_INSPECT:
+	if sessionType == SessionType.ASTRO_INSPECT._value_:
 			session = _InspectionSession(name, *args, **kwargs)
-	elif sessionType == SessionType.ASTRO_SCAN:
+	elif sessionType == SessionType.ASTRO_SCAN._value_:
 			session = _ScanSession(name, *args, **kwargs)
 	else: raise TypeError('Invalid case')
 
@@ -29,6 +30,6 @@ def new_session(sessionType : SessionType, name : str, *args, **kwargs) -> _Sess
 	__session__ = session
 	return session
 
-def get_session() -> _Session:
+def get_session() -> _Session | None:
 	'''Returns the current session'''
 	return __session__
