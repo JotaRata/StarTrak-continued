@@ -59,8 +59,46 @@ def adaptive_hough_circles( image : NDArray[np.int_], sigma : float = 3.0,
 		_c : NDArray = circles[0, :].copy()
 		return [Star(str(i), (int(c[0] / _f), int(c[1] / _f)), int(c[2] / _f)) for i, c in enumerate(_c)]
 	print('No stars were detected, try changing min/max sizes or decreasing the sigma value')
-	return List[Star]()
+	return list[Star]()
 	
+@detection_method('threshold', 'Simple HoughCircles')
+def simple_hough_circles( image : NDArray[np.int_], threshold : float,
+							sigma : int = 1, min_size : int = 5, max_size : int = 15,
+							downs : int = 512, ksize : int = 15, min_dst : int = 16):
+	'''
+		## Simple Threshold + Hough Circles method
+		This method uses OpenCV threshold function on a blurred and stretched version of the image using a gaussian kernel, then it uses the HughCircles algorithm to detect features in the image.
+
+		This method is suitable for processed images that have no noticeable background gradient.
+
+		Parameters:
+		- image (arrayLike): The input image to detect features from
+		- threshold (float[0..1]): The brightness percentage that determines which stars are bright enough to be included
+		- sigma (float, default: 1): Sigma value for the contrast stretch algorithm, smaller values will make the stars more prominent but it will also increase the noise.
+		- min/max_size (int, default: 5 and 15): Minimum and maximum sizes respectively for the Hugh Circles algorithm to detect stars (scales with downsampling).
+		- downs (int, default: 512): Downsampling resolution, set it to None will use the original image size (slower)
+		- ksize (int/odd number, default: 15): The size of the gaussian kernel used to blur the image (scales with downsampling).
+		- min_dst (int, default: 16): The minimum distance in pixels detected stars should be, stars closer than this value will be ignored (scales with downsampling).
+		
+		Returns: A list containing the detected stars
+	'''
+	
+	if downs is not None and downs != 0:
+		_f = downs / np.min(image.shape) 
+		image = cv2.resize(image, None, fx=_f, fy=_f, interpolation=cv2.INTER_CUBIC)
+	else: _f = 1
+	image = contrast_stretch(image, sigma)
+	image = cv2.GaussianBlur(image, (ksize, ksize), 0)
+	_, image = cv2.threshold(image, threshold, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+
+	circles = cv2.HoughCircles(image, cv2.HOUGH_GRADIENT, 1, min_dst, param1=100, param2=min_size * 2, minRadius=min_size, maxRadius=max_size)
+	
+	if circles is not None:
+		_c : NDArray = circles[0, :].copy()
+		return [Star(str(i), (int(c[0] / _f), int(c[1] / _f)), int(c[2] / _f)) for i, c in enumerate(_c)]
+	print('No stars were detected, try changing min/max sizes or decreasing the sigma value')
+	return list[Star]()
+
 def visualize(image : NDArray[np.int_], stars : List[Star],
 					vsize : int= 720):
 	if vsize is not None and vsize != 0:
