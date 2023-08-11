@@ -95,7 +95,7 @@ class Star():
 	def export(self) -> Tuple[_TVal | Tuple[int, int], ...]:
 		return type(self).__name__, self.name, self.position, self.aperture
 	def __repr__(self):
-		return f'{type(self).__name__}: {self.name}'
+		return f'\n{type(self).__name__}: "{self.name}" [position= {self.position}, aperture= {self.aperture}]'
 
 class ReferenceStar(Star):
 	magnitude : float

@@ -1,9 +1,8 @@
 from typing import Any, Callable, List
 from numpy.typing import NDArray
-import numpy as np
-from numpy.typing import NDArray
-import cv2
 from startrak.types import Star
+import numpy as np
+import cv2
 
 __methods = dict[str, tuple]()
 def detection_method(id : str, name : str):
