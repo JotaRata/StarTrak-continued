@@ -3,3 +3,4 @@ mypy==1.4.1
 mypy-extensions==1.0.0
 numpy==1.25.1
 packaging==23.1
+scipy==1.11.1

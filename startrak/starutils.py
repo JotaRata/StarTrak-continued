@@ -1,17 +1,25 @@
-from typing import Any, Callable, List
+from typing import Any, Callable, List, Tuple
 from numpy.typing import NDArray
 from startrak.types import Star
 import numpy as np
 import cv2
 
-__methods = dict[str, tuple]()
+__methods = dict[str, Callable]() # type: ignore
+
+def detect_stars(method : str, image : NDArray[np.int_], *args, **kwargs) -> List[Star]:
+	return __methods[method][1](image, *args, **kwargs) # type: ignore
+
+# decorator method
 def detection_method(id : str, name : str):
 	def decorator(func : Callable[..., Any]):
-		__methods[id] = name, func
 		def wrapper(*args, **kwargs):
 			return func(*args, **kwargs)
+		wrapper.name = name  # type: ignore
+		__methods[id] = wrapper
 		return wrapper
 	return decorator
+
+# ------------------------- Methods ---------------------
 def contrast_stretch(image : NDArray[np.int_], sigma=1.0):
 	median = np.median(image)
 	std = np.std(image)
