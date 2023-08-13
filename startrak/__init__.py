@@ -3,6 +3,7 @@ from .types.sessions import SessionType
 from .types.sessions import Session as _Session
 from .types.sessions import InspectionSession as _InspectionSession
 from .types.sessions import ScanSession as _ScanSession
+from .starutils import detect_stars, visualize_stars
 from .io import *
 
 APPNAME = "StarTrak"
