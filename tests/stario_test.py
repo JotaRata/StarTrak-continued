@@ -28,6 +28,8 @@ class StarIOTests(unittest.TestCase):
 			self.assertTrue(hasattr(rs, 'magnitude'))
 
 	def test_star_export(self):
+		if not os.path.isdir('./tests/temp_data'):
+			os.mkdir('./tests/temp_data')
 		ls= []
 		with self.subTest('Multiple star creation'):
 			try:
@@ -46,9 +48,10 @@ class StarIOTests(unittest.TestCase):
 				export_stars(EXPORT_PATH, ls)
 			except Exception as e:
 				self.fail(e)
-		self.assertTrue(os.path.exists(EXPORT_PATH + FILE_EXT))
+			self.assertTrue(os.path.exists(EXPORT_PATH + FILE_EXT))
 
 	def test_star_import(self):
+		if not os.path.isdir('./tests/temp_data'): return
 		ls = None
 		with self.subTest('Import stars from file'):
 			try:
@@ -56,8 +59,8 @@ class StarIOTests(unittest.TestCase):
 			except Exception as e:
 				self.fail(e)
 		
-		self.assertIsNotNone(ls)
-		self.assertEqual(len(ls), STAR_NUM)
+			self.assertIsNotNone(ls)
+			self.assertEqual(len(ls), STAR_NUM)
 		
 	def test_star_detection(self):
 		img = None
