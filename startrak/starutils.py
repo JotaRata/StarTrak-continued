@@ -4,8 +4,9 @@ from startrak.types import Star
 import numpy as np
 import cv2
 
+__all__ = ['detect_stars', 'get_methods', 'detection_method']
+__methods__ = dict[str, Callable[..., List[Star]]]() # type: ignore
 _ImageLike = NDArray[np.int_]
-__methods = dict[str, Callable]() # type: ignore
 
 def detect_stars(image : _ImageLike, method : Literal['adaptive', 'threshold'] = 'adaptive', *args, **kwargs) -> List[Star]:
 	'''
@@ -44,22 +45,22 @@ def detect_stars(image : _ImageLike, method : Literal['adaptive', 'threshold'] =
 		- ksize (int/odd number, default: 15): The size of the gaussian kernel used to blur the image (scales with downsampling).
 		- min_dst (int, default: 16): The minimum distance in pixels detected stars should be, stars closer than this value will be ignored (scales with downsampling).
 	'''
-	return __methods[method](image, *args, **kwargs) # type: ignore
+	return __methods__[method](image, *args, **kwargs) # type: ignore
 
 def get_methods():
 	'''
 		Get a list of registered detection methods
 		see: @detect_stars
 	'''
-	return tuple(__methods.values())
+	return tuple(__methods__.values())
 
 # decorator method
 def detection_method(id : str, name : str):
-	def decorator(func : Callable[..., Any]):
-		def wrapper(*args, **kwargs):
+	def decorator(func : Callable[..., List[Star]]):
+		def wrapper(*args : ..., **kwargs : ...):
 			return func(*args, **kwargs)
 		wrapper.name = name  # type: ignore
-		__methods[id] = wrapper
+		__methods__[id] = wrapper
 		return wrapper
 	return decorator
 
@@ -89,7 +90,7 @@ def adaptive_hough_circles( image : _ImageLike, sigma : float = 3.0,
 	circles = cv2.HoughCircles(image, cv2.HOUGH_GRADIENT, 1, min_dst, param1=100, param2=min_size * 2, minRadius=min_size, maxRadius=max_size)
 	
 	if circles is not None:
-		_c : NDArray = circles[0, :].copy()
+		_c = circles[0, :].copy()
 		return [Star(str(i), (int(c[0] / _f), int(c[1] / _f)), int(c[2] / _f)) for i, c in enumerate(_c)]
 	print('No stars were detected, try changing min/max sizes or decreasing the sigma value')
 	return list[Star]()
