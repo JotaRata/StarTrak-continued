@@ -1,11 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional, Set
 from startrak.types import FileInfo, HeaderArchetype, Header
-from enum import Enum
-
-class SessionType(Enum):
-		ASTRO_INSPECT = 'inspect'
-		ASTRO_SCAN = 'scan'
 
 class Session(ABC):
 	name : str
