@@ -4,7 +4,7 @@ from numpy.typing import NDArray
 from astropy.io import fits as _astropy # type: ignore
 from dataclasses import FrozenInstanceError, dataclass
 import os.path
-from typing import Any, Callable, ClassVar, Dict, Final, Generator, Optional, Self, Tuple, Type, Union, cast
+from typing import Any, Callable, ClassVar, Dict, Final, Generator, Optional, Self, Tuple, Type, TypeVar, Union, cast
 
 _TVal = Union[int, bool, float, str]
 
@@ -89,18 +89,17 @@ class Star():
 	position : Tuple[int, int]
 	aperture : int
 	
-	@classmethod
-	def From(cls, other : Self) -> Self:
-		return cls(other.name, other.position, other.aperture)
-	
 	def __iter__(self):
 		return iter((type(self).__name__, self.name, self.position, self.aperture))
+	
+	@classmethod
+	def From(cls : Type[Self], other : Star) -> Self:	#type:ignore
+		_, *params = [ *other]
+		return cls(*params)
 
+@dataclass
 class ReferenceStar(Star):
-	magnitude : float
-	def __init__(self, source : Star, magnitude : float):
-		super().__init__(source.name, source.position, source.aperture)
-		self.magnitude = magnitude
+	magnitude : float = 0
 	def __iter__(self):
 		yield from super().__iter__()
 		yield self.magnitude
