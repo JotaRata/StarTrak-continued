@@ -1,7 +1,7 @@
 from ast import literal_eval
 from typing import Iterable, Iterator
 from startrak.types import FileInfo
-from startrak.types import Star
+from startrak.types import Star, ReferenceStar
 from os import  scandir
 
 __all__ = ['load_file', 'load_folder', 'export_stars', 'import_stars']
@@ -24,7 +24,7 @@ def export_stars(path : str, star_collection : Iterable[Star]):
         out.write('# Exported from Startrak\n')
         out.write('# Type\tName\tPosition\tRadius\tExtra\n')
         for star in star_collection:
-            line = '\t'.join(map(str, star.export()))
+            line = '\t'.join(map(str, star))
             out.write(line + '\n')
 
 def import_stars(path : str) -> Iterator[Star]:
@@ -34,8 +34,9 @@ def import_stars(path : str) -> Iterator[Star]:
             if line.lstrip().startswith('#'): continue
             _type, _name, _pos, _rad, *_extras = line.split('\t')
 
+            print(f'"{_type}"')
             T = globals().get(_type, None)
-            assert issubclass(T, Star), f'Type "{T}" is not a subclass of Star'
+            assert T is not None and issubclass(T, Star), f'Type "{T}" is not a subclass of Star'
             _args = [literal_eval(arg) for arg in _extras]
             _pos = literal_eval(_pos)
             star = T(_name, tuple(_pos), int(_rad), *_args)
