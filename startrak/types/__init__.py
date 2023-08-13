@@ -92,19 +92,18 @@ class Star():
 	@classmethod
 	def From(cls, other : Self) -> Self:
 		return cls(other.name, other.position, other.aperture)
-	def export(self) -> Tuple[_TVal | Tuple[int, int], ...]:
-		return type(self).__name__, self.name, self.position, self.aperture
-	def __repr__(self):
-		return f'\n{type(self).__name__}: "{self.name}" [position= {self.position}, aperture= {self.aperture}]'
+	
+	def __iter__(self):
+		return iter((type(self).__name__, self.name, self.position, self.aperture))
 
 class ReferenceStar(Star):
 	magnitude : float
 	def __init__(self, source : Star, magnitude : float):
 		super().__init__(source.name, source.position, source.aperture)
 		self.magnitude = magnitude
-	
-	def export(self):
-		return (*super().export(), self.magnitude)
+	def __iter__(self):
+		yield from super().__iter__()
+		yield self.magnitude
 
 class TrackingMethod(ABC):
 	@abstractmethod

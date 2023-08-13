@@ -24,7 +24,7 @@ def export_stars(path : str, star_collection : Iterable[Star]):
         out.write('# Exported from Startrak\n')
         out.write('# Type\tName\tPosition\tRadius\tExtra\n')
         for star in star_collection:
-            line = '\t'.join(map(str, star.export()))
+            line = '\t'.join(map(str, star))
             out.write(line + '\n')
 
 def import_stars(path : str) -> Iterator[Star]:
