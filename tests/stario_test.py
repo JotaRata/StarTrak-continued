@@ -6,7 +6,7 @@ from startrak.types import Star, ReferenceStar
 import unittest
 
 STAR_NUM = 12
-TEST_FITS = ('./tests/sample_files/AEFor4.fit')
+TEST_FITS = ('./tests/sample_files/aefor4.fit')
 EXPORT_PATH = ('./tests/temp_data/output')
 FILE_EXT = '.stlist'
 
