@@ -29,5 +29,12 @@ class FileLoadingTest(unittest.TestCase):
             self.assertTrue(info.path is not None and len(info.path) > len(dir))
             self.assertTrue(info.header is not None and isinstance(info.header, Header), 'Header is null/empty')
 
+    def test_fileinfo_immutability(self):
+        f = load_file(dir + paths[0])
+        try:
+            f.path = 'Whatever'
+        except AttributeError:
+            return
+        self.assertEqual(f.path, os.path.basename(paths[0]))
 if __name__ == "__main__":
     unittest.main()

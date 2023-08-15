@@ -56,32 +56,41 @@ class HeaderArchetype(Header):
 		assert all([ value in (int, bool, float, str) for value in user_keys.values()])
 		HeaderArchetype._entries = user_keys
 
+@dataclass()
 class FileInfo():
-	path : str
-	size : int
-	header : Header
+	path : Final[str]
+	size : Final[int]
+	header : Final[Header]
 	def __init__(self, source : str | _astropy.HDUList):
-		if type(path := source) is str:
-			with _astropy.open(path) as hdu:
+		if type(__path := source) is str:
+			with _astropy.open(__path) as hdu:
 				assert type(hdu) is _astropy.HDUList
-				self.path = os.path.abspath(path)
-				self.size = os.path.getsize(path)
+				_path = os.path.abspath(__path)
+				_size  = os.path.getsize(_path)
 				assert isinstance(phdu := hdu[0], _astropy.PrimaryHDU)
-				self.header = Header(cast(_astropy.Header, phdu.header))
+				_header = Header(cast(_astropy.Header, phdu.header))
 		elif type(hdu := source) is _astropy.HDUList:
-				self.path = os.path.abspath(cast(str, hdu.filename()))
-				self.size = os.path.getsize(self.path)
+				_path = os.path.abspath(cast(str, hdu.filename()))
+				_size = os.path.getsize(_path)
 				assert isinstance(phdu := hdu[0], _astropy.PrimaryHDU)
-				self.header = Header(cast(_astropy.Header, phdu.header))
+				_header = Header(cast(_astropy.Header, phdu.header))
 		else:
 			raise TypeError('Expected one argument of type str or HDUList')
+		self.path = _path
+		self.size = _size
+		self.header = _header
+
 	def __setattr__(self, __name: str, __value: Any) -> None:
-			raise FrozenInstanceError(type(self).__name__)
-	
+		raise AttributeError(name= __name)
 	def get_data(self) -> NDArray[np.int_]:
 		return _astropy.getdata(self.path)
 	def __repr__(self):
-		return f'\n[File: "{os.path.basename(self.path)}" ({self.size}) bytes]'
+		return f'\n{type(self).__name__}(path={os.path.basename(self.path)}, size={self.size} bytes)'
+	def __eq__(self, __value):
+		if not  isinstance(__value, type(self)): return False
+		return self.path == __value.path
+	def __hash__(self) -> int:
+		return hash(self.path)
 
 @dataclass
 class Star():
