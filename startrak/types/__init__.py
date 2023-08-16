@@ -4,8 +4,8 @@ import numpy as np
 from numpy.typing import NDArray
 from dataclasses import  dataclass
 import os.path
-from .fits import _FITSBufferedReaderWrapper as BufferedReader
-from .fits import _ValueType
+from startrak.types.fits import _FITSBufferedReaderWrapper as BufferedReader
+from startrak.types.fits import _ValueType
 
 class Header():
 	_items : Dict[str, _ValueType]
