@@ -1,17 +1,15 @@
+from typing import Any, Callable, ClassVar, Dict, Final, Generator, Optional, Self, Tuple, Type, cast
 from abc import ABC, abstractmethod
 import numpy as np
 from numpy.typing import NDArray
-from astropy.io import fits as _astropy # type: ignore
-from dataclasses import FrozenInstanceError, dataclass
+from dataclasses import  dataclass
 import os.path
-from typing import Any, Callable, ClassVar, Dict, Final, Generator, Optional, Self, Tuple, Type, TypeVar, Union, cast
-
-_TVal = Union[int, bool, float, str]
+from .fits import _FITSBufferedReaderWrapper, _ValueType
 
 class Header():
-	_items : Dict[str, _TVal]
-	def __init__(self, source : _astropy.Header | Dict[str, _TVal]):
-		header_items = cast(Generator[Tuple[str, _TVal], None, None], source.items())
+	_items : Dict[str, _ValueType]
+	def __init__(self, source : Dict[str, _ValueType]):
+		header_items = cast(Generator[Tuple[str, _ValueType], None, None], source.items())
 		self._items = {str(key) : value for key, value in header_items 
 			if type(value) in (int, bool, float, str)}
 	
@@ -25,11 +23,11 @@ class Header():
 		return '\n'.join([f'{k} = {v}' for k,v in self._items.items()])
 
 class HeaderArchetype(Header):
-	_defaults : Final[Dict[str, Type[_TVal]]] = \
+	_defaults : Final[Dict[str, Type[_ValueType]]] = \
 		{'SIMPLE' : int, 'BITPIX' : int, 'NAXIS' : int, 'EXPTIME' : float}
-	_entries : ClassVar[Dict[str, Type[_TVal]]] = {}
+	_entries : ClassVar[Dict[str, Type[_ValueType]]] = {}
 
-	def __init__(self, source : Header | Dict[str, _TVal]):
+	def __init__(self, source : Header | Dict[str, _ValueType]):
 		self._items = dict()
 		for key, _type in HeaderArchetype._defaults.items():
 			self._items[key] = _type(source[key])
@@ -43,7 +41,7 @@ class HeaderArchetype(Header):
 		_naxisn = tuple(int(source[f'NAXIS{n + 1}']) for n in range(_naxis))
 		for n in range(_naxis): self._items[f'NAXIS{n+1}'] = _naxisn[n]
 	
-	def validate(self, header : Header, failed : Optional[Callable[[str, _TVal, _TVal], None]] = None) -> bool:
+	def validate(self, header : Header, failed : Optional[Callable[[str, _ValueType, _ValueType], None]] = None) -> bool:
 		for key, value in self._items.items():
 			if (key not in header._items.keys()) or (header._items[key] != value):
 					if callable(failed): failed(key, value, header._items[key])
@@ -56,34 +54,33 @@ class HeaderArchetype(Header):
 		assert all([ value in (int, bool, float, str) for value in user_keys.values()])
 		HeaderArchetype._entries = user_keys
 
-@dataclass()
+@dataclass
 class FileInfo():
 	path : Final[str]
 	size : Final[int]
 	header : Final[Header]
-	def __init__(self, source : str | _astropy.HDUList):
-		if type(__path := source) is str:
-			with _astropy.open(__path) as hdu:
-				assert type(hdu) is _astropy.HDUList
-				_path = os.path.abspath(__path)
-				_size  = os.path.getsize(_path)
-				assert isinstance(phdu := hdu[0], _astropy.PrimaryHDU)
-				_header = Header(cast(_astropy.Header, phdu.header))
-		elif type(hdu := source) is _astropy.HDUList:
-				_path = os.path.abspath(cast(str, hdu.filename()))
-				_size = os.path.getsize(_path)
-				assert isinstance(phdu := hdu[0], _astropy.PrimaryHDU)
-				_header = Header(cast(_astropy.Header, phdu.header))
-		else:
-			raise TypeError('Expected one argument of type str or HDUList')
-		self.path = _path
-		self.size = _size
-		self.header = _header
+	_file : _FITSBufferedReaderWrapper
 
-	def __setattr__(self, __name: str, __value: Any) -> None:
+	def __init__(self, path : str):
+		assert path.lower().endswith(('.fit', '.fits')),\
+			'Input path is not a FITS file'
+		self._file = _FITSBufferedReaderWrapper(path)
+		self.path = os.path.abspath(path)
+		self.size = os.path.getsize(path)
+
+		self.header = self._build_header()
+		self._file.close()
+
+	def _build_header(self):
+		_header_dict = {key : value for key, value\
+							in self._file._read_header()}
+		return Header(_header_dict)
+
+	def __setattr__(self, __name: str, __value) -> None:
 		raise AttributeError(name= __name)
 	def get_data(self) -> NDArray[np.int_]:
-		return _astropy.getdata(self.path)
+		return np.array(())
+		# return _astropy.getdata(self.path)
 	def __repr__(self):
 		return f'\n{type(self).__name__}(path={os.path.basename(self.path)}, size={self.size} bytes)'
 	def __eq__(self, __value):
@@ -91,6 +88,7 @@ class FileInfo():
 		return self.path == __value.path
 	def __hash__(self) -> int:
 		return hash(self.path)
+
 
 @dataclass
 class Star():
