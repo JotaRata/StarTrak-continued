@@ -4,7 +4,8 @@ import numpy as np
 from numpy.typing import NDArray
 from dataclasses import  dataclass
 import os.path
-from .fits import _FITSBufferedReaderWrapper, _ValueType
+from .fits import _FITSBufferedReaderWrapper as BufferedReader
+from .fits import _ValueType
 
 class Header():
 	_items : Dict[str, _ValueType]
@@ -56,15 +57,15 @@ class HeaderArchetype(Header):
 
 @dataclass
 class FileInfo():
+	_file : BufferedReader
 	path : Final[str]
 	size : Final[int]
 	header : Final[Header]
-	_file : _FITSBufferedReaderWrapper
 
 	def __init__(self, path : str):
 		assert path.lower().endswith(('.fit', '.fits')),\
 			'Input path is not a FITS file'
-		self._file = _FITSBufferedReaderWrapper(path)
+		self._file = BufferedReader(path)
 		self.path = os.path.abspath(path)
 		self.size = os.path.getsize(path)
 
