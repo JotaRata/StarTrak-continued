@@ -8,11 +8,10 @@ from startrak.types.fits import _FITSBufferedReaderWrapper as BufferedReader
 from startrak.types.fits import _ValueType, _bitsize, DTypeLike
 
 _defaults : Final[Dict[str, Type[_ValueType]]] = \
-		{'SIMPLE' : int, 'BITPIX' : int, 'NAXIS' : int, 'EXPTIME' : float}
+		{'SIMPLE' : int, 'BITPIX' : int, 'NAXIS' : int, 'EXPTIME' : float, 'BSCALE' : float, 'BZERO' : float}
 class Header():
 	_items : Dict[str, _ValueType]
 	bitsize : np.dtype[Any]
-	shape : Tuple[int, int]
 	def __init__(self, source : Dict[str, _ValueType]):
 		self._items = {str(key) : value for key, value in  source.items() 
 			if type(value) in (int, bool, float, str)}
@@ -23,8 +22,6 @@ class Header():
 		# todo: Add support for ND Arrays
 		if self._items['NAXIS'] != 2:
 			raise NotImplementedError('Only 2D data blocks are supported')
-		self.shape = (cast(int, self._items['NAXIS2']),
-							cast(int, self._items['NAXIS1']))
 	def contains_key(self, key : str):
 		return key in self._items.keys()
 	def __getitem__(self, key : str):
@@ -82,19 +79,22 @@ class FileInfo():
 		self._file.close()
 
 	def _build_header(self):
-		_header_dict = {key : value for key, value\
-							in self._file._read_header()}
+		_header_dict = {key : value for key, value in self._file._read_header()}
 		return Header(_header_dict)
 
+	def get_data(self, scale = True) -> NDArray[np.int_]:
+		_dtype = self.header.bitsize
+		_shape = cast(int, self.header['NAXIS2']),cast(int, self.header['NAXIS1'])
+		_raw = self._file._read_data(_dtype.newbyteorder('>'), _shape[0] * _shape[1])
+		self._file.close()
+		if scale:
+			_scale, _zero = cast(float,self.header['BSCALE']),cast(float,self.header['BZERO'])
+			if _scale != 1 or _zero != 0:
+				_raw = _zero + _scale * _raw
+		return _raw.reshape(_shape).astype(_dtype)
+	
 	def __setattr__(self, __name: str, __value) -> None:
 		raise AttributeError(name= __name)
-	def get_data(self) -> NDArray[np.int_]:
-		_dtype = self.header.bitsize
-		_shape = self.header.shape
-		_raw = self._file._read_data(_dtype, _shape[0] * _shape[1])
-		self._file.close()
-		return _raw.reshape(_shape)
-	
 	def __repr__(self):
 		return f'\n{type(self).__name__}(path={os.path.basename(self.path)}, size={self.size} bytes)'
 	def __eq__(self, __value):
