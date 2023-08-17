@@ -57,7 +57,7 @@ def get_methods():
 # decorator method
 def detection_method(id : str, name : str):
 	def decorator(func : Callable[..., List[Star]]):
-		def wrapper(*args : ..., **kwargs : ...):
+		def wrapper(*args : Any, **kwargs : Any):
 			return func(*args, **kwargs)
 		wrapper.name = name  # type: ignore
 		__methods__[id] = wrapper
@@ -116,13 +116,13 @@ def simple_hough_circles( image : _ImageLike, threshold : float,
 	return list[Star]()
 
 def visualize_stars(image : _ImageLike, stars : List[Star],
-					vsize : int= 720):
+					vsize : int= 720, sigma : int = 4):
 	if vsize is not None and vsize != 0:
 		_f = vsize / np.min(image.shape) 
 		image = cv2.resize(image, None, fx=_f, fy=_f, interpolation=cv2.INTER_CUBIC)
 	else: _f = 1
 	image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-	image = contrast_stretch(image, sigma=4)
+	image = contrast_stretch(image, sigma=sigma)
 	for star in stars:
 		pos = int(star.position[0] * _f), int(star.position[1] * _f)
 		rad = int(star.aperture * _f)
