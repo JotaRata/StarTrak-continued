@@ -1,4 +1,5 @@
 from ast import literal_eval
+from functools import lru_cache
 from typing import Iterable, Iterator
 from startrak.types import FileInfo
 from startrak.types import Star, ReferenceStar
@@ -6,6 +7,7 @@ from os import  scandir
 
 __all__ = ['load_file', 'load_folder', 'export_stars', 'import_stars']
 # ----- Wrapper functions around astropy.io --------
+@lru_cache(5)
 def load_file(path: str) -> FileInfo:
     return FileInfo(path)
 

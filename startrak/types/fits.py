@@ -1,53 +1,49 @@
-from typing import Any, BinaryIO, Iterator, Type, TypeVar, Union, Tuple, overload
+from mmap import ACCESS_READ, ALLOCATIONGRANULARITY, mmap
+from typing import Any, BinaryIO, Final, Iterator, Type, TypeVar, Union, Tuple, overload
 from numpy.typing import NDArray, DTypeLike
 import numpy as np
 
 _ValueType = Union[int, float, str, bool]
 _BitDepth =  TypeVar('_BitDepth', bound= np.dtype)
 class _FITSBufferedReaderWrapper:
-	_bio : BinaryIO
-	_endPos : int
-	_offset : int
+	_filePath : str
+	_OFFSET : Final[int] = 2880 << 1
 
-	def __init__(self, file_path : str | bytes) -> None:
-		self._bio = open(file_path, 'rb')
-		self._endPos = 0
-		self._offset = 2880 << 1	# account for the extra bit not present in ASCII encoding
+	def __init__(self, file_path : str) -> None:
+		self._filePath = file_path
 
 	def _read_header(self) -> Iterator[Tuple[str, _ValueType]]:
-		if self.closed: self.reset()
+		_bio = open(self._filePath, 'rb')
+		_mmap = mmap(_bio.fileno(), _FITSBufferedReaderWrapper._OFFSET, access=ACCESS_READ)
 		while True:
-			line = self._bio.read(80)
+			line = _mmap.read(80)
 			if not line: break
-			if b'END' in line:
-				self._endPos = self._bio.tell()
+			if line[:3] == b'END':
 				break
 			_validate_byteline(line)
-			_keyword = line[:8].decode().rstrip()
+			_keyword = line[:8].decode()
 			_value = _parse_bytevalue(line)
 			yield _keyword, _value
+		_mmap.close()
+		_bio.close()
 	@overload
 	def _read_data(self,) -> NDArray[np.uint16]: ...
 	@overload
-	def _read_data(self, dtype : _BitDepth, count : int) -> np.ndarray[Any, _BitDepth]: ...
+	def _read_data(self, dtype :_BitDepth, count : int) -> np.ndarray[Any,_BitDepth]: ...
 
-	def _read_data(self, dtype = np.uint16, count = -1) -> np.ndarray[Any, _BitDepth]:
-		if self.closed: self.reset(self._offset)
-		data = self._bio.read()
-		return np.frombuffer(data, count=count ,dtype=dtype)
+	def _read_data(self, dtype = np.uint16, count = -1) -> np.ndarray[Any,  _BitDepth]:
+		_bio = open(self._filePath, 'rb')
+		_offset = (_FITSBufferedReaderWrapper._OFFSET // ALLOCATIONGRANULARITY) * ALLOCATIONGRANULARITY
+		_mmap = mmap(_bio.fileno(), 0, offset=_offset, access=ACCESS_READ)
+		if _offset == 0:
+			_mmap.seek(_FITSBufferedReaderWrapper._OFFSET)
+		else:
+			_mmap.seek(_FITSBufferedReaderWrapper._OFFSET - _offset)
+		data =  np.frombuffer( _mmap.read(), count=count ,dtype=dtype)
+		_mmap.close()
+		_bio.close()
+		return data
 
-	def reset(self, offset : int = 0):
-		if offset != 0:
-			_FITSBufferedReaderWrapper.__init__(self, self._bio.name)
-		self._bio.seek(offset)
-	def tell(self):
-		return self._bio.tell()
-	@property
-	def closed(self) -> bool:
-		return self._bio.closed
-	def close(self):
-		return self._bio.close()
-			
 def _parse_bytevalue(src : bytes) -> _ValueType:
 	if src[10] == 39:
 		end = src.rfind(39, 19)

@@ -1,4 +1,4 @@
-from typing import Any, Callable, ClassVar, Dict, Final, Generator, Optional, Self, Tuple, Type, cast
+from typing import Any, Callable, ClassVar, Dict, Final, Generator, Optional, Self, Tuple, Type, Union, cast
 from abc import ABC, abstractmethod
 import numpy as np
 from numpy.typing import NDArray
@@ -7,21 +7,29 @@ import os.path
 from startrak.types.fits import _FITSBufferedReaderWrapper as BufferedReader
 from startrak.types.fits import _ValueType, _bitsize, DTypeLike
 
+_NumberLike = Union[np.uint, np.float_]
 _defaults : Final[Dict[str, Type[_ValueType]]] = \
 		{'SIMPLE' : int, 'BITPIX' : int, 'NAXIS' : int, 'EXPTIME' : float, 'BSCALE' : float, 'BZERO' : float}
+
 class Header():
 	_items : Dict[str, _ValueType]
-	bitsize : np.dtype[Any]
+	bitsize : np.dtype[_NumberLike]
+	shape : Tuple[int, int]
+	bscale : np.uint
+	bzero : np.uint
 	def __init__(self, source : Dict[str, _ValueType]):
 		self._items = {str(key) : value for key, value in  source.items() 
 			if type(value) in (int, bool, float, str)}
 		if not all((key in self._items for key in _defaults.keys())):
 			raise KeyError('Header not having mandatory keywords')
 		self.bitsize = _bitsize(cast(int, self._items['BITPIX']))
+		self.bscale = cast(np.uint,self._items['BSCALE'])
+		self.bzero = cast(np.uint,self._items['BZERO'])
 		
 		# todo: Add support for ND Arrays
 		if self._items['NAXIS'] != 2:
 			raise NotImplementedError('Only 2D data blocks are supported')
+		self.shape = cast(int, self._items['NAXIS2']),cast(int, self._items['NAXIS1'])
 	def contains_key(self, key : str):
 		return key in self._items.keys()
 	def __getitem__(self, key : str):
@@ -63,10 +71,11 @@ class HeaderArchetype(Header):
 
 @dataclass
 class FileInfo():
-	_file : BufferedReader
 	path : Final[str]
 	size : Final[int]
-	header : Final[Header]
+	_file : BufferedReader
+	__header : Header | None
+	__data : NDArray[_NumberLike] | None
 
 	def __init__(self, path : str):
 		assert path.lower().endswith(('.fit', '.fits')),\
@@ -74,24 +83,28 @@ class FileInfo():
 		self._file = BufferedReader(path)
 		self.path = os.path.abspath(path)
 		self.size = os.path.getsize(path)
+		self.__header = None
+		self.__data = None
 
-		self.header = self._build_header()
-		self._file.close()
-
-	def _build_header(self):
-		_header_dict = {key : value for key, value in self._file._read_header()}
-		return Header(_header_dict)
-
-	def get_data(self, scale = True) -> NDArray[np.int_]:
+	@property
+	def header(self) -> Header:
+		if self.__header is None:
+			_dict = {key.rstrip() : value for key, value in self._file._read_header()}
+			self.__header = Header(_dict)
+		return self.__header
+	
+	def get_data(self, scale = True):
+		if self.__data is not None:
+			return self.__data
 		_dtype = self.header.bitsize
-		_shape = cast(int, self.header['NAXIS2']),cast(int, self.header['NAXIS1'])
+		_shape = self.header.shape
 		_raw = self._file._read_data(_dtype.newbyteorder('>'), _shape[0] * _shape[1])
-		self._file.close()
 		if scale:
-			_scale, _zero = cast(float,self.header['BSCALE']),cast(float,self.header['BZERO'])
+			_scale, _zero = self.header.bscale, self.header.bzero
 			if _scale != 1 or _zero != 0:
 				_raw = _zero + _scale * _raw
-		return _raw.reshape(_shape).astype(_dtype)
+		self.__data = _raw.reshape(_shape).astype(_dtype)
+		return self.__data
 	
 	def __setattr__(self, __name: str, __value) -> None:
 		raise AttributeError(name= __name)
