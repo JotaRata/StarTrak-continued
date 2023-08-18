@@ -1,20 +1,35 @@
+from typing import Any, Callable, ClassVar, Dict, Final, Generator, Optional, Self, Tuple, Type, Union, cast
 from abc import ABC, abstractmethod
 import numpy as np
 from numpy.typing import NDArray
-from astropy.io import fits as _astropy # type: ignore
-from dataclasses import FrozenInstanceError, dataclass
+from dataclasses import  dataclass
 import os.path
-from typing import Any, Callable, ClassVar, Dict, Final, Generator, Optional, Self, Tuple, Type, TypeVar, Union, cast
+from startrak.types.fits import _FITSBufferedReaderWrapper as BufferedReader
+from startrak.types.fits import _ValueType, _bitsize, DTypeLike
 
-_TVal = Union[int, bool, float, str]
+_NumberLike = Union[np.uint, np.float_]
+_defaults : Final[Dict[str, Type[_ValueType]]] = \
+		{'SIMPLE' : int, 'BITPIX' : int, 'NAXIS' : int, 'EXPTIME' : float, 'BSCALE' : float, 'BZERO' : float}
 
 class Header():
-	_items : Dict[str, _TVal]
-	def __init__(self, source : _astropy.Header | Dict[str, _TVal]):
-		header_items = cast(Generator[Tuple[str, _TVal], None, None], source.items())
-		self._items = {str(key) : value for key, value in header_items 
+	_items : Dict[str, _ValueType]
+	bitsize : np.dtype[_NumberLike]
+	shape : Tuple[int, int]
+	bscale : np.uint
+	bzero : np.uint
+	def __init__(self, source : Dict[str, _ValueType]):
+		self._items = {str(key) : value for key, value in  source.items() 
 			if type(value) in (int, bool, float, str)}
-	
+		if not all((key in self._items for key in _defaults.keys())):
+			raise KeyError('Header not having mandatory keywords')
+		self.bitsize = _bitsize(cast(int, self._items['BITPIX']))
+		self.bscale = cast(np.uint,self._items['BSCALE'])
+		self.bzero = cast(np.uint,self._items['BZERO'])
+		
+		# todo: Add support for ND Arrays
+		if self._items['NAXIS'] != 2:
+			raise NotImplementedError('Only 2D data blocks are supported')
+		self.shape = cast(int, self._items['NAXIS2']),cast(int, self._items['NAXIS1'])
 	def contains_key(self, key : str):
 		return key in self._items.keys()
 	def __getitem__(self, key : str):
@@ -25,13 +40,11 @@ class Header():
 		return '\n'.join([f'{k} = {v}' for k,v in self._items.items()])
 
 class HeaderArchetype(Header):
-	_defaults : Final[Dict[str, Type[_TVal]]] = \
-		{'SIMPLE' : int, 'BITPIX' : int, 'NAXIS' : int, 'EXPTIME' : float}
-	_entries : ClassVar[Dict[str, Type[_TVal]]] = {}
+	_entries : ClassVar[Dict[str, Type[_ValueType]]] = {}
 
-	def __init__(self, source : Header | Dict[str, _TVal]):
+	def __init__(self, source : Header | Dict[str, _ValueType]):
 		self._items = dict()
-		for key, _type in HeaderArchetype._defaults.items():
+		for key, _type in _defaults.items():
 			self._items[key] = _type(source[key])
 		
 		for key, _type in HeaderArchetype._entries.items():
@@ -43,7 +56,7 @@ class HeaderArchetype(Header):
 		_naxisn = tuple(int(source[f'NAXIS{n + 1}']) for n in range(_naxis))
 		for n in range(_naxis): self._items[f'NAXIS{n+1}'] = _naxisn[n]
 	
-	def validate(self, header : Header, failed : Optional[Callable[[str, _TVal, _TVal], None]] = None) -> bool:
+	def validate(self, header : Header, failed : Optional[Callable[[str, _ValueType, _ValueType], None]] = None) -> bool:
 		for key, value in self._items.items():
 			if (key not in header._items.keys()) or (header._items[key] != value):
 					if callable(failed): failed(key, value, header._items[key])
@@ -56,34 +69,45 @@ class HeaderArchetype(Header):
 		assert all([ value in (int, bool, float, str) for value in user_keys.values()])
 		HeaderArchetype._entries = user_keys
 
-@dataclass()
+@dataclass
 class FileInfo():
 	path : Final[str]
 	size : Final[int]
-	header : Final[Header]
-	def __init__(self, source : str | _astropy.HDUList):
-		if type(__path := source) is str:
-			with _astropy.open(__path) as hdu:
-				assert type(hdu) is _astropy.HDUList
-				_path = os.path.abspath(__path)
-				_size  = os.path.getsize(_path)
-				assert isinstance(phdu := hdu[0], _astropy.PrimaryHDU)
-				_header = Header(cast(_astropy.Header, phdu.header))
-		elif type(hdu := source) is _astropy.HDUList:
-				_path = os.path.abspath(cast(str, hdu.filename()))
-				_size = os.path.getsize(_path)
-				assert isinstance(phdu := hdu[0], _astropy.PrimaryHDU)
-				_header = Header(cast(_astropy.Header, phdu.header))
-		else:
-			raise TypeError('Expected one argument of type str or HDUList')
-		self.path = _path
-		self.size = _size
-		self.header = _header
+	_file : BufferedReader
+	__header : Header | None
+	__data : NDArray[_NumberLike] | None
 
-	def __setattr__(self, __name: str, __value: Any) -> None:
+	def __init__(self, path : str):
+		assert path.lower().endswith(('.fit', '.fits')),\
+			'Input path is not a FITS file'
+		self._file = BufferedReader(path)
+		self.path = os.path.abspath(path)
+		self.size = os.path.getsize(path)
+		self.__header = None
+		self.__data = None
+
+	@property
+	def header(self) -> Header:
+		if self.__header is None:
+			_dict = {key.rstrip() : value for key, value in self._file._read_header()}
+			self.__header = Header(_dict)
+		return self.__header
+	
+	def get_data(self, scale = True):
+		if self.__data is not None:
+			return self.__data
+		_dtype = self.header.bitsize
+		_shape = self.header.shape
+		_raw = self._file._read_data(_dtype.newbyteorder('>'), _shape[0] * _shape[1])
+		if scale:
+			_scale, _zero = self.header.bscale, self.header.bzero
+			if _scale != 1 or _zero != 0:
+				_raw = _zero + _scale * _raw
+		self.__data = _raw.reshape(_shape).astype(_dtype)
+		return self.__data
+	
+	def __setattr__(self, __name: str, __value) -> None:
 		raise AttributeError(name= __name)
-	def get_data(self) -> NDArray[np.int_]:
-		return _astropy.getdata(self.path)
 	def __repr__(self):
 		return f'\n{type(self).__name__}(path={os.path.basename(self.path)}, size={self.size} bytes)'
 	def __eq__(self, __value):
@@ -91,6 +115,7 @@ class FileInfo():
 		return self.path == __value.path
 	def __hash__(self) -> int:
 		return hash(self.path)
+
 
 @dataclass
 class Star():
