@@ -1,10 +1,9 @@
-from typing import Any
+from startrak.types.alias import *
 import numpy as np
 
-_ImageLike = np.ndarray[Any, np.dtype[np.int_]]	# todo: Unify typing aliases
 __all__ = ['sigma_stretch']
 
-def sigma_stretch(image : _ImageLike, sigma=1.0):
+def sigma_stretch(image : ImageLike, sigma=1.0) -> NDArray[np.uint8]:
 	'''
 		Sigma clipping linear stretch algorithm
 
@@ -19,7 +18,7 @@ def sigma_stretch(image : _ImageLike, sigma=1.0):
 	image = np.clip((image - smin) * (255 / (smax - smin)), 0, 255)
 	return image.astype(np.uint8)
 
-def linear_stretch(image : _ImageLike, smin : float|int, smax: float|int):
+def linear_stretch(image : ImageLike, smin : NumberLike, smax: NumberLike) -> NDArray[np.uint8]:
 	'''
 		Linear clipping stretch algorithm
 
