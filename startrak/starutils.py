@@ -5,11 +5,13 @@ from startrak.imageutils import sigma_stretch
 import numpy as np
 import cv2
 
+from startrak.types.alias import ImageLike, Decorator
+
 __all__ = ['detect_stars', 'get_methods', 'detection_method']
 __methods__ = dict[str, Callable[..., List[Star]]]() # type: ignore
-_ImageLike = NDArray[np.int_]
+_DetectionMethod = Callable[..., List[Star]]
 
-def detect_stars(image : _ImageLike, method : Literal['adaptive', 'threshold'] = 'adaptive', *args, **kwargs) -> List[Star]:
+def detect_stars(image : ImageLike, method : Literal['adaptive', 'threshold'] = 'adaptive', *args, **kwargs) -> List[Star]:
 	'''
 		## Automatic star detection.
 		Avaiable methods are 'adaptive' and 'threshold' that corresponds to 'Adaptive HoughCircles' and 'Simple HoughCircles' respectively.
@@ -48,7 +50,7 @@ def detect_stars(image : _ImageLike, method : Literal['adaptive', 'threshold'] =
 	'''
 	return __methods__[method](image, *args, **kwargs) # type: ignore
 
-def get_methods():
+def get_methods() -> Tuple[_DetectionMethod, ...]:
 	'''
 		Get a list of registered detection methods
 		see: @detect_stars
@@ -56,8 +58,8 @@ def get_methods():
 	return tuple(__methods__.values())
 
 # decorator method
-def detection_method(id : str, name : str):
-	def decorator(func : Callable[..., List[Star]]):
+def detection_method(id : str, name : str) -> Decorator[List[Star]]:
+	def decorator(func : Callable[..., List[Star]]) -> _DetectionMethod:
 		def wrapper(*args : Any, **kwargs : Any):
 			return func(*args, **kwargs)
 		wrapper.name = name  # type: ignore
@@ -67,10 +69,10 @@ def detection_method(id : str, name : str):
 
 # ------------------------- Methods ---------------------
 @detection_method('adaptive', 'Adaptive HoughCircles')
-def adaptive_hough_circles( image : _ImageLike, sigma : float = 3.0,
+def adaptive_hough_circles( image : ImageLike, sigma : float = 3.0,
 						min_size : int = 5, max_size : int = 15,
 						downs : int = 512, ksize : int = 15, min_dst : int = 16,
-						threshold : int = 2, blockSize : int = 11):
+						threshold : int = 2, blockSize : int = 11) -> list[Star]:
 	if downs is not None and downs != 0:
 		_f = downs / np.min(image.shape) 
 		image = cv2.resize(image, None, fx=_f, fy=_f, interpolation=cv2.INTER_CUBIC)
@@ -89,9 +91,9 @@ def adaptive_hough_circles( image : _ImageLike, sigma : float = 3.0,
 	return list[Star]()
 	
 @detection_method('threshold', 'Simple HoughCircles')
-def simple_hough_circles( image : _ImageLike, threshold : float,
+def simple_hough_circles( image : ImageLike, threshold : float,
 							sigma : int = 1, min_size : int = 5, max_size : int = 15,
-							downs : int = 512, ksize : int = 15, min_dst : int = 16):
+							downs : int = 512, ksize : int = 15, min_dst : int = 16) -> list[Star]:
 	if downs is not None and downs != 0:
 		_f = downs / np.min(image.shape) 
 		image = cv2.resize(image, None, fx=_f, fy=_f, interpolation=cv2.INTER_CUBIC)
@@ -108,7 +110,7 @@ def simple_hough_circles( image : _ImageLike, threshold : float,
 	print('No stars were detected, try changing min/max sizes or decreasing the sigma value')
 	return list[Star]()
 
-def visualize_stars(image : _ImageLike, stars : List[Star],
+def visualize_stars(image : ImageLike, stars : List[Star],
 					vsize : int= 720, sigma : int = 4):
 	if vsize is not None and vsize != 0:
 		_f = vsize / np.min(image.shape) 
