@@ -1,3 +1,4 @@
+from functools import lru_cache
 from typing import Any, Callable, ClassVar, Dict, Final, Generator, Optional, Self, Tuple, Type, Union, cast
 from abc import ABC, abstractmethod
 import numpy as np
@@ -75,7 +76,6 @@ class FileInfo():
 	size : Final[int]
 	_file : BufferedReader
 	__header : Header | None
-	__data : NDArray[_NumberLike] | None
 
 	def __init__(self, path : str):
 		assert path.lower().endswith(('.fit', '.fits')),\
@@ -84,7 +84,6 @@ class FileInfo():
 		self.path = os.path.abspath(path)
 		self.size = os.path.getsize(path)
 		self.__header = None
-		self.__data = None
 
 	@property
 	def header(self) -> Header:
@@ -93,9 +92,8 @@ class FileInfo():
 			self.__header = Header(_dict)
 		return self.__header
 	
-	def get_data(self, scale = True):
-		if self.__data is not None:
-			return self.__data
+	@lru_cache(maxsize=5)	# todo: Add parameter to config
+	def get_data(self, scale = True) -> np.ndarray[Any, np.dtype[_NumberLike]]:
 		_dtype = self.header.bitsize
 		_shape = self.header.shape
 		_raw = self._file._read_data(_dtype.newbyteorder('>'), _shape[0] * _shape[1])
@@ -103,8 +101,7 @@ class FileInfo():
 			_scale, _zero = self.header.bscale, self.header.bzero
 			if _scale != 1 or _zero != 0:
 				_raw = _zero + _scale * _raw
-		self.__data = _raw.reshape(_shape).astype(_dtype)
-		return self.__data
+		return _raw.reshape(_shape).astype(_dtype)
 	
 	def __setattr__(self, __name: str, __value) -> None:
 		raise AttributeError(name= __name)
