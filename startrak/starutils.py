@@ -1,6 +1,7 @@
 from typing import Any, Callable, List, Literal, Tuple
 from numpy.typing import NDArray
 from startrak.types import Star
+from startrak.imageutils import sigma_stretch
 import numpy as np
 import cv2
 
@@ -65,14 +66,6 @@ def detection_method(id : str, name : str):
 	return decorator
 
 # ------------------------- Methods ---------------------
-def contrast_stretch(image : _ImageLike, sigma=1.0):
-	median = np.median(image)
-	std = np.std(image)
-	smin = median - sigma * std
-	smax = median + sigma * std
-	image = np.clip((image - smin) * (255 / (smax - smin)), 0, 255)
-	return image.astype(np.uint8)
-
 @detection_method('adaptive', 'Adaptive HoughCircles')
 def adaptive_hough_circles( image : _ImageLike, sigma : float = 3.0,
 						min_size : int = 5, max_size : int = 15,
@@ -82,7 +75,7 @@ def adaptive_hough_circles( image : _ImageLike, sigma : float = 3.0,
 		_f = downs / np.min(image.shape) 
 		image = cv2.resize(image, None, fx=_f, fy=_f, interpolation=cv2.INTER_CUBIC)
 	else: _f = 1
-	image = contrast_stretch(image, sigma=sigma)
+	image = sigma_stretch(image, sigma=sigma)
 
 	image = cv2.GaussianBlur(image, (ksize, ksize), 0)
 	image = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, blockSize=blockSize, C=threshold)
@@ -103,7 +96,7 @@ def simple_hough_circles( image : _ImageLike, threshold : float,
 		_f = downs / np.min(image.shape) 
 		image = cv2.resize(image, None, fx=_f, fy=_f, interpolation=cv2.INTER_CUBIC)
 	else: _f = 1
-	image = contrast_stretch(image, sigma)
+	image = sigma_stretch(image, sigma)
 	image = cv2.GaussianBlur(image, (ksize, ksize), 0)
 	_, image = cv2.threshold(image, threshold, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
 
@@ -122,7 +115,7 @@ def visualize_stars(image : _ImageLike, stars : List[Star],
 		image = cv2.resize(image, None, fx=_f, fy=_f, interpolation=cv2.INTER_CUBIC)
 	else: _f = 1
 	image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-	image = contrast_stretch(image, sigma=sigma)
+	image = sigma_stretch(image, sigma=sigma)
 	for star in stars:
 		pos = int(star.position[0] * _f), int(star.position[1] * _f)
 		rad = int(star.aperture * _f)
