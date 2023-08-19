@@ -1,10 +1,10 @@
 from mmap import ACCESS_READ, ALLOCATIONGRANULARITY, mmap
-from typing import Any, BinaryIO, Final, Iterator, Type, TypeVar, Union, Tuple, overload
-from numpy.typing import NDArray, DTypeLike
+from typing import Any, Final, Iterator, TypeVar, Tuple, overload
+from startrak.types.alias import ValueType, NumberLike
+from numpy.typing import NDArray
 import numpy as np
-
-_ValueType = Union[int, float, str, bool]
 _BitDepth =  TypeVar('_BitDepth', bound= np.dtype)
+
 class _FITSBufferedReaderWrapper:
 	_filePath : str
 	_OFFSET : Final[int] = 2880 << 1
@@ -12,7 +12,7 @@ class _FITSBufferedReaderWrapper:
 	def __init__(self, file_path : str) -> None:
 		self._filePath = file_path
 
-	def _read_header(self) -> Iterator[Tuple[str, _ValueType]]:
+	def _read_header(self) -> Iterator[Tuple[str, ValueType]]:
 		_bio = open(self._filePath, 'rb')
 		_mmap = mmap(_bio.fileno(), _FITSBufferedReaderWrapper._OFFSET, access=ACCESS_READ)
 		while True:
@@ -44,7 +44,7 @@ class _FITSBufferedReaderWrapper:
 		_bio.close()
 		return data
 
-def _parse_bytevalue(src : bytes) -> _ValueType:
+def _parse_bytevalue(src : bytes) -> ValueType:
 	if src[10] == 39:
 		end = src.rfind(39, 19)
 		return src[11:end].decode()
@@ -59,7 +59,7 @@ def _validate_byteline(line : bytes):
 	if not (line[8] == 61 and line[9] == 32):
 		raise IOError('Invalid header syntax')
 
-def _bitsize(depth : int) -> np.dtype[Any]:
+def _bitsize(depth : int) -> np.dtype[NumberLike]:
 	if depth == 8: return np.dtype(np.uint8)
 	elif depth == 16: return np.dtype(np.uint16)
 	elif depth == 32: return np.dtype(np.uint32)

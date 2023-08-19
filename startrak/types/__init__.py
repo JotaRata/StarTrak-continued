@@ -2,23 +2,22 @@ from functools import lru_cache
 from typing import Any, Callable, ClassVar, Dict, Final, Generator, Optional, Self, Tuple, Type, Union, cast
 from abc import ABC, abstractmethod
 import numpy as np
-from numpy.typing import NDArray
 from dataclasses import  dataclass
 import os.path
-from startrak.types.fits import _FITSBufferedReaderWrapper as BufferedReader
-from startrak.types.fits import _ValueType, _bitsize, DTypeLike
+from startrak.types.alias import NumberLike, ValueType
+from startrak.types.fits import _FITSBufferedReaderWrapper as FITSReader
+from startrak.types.fits import _bitsize
 
-_NumberLike = Union[np.uint, np.float_]
-_defaults : Final[Dict[str, Type[_ValueType]]] = \
+_defaults : Final[Dict[str, Type[ValueType]]] = \
 		{'SIMPLE' : int, 'BITPIX' : int, 'NAXIS' : int, 'EXPTIME' : float, 'BSCALE' : float, 'BZERO' : float}
 
 class Header():
-	_items : Dict[str, _ValueType]
-	bitsize : np.dtype[_NumberLike]
+	_items : Dict[str, ValueType]
+	bitsize : np.dtype[NumberLike]
 	shape : Tuple[int, int]
 	bscale : np.uint
 	bzero : np.uint
-	def __init__(self, source : Dict[str, _ValueType]):
+	def __init__(self, source : Dict[str, ValueType]):
 		self._items = {str(key) : value for key, value in  source.items() 
 			if type(value) in (int, bool, float, str)}
 		if not all((key in self._items for key in _defaults.keys())):
@@ -41,9 +40,9 @@ class Header():
 		return '\n'.join([f'{k} = {v}' for k,v in self._items.items()])
 
 class HeaderArchetype(Header):
-	_entries : ClassVar[Dict[str, Type[_ValueType]]] = {}
+	_entries : ClassVar[Dict[str, Type[ValueType]]] = {}
 
-	def __init__(self, source : Header | Dict[str, _ValueType]):
+	def __init__(self, source : Header | Dict[str, ValueType]):
 		self._items = dict()
 		for key, _type in _defaults.items():
 			self._items[key] = _type(source[key])
@@ -57,7 +56,7 @@ class HeaderArchetype(Header):
 		_naxisn = tuple(int(source[f'NAXIS{n + 1}']) for n in range(_naxis))
 		for n in range(_naxis): self._items[f'NAXIS{n+1}'] = _naxisn[n]
 	
-	def validate(self, header : Header, failed : Optional[Callable[[str, _ValueType, _ValueType], None]] = None) -> bool:
+	def validate(self, header : Header, failed : Optional[Callable[[str, ValueType, ValueType], None]] = None) -> bool:
 		for key, value in self._items.items():
 			if (key not in header._items.keys()) or (header._items[key] != value):
 					if callable(failed): failed(key, value, header._items[key])
@@ -74,13 +73,13 @@ class HeaderArchetype(Header):
 class FileInfo():
 	path : Final[str]
 	size : Final[int]
-	_file : BufferedReader
+	_file : FITSReader
 	__header : Header | None
 
 	def __init__(self, path : str):
 		assert path.lower().endswith(('.fit', '.fits')),\
 			'Input path is not a FITS file'
-		self._file = BufferedReader(path)
+		self._file = FITSReader(path)
 		self.path = os.path.abspath(path)
 		self.size = os.path.getsize(path)
 		self.__header = None
@@ -93,7 +92,7 @@ class FileInfo():
 		return self.__header
 	
 	@lru_cache(maxsize=5)	# todo: Add parameter to config
-	def get_data(self, scale = True) -> np.ndarray[Any, np.dtype[_NumberLike]]:
+	def get_data(self, scale = True) -> np.ndarray[Any, np.dtype[NumberLike]]:
 		_dtype = self.header.bitsize
 		_shape = self.header.shape
 		_raw = self._file._read_data(_dtype.newbyteorder('>'), _shape[0] * _shape[1])
