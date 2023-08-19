@@ -1,10 +1,10 @@
 from functools import lru_cache
-from typing import Any, Callable, ClassVar, Dict, Final, Generator, Optional, Self, Tuple, Type, Union, cast
+from typing import Any, Callable, ClassVar, Dict, Final, Generator, Iterator, List, Optional, Self, SupportsIndex, Tuple, Type, Union, cast
 from abc import ABC, abstractmethod
 import numpy as np
 from dataclasses import  dataclass
 import os.path
-from startrak.types.alias import NumberLike, ValueType
+from startrak.types.alias import NumberLike, ValueType, Position
 from startrak.types.fits import _FITSBufferedReaderWrapper as FITSReader
 from startrak.types.fits import _bitsize
 
@@ -112,25 +112,27 @@ class FileInfo():
 	def __hash__(self) -> int:
 		return hash(self.path)
 
-
 @dataclass
 class Star():
 	name : str
-	position : Tuple[int, int]
+	position : Position
 	aperture : int
 	
-	def __iter__(self):
-		return iter((type(self).__name__, self.name, self.position, self.aperture))
+	def __iter__(self) -> Iterator[Position | ValueType]:
+		params : List[Position | ValueType] = [type(self).__name__, self.name, self.position, self.aperture]
+		yield from params
 	
 	@classmethod
 	def From(cls : Type[Self], other : Star) -> Self:	#type:ignore
-		_, *params = [ *other]
-		return cls(*params)
+		import inspect
+		_, *params = other
+		_n = len(inspect.signature(cls.__init__).parameters)
+		return cls(*params[:_n - 1])	#type: ignore
 
 @dataclass
 class ReferenceStar(Star):
 	magnitude : float = 0
-	def __iter__(self):
+	def __iter__(self) -> Iterator[Position | ValueType]:
 		yield from super().__iter__()
 		yield self.magnitude
 
