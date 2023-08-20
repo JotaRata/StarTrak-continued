@@ -136,30 +136,6 @@ class ReferenceStar(Star):
 		yield from super().__iter__()
 		yield self.magnitude
 
-class TrackingModel:
-	__vertices: List[Position]
-	__angles: List[float]
-	def __init__(self) -> None:
-		self.__vertices = list[Position]()
-		self.__angles = list[float]()
-	@property
-	def angles(self) -> List[float]:
-		return self.__angles
-	@property
-	def vertices(self) -> List[Position]:
-		return self.__vertices
-	@vertices.setter
-	def vertices(self, val : List[Position]):
-		self.__vertices = val
-		self.__angles = list[float]()
-		for i in range(size:=len(val)):
-			p1 = val[i]; p2 = val[(i + 1) % size]; p3 = val[(i + 2) % size]
-			v1 = (p2[0] - p1[0], p2[1] - p1[1])
-			v2 = (p3[0] - p1[0], p3[1] - p1[1])
-			dot = np.dot(v1, v2)
-			mag = np.sqrt(v1[0]**2 + v1[1]**2) * np.sqrt(v2[0]**2 + v2[1]**2)
-			self.__angles.append(np.arccos(dot/mag))
-
 class TrackingMethod(ABC):
 	@abstractmethod
 	def setup_model(self, stars : List[Star], *args: Tuple):
