@@ -1,24 +1,32 @@
 from typing import Any, List, Optional, Tuple
-
 import numpy as np
+from numpy.typing import NDArray
 from startrak.types import Star, TrackingMethod
 from startrak.types.alias import Position
 
-class TrackingModel:
-	__vertices: List[Position]
+class TriangleModel:
+	__vertices: NDArray[np.uint16]
 	__angles: List[float]
 	def __init__(self) -> None:
-		self.__vertices = list[Position]()
+		self.__vertices = np.empty((0, 2), dtype=np.uint16)
 		self.__angles = list[float]()
+	@property
+	def centroids(self) -> List[List[float]]:
+		size = self.__vertices.shape[0]
+		return [np.mean(np.vstack( [self.__vertices[i, :],\
+											self.__vertices[(i + 1)%size, :],\
+											self.__vertices[(i + 2)%size, :]])\
+							, axis= 0).tolist() 
+					for i in range(0, size, 3)]
 	@property
 	def angles(self) -> List[float]:
 		return self.__angles
 	@property
 	def vertices(self) -> List[Position]:
-		return self.__vertices
+		return self.__vertices.tolist()
 	@vertices.setter
 	def vertices(self, val : List[Position]):
-		self.__vertices = val
+		self.__vertices = np.array(val)
 		self.__angles = list[float]()
 		for i in range(size:=len(val)):
 			p1 = val[i]; p2 = val[(i + 1) % size]; p3 = val[(i + 2) % size]
@@ -33,13 +41,13 @@ class TrackingModel:
 class SimpleTracker(TrackingMethod):
 	track_size : int
 	var_thresold : float
-	_model : TrackingModel
+	_model : TriangleModel
 	_star_values : List[float]
 
 	def __init__(self, tracking_size : int, variation : float) -> None:
 		self.track_size = tracking_size
 		self.var_thresold = variation
-		self._model = TrackingModel()
+		self._model = TriangleModel()
 		self._star_values = list[float]()
 	
 	def setup_model(self, stars: List[Star], *args: Tuple):
