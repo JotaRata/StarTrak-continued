@@ -1,14 +1,12 @@
 from typing import Any, Iterator, List, Literal, Optional, Tuple
 import numpy as np
 from numpy.typing import NDArray
-from startrak.types import Star, TrackingMethod
-from startrak.types.alias import ImageLike, Position
+from startrak.types import Star, Tracker
+from startrak.types.alias import ImageLike, PositionArray
 
 # ------------------ Tracking methods ---------------
 
-class SimpleTracker(TrackingMethod[
-		np.ndarray[ Tuple[int, Literal[2]], np.dtype[np.int_]]
-		]):
+class SimpleTracker(Tracker[PositionArray]):
 	track_size : int
 	var_thresold : float
 	_star_values : List[float]
@@ -32,7 +30,7 @@ class SimpleTracker(TrackingMethod[
 		dx = np.mean(self._current[:, 0] - self._previous[:, 0])
 		dy = np.mean(self._current[:, 1] - self._previous[:, 1])
 
-		center = np.mean(self._previous, axis=0)
+		center : PositionArray = np.mean(self._previous, axis=0)
 		c_previous = self._previous - center
 		c_current = self._current - center
 

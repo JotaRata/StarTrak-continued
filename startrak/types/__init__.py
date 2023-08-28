@@ -137,11 +137,11 @@ class ReferenceStar(Star):
 		yield self.magnitude
 
 # State machine class
-_TrackingModel = TypeVar('_TrackingModel')
-class TrackingMethod(ABC, Generic[_TrackingModel]):
-	_current : _TrackingModel | None
-	_previous : _TrackingModel | None
-	_model : _TrackingModel | None
+_TrackingMethod = TypeVar('_TrackingMethod')
+class Tracker(ABC, Generic[_TrackingMethod]):
+	_current : _TrackingMethod | None
+	_previous : _TrackingMethod | None
+	_model : _TrackingMethod | None
 	@abstractmethod
 	def setup_model(self, stars : List[Star], *args: Tuple):
 		pass
