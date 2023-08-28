@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import Any, Callable, ClassVar, Dict, Final, Generator, Iterator, List, Optional, Self, SupportsIndex, Tuple, Type, Union, cast
+from typing import Any, Callable, ClassVar, Dict, Final, Generator, Generic, Iterator, List, Optional, Self, SupportsIndex, Tuple, Type, TypeVar, Union, cast
 from abc import ABC, abstractmethod
 import numpy as np
 from dataclasses import  dataclass
@@ -136,10 +136,15 @@ class ReferenceStar(Star):
 		yield from super().__iter__()
 		yield self.magnitude
 
-class TrackingMethod(ABC):
+# State machine class
+_TrackingModel = TypeVar('_TrackingModel')
+class TrackingMethod(ABC, Generic[_TrackingModel]):
+	_current : _TrackingModel | None
+	_previous : _TrackingModel | None
+	_model : _TrackingModel | None
 	@abstractmethod
 	def setup_model(self, stars : List[Star], *args: Tuple):
 		pass
 	@abstractmethod
-	def track(self, image : ImageLike):
+	def track(self, images : Iterator[ImageLike]):
 		pass
