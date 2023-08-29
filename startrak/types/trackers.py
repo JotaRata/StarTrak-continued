@@ -7,14 +7,14 @@ from startrak.types.alias import ImageLike, PositionArray
 # ------------------ Tracking methods ---------------
 
 class SimpleTracker(Tracker[PositionArray]):
-	track_size : int
-	var_thresold : float
-	_star_values : List[float]
+	_size : int
+	_factor : float
+	_values : List[float]
 
 	def __init__(self, tracking_size : int, variation : float) -> None:
-		self.track_size = tracking_size
-		self.var_thresold = variation
-		self._star_values = list[float]()
+		self._size = tracking_size
+		self._factor = variation
+		self._values = list[float]()
 	
 	def setup_model(self, stars: List[Star], *args: Tuple):
 		assert len(stars) >= 3, 'There should be at least three trackable stars'
@@ -23,10 +23,21 @@ class SimpleTracker(Tracker[PositionArray]):
 
 	def track(self, images: Iterator[ImageLike]) -> TrackingModel:
 		assert self._model is not None, "Tracking model hasn't been set"
-		if self._current is None:
-			self._current = self._model.copy()
 		if self._previous is None:
-			return TrackingModel.identity()
+			self._previous = self._model.copy()
+		
+		_image = next(images)
+		_positions = []
+		for i, (col, row)  in enumerate(self._previous):
+			crop = _image[row - self._size : row + self._size,
+								col - self._size : col + self._size]
+			mask = np.abs(self._values[i] - crop) < (self._values[i] * self._factor)
+			indices = np.nonzero(mask)
+			_median = np.median(indices, axis= 0)
+			_positions.append(_median)
+
+		self._current = np.vstack(_positions)
+
 		dx = np.mean(self._current[:, 0] - self._previous[:, 0])
 		dy = np.mean(self._current[:, 1] - self._previous[:, 1])
 
