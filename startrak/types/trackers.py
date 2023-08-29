@@ -26,7 +26,7 @@ class SimpleTracker(Tracker[PositionArray]):
 		if self._current is None:
 			self._current = self._model.copy()
 		if self._previous is None:
-			return TrackingModel.identity
+			return TrackingModel.identity()
 		dx = np.mean(self._current[:, 0] - self._previous[:, 0])
 		dy = np.mean(self._current[:, 1] - self._previous[:, 1])
 

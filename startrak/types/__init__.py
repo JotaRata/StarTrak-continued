@@ -145,7 +145,6 @@ class TrackingModel:
 	da : float
 	
 	@classmethod
-	@property
 	def identity(cls) -> Self:
 		return cls(0, 0, 0)
 	@property
