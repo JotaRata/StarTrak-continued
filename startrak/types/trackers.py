@@ -1,7 +1,7 @@
-from typing import Any, Iterator, List, Literal, Optional, Tuple
+from typing import Any, Iterator, List, Literal, Optional, Tuple, cast
 import numpy as np
 from numpy.typing import NDArray
-from startrak.types import Star, Tracker
+from startrak.types import Star, Tracker, TrackingModel
 from startrak.types.alias import ImageLike, PositionArray
 
 # ------------------ Tracking methods ---------------
@@ -21,12 +21,12 @@ class SimpleTracker(Tracker[PositionArray]):
 		self._model = np.vstack([star.position for star in stars])
 		# todo: setup star brighness values
 
-	def track(self, images: Iterator[ImageLike]):
+	def track(self, images: Iterator[ImageLike]) -> TrackingModel:
 		assert self._model is not None, "Tracking model hasn't been set"
 		if self._current is None:
 			self._current = self._model.copy()
 		if self._previous is None:
-			return
+			return TrackingModel.identity
 		dx = np.mean(self._current[:, 0] - self._previous[:, 0])
 		dy = np.mean(self._current[:, 1] - self._previous[:, 1])
 
@@ -39,3 +39,4 @@ class SimpleTracker(Tracker[PositionArray]):
 		_angle = np.mean(np.arctan2(_cross,  _dot))
 
 		self._previous = self._current
+		return TrackingModel(cast(float, dx), cast(float, dy), _angle)

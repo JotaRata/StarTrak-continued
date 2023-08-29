@@ -1,10 +1,10 @@
 from functools import lru_cache
-from typing import Any, Callable, ClassVar, Dict, Final, Generator, Generic, Iterator, List, Optional, Self, SupportsIndex, Tuple, Type, TypeVar, Union, cast
+from typing import Any, Callable, ClassVar, Dict, Final, Generic, Iterator, List, Optional, Self, Tuple, Type, TypeVar, cast
 from abc import ABC, abstractmethod
 import numpy as np
 from dataclasses import  dataclass
 import os.path
-from startrak.types.alias import ImageLike, NumberLike, ValueType, Position
+from startrak.types.alias import ImageLike, NumberLike, ValueType, Position, NDArray
 from startrak.types.fits import _FITSBufferedReaderWrapper as FITSReader
 from startrak.types.fits import _bitsize
 
@@ -136,6 +136,33 @@ class ReferenceStar(Star):
 		yield from super().__iter__()
 		yield self.magnitude
 
+# ----------------- Tracking ------------------
+
+@dataclass(frozen=True)
+class TrackingModel:
+	dx : float
+	dy : float
+	da : float
+	
+	@classmethod
+	@property
+	def identity(cls) -> Self:
+		return cls(0, 0, 0)
+	@property
+	def matrix(self) -> np.matrix:
+		_cos = np.cos(self.da)
+		_sin = np.sin(self.da)
+		return np.matrix([[_cos, -_sin, self.dx], 
+								[_sin, _cos,   self.dy],
+								[0,     0,       1   ]])
+	@property
+	def translation(self) -> np.ndarray:
+		return np.array((self.dx, self.dy))
+	
+	@property
+	def rotation(self) -> float:
+		return np.degrees(self.da)
+
 # State machine class
 _TrackingMethod = TypeVar('_TrackingMethod')
 class Tracker(ABC, Generic[_TrackingMethod]):
@@ -146,5 +173,5 @@ class Tracker(ABC, Generic[_TrackingMethod]):
 	def setup_model(self, stars : List[Star], *args: Tuple):
 		pass
 	@abstractmethod
-	def track(self, images : Iterator[ImageLike]):
+	def track(self, images : Iterator[ImageLike]) -> TrackingModel:
 		pass
