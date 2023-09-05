@@ -163,6 +163,13 @@ class TrackingModel:
 	@property
 	def rotation(self) -> float:
 		return np.degrees(self.da)
+	
+	def __repr__(self) -> str:
+		return ( f'{type(self).__name__} ['
+					f'\n  translation: {self.dx:.1f} px, {self.dy:.1f} px'
+					f'\n  rotation:    {self.rotation:.2f}°'
+					f'\n  error:       {self.error:.3f} px'
+					f'\n  lost stars:  {self.lost} ]')
 
 # State machine class
 _TrackingMethod = TypeVar('_TrackingMethod')
