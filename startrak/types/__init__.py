@@ -143,10 +143,12 @@ class TrackingModel:
 	dx : float
 	dy : float
 	da : float
+	error : float
+	lost : List[int]
 	
 	@classmethod
 	def identity(cls) -> Self:
-		return cls(0, 0, 0)
+		return cls(0, 0, 0, 0, [])
 	@property
 	def matrix(self) -> np.matrix:
 		_cos = np.cos(self.da)

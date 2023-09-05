@@ -12,6 +12,8 @@ class SimpleTracker(Tracker[PositionArray]):
 	_values : List[float]
 
 	def __init__(self, tracking_size : int, variation : float) -> None:
+		self._previous = None
+		self._current = None
 		self._size = tracking_size
 		self._factor = variation
 		self._values = list[float]()
@@ -28,13 +30,17 @@ class SimpleTracker(Tracker[PositionArray]):
 		
 		if self._values is None or len(self._values) == 0:
 			self._values = _image[*self._previous.T].tolist()
-		_positions = []
+		_positions : List[np.ndarray] = []
+		_lost : List[int ]= []
+
 		for i, (row, col) in enumerate(self._previous):
 			crop = _image[row - self._size : row + self._size,
 								col - self._size : col + self._size]
 			mask = np.abs(self._values[i] - crop) < (self._values[i] * self._factor)
 			indices = np.transpose(np.nonzero(mask))
 			if len(indices) == 0:
+				_lost.append(i)
+				# todo: Discard or fix lost stars
 				_positions.append(self._previous[i])
 				continue
 			
@@ -46,6 +52,11 @@ class SimpleTracker(Tracker[PositionArray]):
 		dx = np.nanmean(self._current[:, 0] - self._previous[:, 0])
 		dy = np.nanmean(self._current[:, 1] - self._previous[:, 1])
 
+		#todo: if self._include_error:
+		ex = np.nanstd(self._current[:, 0] - self._previous[:, 0])
+		ey = np.nanstd(self._current[:, 1] - self._previous[:, 1])
+		error = np.sqrt(ex**2 + ey**2)
+
 		center : PositionArray = np.nanmean(self._previous, axis=0)
 		c_previous = self._previous - center
 		c_current = self._current - center
@@ -55,4 +66,4 @@ class SimpleTracker(Tracker[PositionArray]):
 		_angle = np.nanmean(np.arctan2(_cross,  _dot))
 
 		self._previous = self._current.astype(int)
-		return TrackingModel(cast(float, dx), cast(float, dy), _angle)
+		return TrackingModel(cast(float, dx), cast(float, dy), _angle, error,  _lost)
