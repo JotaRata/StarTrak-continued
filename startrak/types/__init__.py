@@ -172,5 +172,5 @@ class Tracker(ABC, Generic[_TrackingMethod]):
 	def setup_model(self, stars : List[Star], *args: Tuple):
 		pass
 	@abstractmethod
-	def track(self, images : Iterator[ImageLike]) -> TrackingModel:
+	def track(self, image : ImageLike) -> TrackingModel:
 		pass
