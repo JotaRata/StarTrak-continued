@@ -139,7 +139,7 @@ class ReferenceStar(Star):
 # ----------------- Tracking ------------------
 
 @dataclass(frozen=True)
-class TrackingModel:
+class TrackingSolution:
 	dx : float
 	dy : float
 	da : float
@@ -150,10 +150,10 @@ class TrackingModel:
 	def identity(cls) -> Self:
 		return cls(0, 0, 0, 0, [])
 	@property
-	def matrix(self) -> np.matrix:
+	def matrix(self) -> np.ndarray:
 		_cos = np.cos(self.da)
 		_sin = np.sin(self.da)
-		return np.matrix([[_cos, -_sin, self.dx], 
+		return np.array([[_cos, -_sin, self.dx], 
 								[_sin, _cos,   self.dy],
 								[0,     0,       1   ]])
 	@property
@@ -171,15 +171,15 @@ class TrackingModel:
 					f'\n  error:       {self.error:.3f} px'
 					f'\n  lost stars:  {self.lost} ]')
 
-# State machine class
-_TrackingMethod = TypeVar('_TrackingMethod')
-class Tracker(ABC, Generic[_TrackingMethod]):
-	_current : _TrackingMethod | None
-	_previous : _TrackingMethod | None
-	_model : _TrackingMethod | None
+class TrackingModel:
+	pass
+_TrackingModel = TypeVar('_TrackingModel', bound= TrackingModel)
+
+class Tracker(ABC, Generic[_TrackingModel]):
+	_model : _TrackingModel | None
+
+	def setup_model(self, model : _TrackingModel):
+		self._model = model
 	@abstractmethod
-	def setup_model(self, stars : List[Star], *args: Tuple):
-		pass
-	@abstractmethod
-	def track(self, image : ImageLike) -> TrackingModel:
+	def track(self, image : ImageLike) -> TrackingSolution:
 		pass
