@@ -27,10 +27,12 @@ class SimpleTracker(Tracker[SimpleTrackerModel]):
 		assert self._model is not None, "Tracking model hasn't been set"
 		_reg : List[np.ndarray] = []
 		_lost : List[int ]= []
+		_back = np.median(_image)
+
 		for i, (row, col) in enumerate(self._model.positions):
 			crop = _image[row - self._size : row + self._size,
 								col - self._size : col + self._size]
-			mask = np.abs(self._model.values[i] - crop) < (self._model.values[i] * self._factor)
+			mask = np.abs(self._model.values[i] - crop + _back) < (self._model.values[i] * self._factor)
 			indices = np.transpose(np.nonzero(mask))
 			if len(indices) == 0:
 				_lost.append(i)
