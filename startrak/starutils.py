@@ -121,6 +121,7 @@ def visualize_stars(image : ImageLike, stars : List[Star],
 	for star in stars:
 		pos = int(star.position[0] * _f), int(star.position[1] * _f)
 		rad = int(star.aperture * _f)
+		image = cv2.putText(image, star.name, (pos[0], pos[1] - rad-4), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (200, 0, 0), 1)
 		image = cv2.circle(image, pos, rad, (200, 0, 0), 2)
 	cv2.imshow('Visualize stars', image)
 	cv2.waitKey(0)
