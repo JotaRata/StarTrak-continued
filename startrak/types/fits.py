@@ -20,7 +20,8 @@ class _FITSBufferedReaderWrapper:
 			if not line: break
 			if line[:3] == b'END':
 				break
-			_validate_byteline(line)
+
+			if not _validate_byteline(line): continue
 			_keyword = line[:8].decode()
 			_value = _parse_bytevalue(line)
 			yield _keyword, _value
@@ -48,7 +49,7 @@ def _parse_bytevalue(src : bytes) -> ValueType:
 	if src[10] == 39:
 		end = src.rfind(39, 19)
 		return src[11:end].decode()
-	if src[29] == 84 or src[29] == 66:
+	if src[29] == 84 or src[29] == 70:
 		return src[29] == 84
 	num = float(src[10:30])
 	if num.is_integer():
@@ -56,8 +57,12 @@ def _parse_bytevalue(src : bytes) -> ValueType:
 	return num
 
 def _validate_byteline(line : bytes):
+	''' This method returns False when the line is blank or it is a valid line but it contains no data.
+	In case of being invalid an OSError exception is thrown, otherwise it returns True'''
+	if line == b' '* 80: return False
 	if not (line[8] == 61 and line[9] == 32):
-		raise IOError('Invalid header syntax')
+		raise IOError('Invalid header syntax', line)
+	return True
 
 def _bitsize(depth : int) -> np.dtype[NumberLike]:
 	if depth == 8: return np.dtype(np.uint8)
