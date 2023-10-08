@@ -1,10 +1,10 @@
 from functools import lru_cache
-from typing import Any, Callable, ClassVar, Dict, Final, Generator, Iterator, List, Optional, Self, SupportsIndex, Tuple, Type, Union, cast
+from typing import Any, Callable, ClassVar, Dict, Final, Generic, Iterator, List, Optional, Self, Tuple, Type, TypeVar, cast
 from abc import ABC, abstractmethod
 import numpy as np
 from dataclasses import  dataclass
 import os.path
-from startrak.types.alias import NumberLike, ValueType, Position
+from startrak.types.alias import ImageLike, NumberLike, ValueType, Position, NDArray
 from startrak.types.fits import _FITSBufferedReaderWrapper as FITSReader
 from startrak.types.fits import _bitsize
 
@@ -136,10 +136,50 @@ class ReferenceStar(Star):
 		yield from super().__iter__()
 		yield self.magnitude
 
-class TrackingMethod(ABC):
+# ----------------- Tracking ------------------
+
+@dataclass(frozen=True)
+class TrackingSolution:
+	dx : float
+	dy : float
+	da : float
+	error : float
+	lost : List[int]
+	
+	@classmethod
+	def identity(cls) -> Self:
+		return cls(0, 0, 0, 0, [])
+	@property
+	def matrix(self) -> np.ndarray:
+		_cos = np.cos(self.da)
+		_sin = np.sin(self.da)
+		return np.array([[_cos, -_sin, self.dx], 
+								[_sin, _cos,   self.dy],
+								[0,     0,       1   ]])
+	@property
+	def translation(self) -> np.ndarray:
+		return np.array((self.dx, self.dy))
+	
+	@property
+	def rotation(self) -> float:
+		return np.degrees(self.da)
+	
+	def __repr__(self) -> str:
+		return ( f'{type(self).__name__} ['
+					f'\n  translation: {self.dx:.1f} px, {self.dy:.1f} px'
+					f'\n  rotation:    {self.rotation:.2f}°'
+					f'\n  error:       {self.error:.3f} px'
+					f'\n  lost stars:  {self.lost} ]')
+
+class TrackingModel:
+	pass
+_TrackingModel = TypeVar('_TrackingModel', bound= TrackingModel)
+
+class Tracker(ABC, Generic[_TrackingModel]):
+	_model : _TrackingModel | None
+
+	def setup_model(self, model : _TrackingModel):
+		self._model = model
 	@abstractmethod
-	def setup_model(self, *args : Tuple[Any, ...]):
-		pass
-	@abstractmethod
-	def track(self):
+	def track(self, image : ImageLike) -> TrackingSolution:
 		pass
