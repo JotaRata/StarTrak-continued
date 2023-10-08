@@ -183,3 +183,11 @@ class Tracker(ABC, Generic[_TrackingModel]):
 	@abstractmethod
 	def track(self, image : ImageLike) -> TrackingSolution:
 		pass
+
+
+# --------------- Photometry -------------------------
+
+class PhotMethod(ABC):
+	@abstractmethod
+	def evaluate(self, img : ImageLike, star : Star) -> float | int:
+		pass
