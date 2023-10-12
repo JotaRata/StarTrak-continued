@@ -30,12 +30,12 @@ class AperturePhot(PhotometryBase):
 		circle_mask = _sqdst < _sqapert
 		annulus_mask = (_sqdst >= _sqapert + self.offset) & (_sqdst < _sqapert + _offset)
 		
+		flux = crop[circle_mask]
+		bg_flux = crop[annulus_mask]
 		if self.sigma != 0:
-			sigma_mask = np.abs(crop - np.nanmean(crop)) < np.nanstd(crop) * self.sigma
-			crop = crop[sigma_mask]
-		bg_flux = np.nanmean(crop[annulus_mask])
-		flux = np.nanmean(crop[circle_mask])
-		return float(flux - bg_flux)
+			sigma_mask = np.abs(bg_flux - np.nanmean(bg_flux)) < np.nanstd(bg_flux) * self.sigma
+			bg_flux = bg_flux[sigma_mask]
+		return float(np.nanmean(flux) - np.nanmean(bg_flux))
 
 
 class BackgroundOnlyPhot(PhotometryBase):
@@ -57,11 +57,11 @@ class BackgroundOnlyPhot(PhotometryBase):
 		_sqapert = star.aperture ** 2
 
 		annulus_mask = (_sqdst >= _sqapert + self.offset) & (_sqdst < _sqapert + _offset)
+		bg_flux = crop[annulus_mask]
 		if self.sigma != 0:
-			sigma_mask = np.abs(crop - np.nanmean(crop)) < np.nanstd(crop) * self.sigma
-			crop = crop[sigma_mask]
-		bg_flux = np.nanmean(crop[annulus_mask])
-		return float(bg_flux)
+			sigma_mask = np.abs(bg_flux - np.nanmean(bg_flux)) < np.nanstd(bg_flux) * self.sigma
+			bg_flux = bg_flux[sigma_mask]
+		return float(np.nanmean(bg_flux))
 	
 class SimplePhot(PhotometryBase):
 	''' Uncalibrated photomery, returns the integrated flux of the star without background removal or sigma clipping'''
@@ -76,5 +76,5 @@ class SimplePhot(PhotometryBase):
 		_sqdst = (_x -  crop.shape[0]/2) **2 + (_y - crop.shape[1]/2) **2
 		_sqapert = star.aperture ** 2
 		circle_mask = _sqdst < _sqapert
-		flux = np.nanmean(crop[circle_mask])
-		return float(flux)
+		flux = crop[circle_mask]
+		return float(np.nanmean(flux))
