@@ -2,7 +2,7 @@
 
 from math import pi
 import numpy as np
-from startrak.types import PhotometryBase, Star
+from startrak.types import PhotometryBase, PhotometryResult, Star
 from startrak.types.alias import ImageLike, Position
 
 def _get_cropped(img : ImageLike, position : Position, aperture: int, padding : int = 0, fillnan= True) -> ImageLike:
@@ -26,7 +26,7 @@ class AperturePhot(PhotometryBase):
 		self.offset = offset
 		self.sigma = sigma
 	
-	def evaluate_point(self, img: ImageLike, position : Position, aperture: int) -> float | int:
+	def evaluate_point(self, img: ImageLike, position : Position, aperture: int) -> PhotometryResult:
 		_offset = (self.width + self.offset)
 		crop = _get_cropped(img, position, aperture, _offset)
 		_y, _x = np.ogrid[:crop.shape[0], :crop.shape[1]]
@@ -35,9 +35,14 @@ class AperturePhot(PhotometryBase):
 		circle_mask = _sqdst < _sqapert
 		annulus_mask = (_sqdst >= _sqapert + self.offset) & (_sqdst < _sqapert + _offset)
 		
-		flux = crop[circle_mask]
+		flux_raw = crop[circle_mask]
 		bg_flux = crop[annulus_mask]
 		if self.sigma != 0:
 			sigma_mask = np.abs(bg_flux - np.nanmean(bg_flux)) < np.nanstd(bg_flux) * self.sigma
 			bg_flux = bg_flux[sigma_mask]
-		return float(np.nanmean(flux) - np.nanmean(bg_flux))
+		flux_total = flux_raw - bg_flux
+		return PhotometryResult(flux= float(np.nanmean(flux_total)),
+										background= float(np.nanmean(bg_flux)),
+										flux_raw= float(np.nanmean(flux_raw)),
+										flux_sigma= float(np.nanstd(flux_total))
+										)
