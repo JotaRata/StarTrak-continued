@@ -193,6 +193,9 @@ class PhotometryResult:
 	flux_raw : float | int
 	flux_sigma : float
 
+	def __repr__(self) -> str:
+		return f'{self.flux} +/- {self.flux_sigma}'
+
 class PhotometryBase(ABC):
 	@abstractmethod
 	def evaluate_point(self, img : ImageLike, position : Position, aperture: int) -> PhotometryResult:
