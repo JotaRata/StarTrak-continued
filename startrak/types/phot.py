@@ -3,11 +3,11 @@
 from math import pi
 import numpy as np
 from startrak.types import PhotometryBase, Star
-from startrak.types.alias import ImageLike
+from startrak.types.alias import ImageLike, Position
 
-def _get_cropped(img : ImageLike, star : Star, padding : int = 0, fillnan= True) -> ImageLike:
-		rmin, rmax = star.position[1] - star.aperture - padding, star.position[1] + star.aperture + padding
-		cmin, cmax = star.position[0] - star.aperture - padding, star.position[0] + star.aperture + padding
+def _get_cropped(img : ImageLike, position : Position, aperture: int, padding : int = 0, fillnan= True) -> ImageLike:
+		rmin, rmax = position[1] - aperture - padding, position[1] + aperture + padding
+		cmin, cmax = position[0] - aperture - padding, position[0] + aperture + padding
 		if ((rmin < 0 or rmax > img.shape[0]) or (cmin < 0 or cmax > img.shape[1])) and fillnan:
 			padr = max(-rmin + 1, 0), max(rmax - img.shape[0], 0)
 			padc = max(-cmin + 1, 0), max(cmax - img.shape[1], 0)
@@ -26,12 +26,12 @@ class AperturePhot(PhotometryBase):
 		self.offset = offset
 		self.sigma = sigma
 	
-	def evaluate(self, img: ImageLike, star: Star) -> float | int:
+	def evaluate_point(self, img: ImageLike, position : Position, aperture: int) -> float | int:
 		_offset = (self.width + self.offset)
-		crop = _get_cropped(img, star, _offset)
+		crop = _get_cropped(img, position, aperture, _offset)
 		_y, _x = np.ogrid[:crop.shape[0], :crop.shape[1]]
 		_sqdst = (_x -  crop.shape[0]/2) **2 + (_y - crop.shape[1]/2) **2
-		_sqapert = star.aperture ** 2
+		_sqapert = aperture ** 2
 		circle_mask = _sqdst < _sqapert
 		annulus_mask = (_sqdst >= _sqapert + self.offset) & (_sqdst < _sqapert + _offset)
 		
@@ -54,12 +54,12 @@ class BackgroundOnlyPhot(PhotometryBase):
 		self.offset = offset
 		self.sigma = sigma
 	
-	def evaluate(self, img: ImageLike, star: Star) -> float | int:
+	def evaluate_point(self, img: ImageLike, position : Position, aperture: int) -> float | int:
 		_offset = (self.width + self.offset)
-		crop = _get_cropped(img, star, _offset)
+		crop = _get_cropped(img, position, aperture, _offset)
 		_y, _x = np.ogrid[:crop.shape[0], :crop.shape[1]]
 		_sqdst = (_x -  crop.shape[0]/2) **2 + (_y - crop.shape[1]/2) **2
-		_sqapert = star.aperture ** 2
+		_sqapert = aperture ** 2
 
 		annulus_mask = (_sqdst >= _sqapert + self.offset) & (_sqdst < _sqapert + _offset)
 		bg_flux = crop[annulus_mask]
@@ -75,11 +75,11 @@ class SimplePhot(PhotometryBase):
 	def __init__(self, padding : int = 0) -> None:
 		self.padding = 0
 	
-	def evaluate(self, img: ImageLike, star: Star) -> float | int:
-		crop = _get_cropped(img, star, self.padding)
+	def evaluate_point(self, img: ImageLike, position : Position, aperture: int) -> float | int:
+		crop = _get_cropped(img, position, aperture, self.padding)
 		_y, _x = np.ogrid[:crop.shape[0], :crop.shape[1]]
 		_sqdst = (_x -  crop.shape[0]/2) **2 + (_y - crop.shape[1]/2) **2
-		_sqapert = star.aperture ** 2
+		_sqapert = aperture ** 2
 		circle_mask = _sqdst < _sqapert
 		flux = crop[circle_mask]
 		return float(np.nanmean(flux))

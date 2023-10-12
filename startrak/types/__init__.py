@@ -189,5 +189,8 @@ class Tracker(ABC, Generic[_TrackingModel]):
 
 class PhotometryBase(ABC):
 	@abstractmethod
-	def evaluate(self, img : ImageLike, star : Star) -> float | int:
+	def evaluate_point(self, img : ImageLike, position : Position, aperture: int) -> float | int:
 		pass
+
+	def evaluate(self, img : ImageLike, star : Star) -> float | int:
+		return self.evaluate_point(img, star.position, star.aperture)
