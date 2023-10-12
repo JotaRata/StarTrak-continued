@@ -5,9 +5,14 @@ import numpy as np
 from startrak.types import PhotometryBase, Star
 from startrak.types.alias import ImageLike
 
-def _get_cropped(img : ImageLike, star : Star, padding : int = 0) -> ImageLike:
+def _get_cropped(img : ImageLike, star : Star, padding : int = 0, fillnan= True) -> ImageLike:
 		rmin, rmax = star.position[1] - star.aperture - padding, star.position[1] + star.aperture + padding
 		cmin, cmax = star.position[0] - star.aperture - padding, star.position[0] + star.aperture + padding
+		if ((rmin < 0 or rmax > img.shape[0]) or (cmin < 0 or cmax > img.shape[1])) and fillnan:
+			padr = max(-rmin + 1, 0), max(rmax - img.shape[0], 0)
+			padc = max(-cmin + 1, 0), max(cmax - img.shape[1], 0)
+			padded_img = np.pad(img.astype(float), [padr, padc], mode= 'constant', constant_values= np.nan)
+			return padded_img[rmin + padr[0]:rmax + padr[1], cmin + padc[0]:cmax + padc[1]]
 		return img[rmin:rmax, cmin:cmax].copy()
 
 class AperturePhot(PhotometryBase):
