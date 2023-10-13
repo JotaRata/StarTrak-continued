@@ -188,13 +188,12 @@ class Tracker(ABC, Generic[_TrackingModel]):
 # --------------- Photometry -------------------------
 @dataclass(frozen=True)
 class PhotometryResult:
-	flux : float | int
-	background : float | int
-	flux_raw : float | int
-	flux_sigma : float
-
-	def __repr__(self) -> str:
-		return f'{self.flux} +/- {self.flux_sigma}'
+	flux : float
+	flux_raw : float
+	flux_iqr : float
+	flux_median : float
+	backg : float
+	backg_sigma : float
 
 class PhotometryBase(ABC):
 	@abstractmethod

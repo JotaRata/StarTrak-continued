@@ -40,9 +40,10 @@ class AperturePhot(PhotometryBase):
 		if self.sigma != 0:
 			sigma_mask = np.abs(bg_flux - np.nanmean(bg_flux)) < np.nanstd(bg_flux) * self.sigma
 			bg_flux = bg_flux[sigma_mask]
-		flux_total = flux_raw - bg_flux
-		return PhotometryResult(flux= float(np.nanmean(flux_total)),
-										background= float(np.nanmean(bg_flux)),
+		return PhotometryResult(flux= float(np.nanmean(flux_raw) - np.nanmean(bg_flux)),
 										flux_raw= float(np.nanmean(flux_raw)),
-										flux_sigma= float(np.nanstd(flux_total))
+										flux_median= float(np.nanmedian(flux_raw)),
+										flux_iqr= float(np.nanpercentile(flux_raw, 75) - np.nanpercentile(flux_raw, 25)),
+										backg= float(np.nanmean(bg_flux)),
+										backg_sigma= float(np.nanstd(bg_flux))
 										)
