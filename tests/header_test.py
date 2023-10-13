@@ -1,6 +1,6 @@
 # type: ignore
 from startrak import *
-from startrak.types import HeaderArchetype, Header
+from startrak.native import HeaderArchetype, Header
 from startrak.io import *
 import unittest
 

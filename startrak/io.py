@@ -1,8 +1,8 @@
 from ast import literal_eval
 from functools import lru_cache
 from typing import Iterable, Iterator
-from startrak.types import FileInfo
-from startrak.types import Star, ReferenceStar
+from startrak.native import FileInfo
+from startrak.native import Star, ReferenceStar
 from os import  scandir
 
 __all__ = ['load_file', 'load_folder', 'export_stars', 'import_stars']

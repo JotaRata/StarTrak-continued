@@ -1,11 +1,11 @@
 from typing import Any, Callable, List, Literal, Tuple
 from numpy.typing import NDArray
-from startrak.types import Star
+from startrak.native import Star
 from startrak.imageutils import sigma_stretch
 import numpy as np
 import cv2
 
-from startrak.types.alias import ImageLike, Decorator
+from startrak.native.alias import ImageLike, Decorator
 
 __all__ = ['detect_stars', 'get_methods', 'detection_method']
 __methods__ = dict[str, Callable[..., List[Star]]]() # type: ignore

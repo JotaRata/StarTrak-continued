@@ -1,17 +1,18 @@
 from functools import lru_cache
-from typing import Any, Callable, ClassVar, Dict, Final, Generic, Iterator, List, Optional, Self, Tuple, Type, TypeVar, cast
+from typing import Any, Callable, ClassVar, Dict, Final, Generic, Iterator, List, Optional, Self, Set, Tuple, Type, TypeVar, cast
 from abc import ABC, abstractmethod
 import numpy as np
 from dataclasses import  dataclass
 import os.path
-from startrak.types.alias import ImageLike, NumberLike, ValueType, Position, NDArray
-from startrak.types.fits import _FITSBufferedReaderWrapper as FITSReader
-from startrak.types.fits import _bitsize
+from startrak.native.alias import ImageLike, NumberLike, ValueType, Position, NDArray
+from startrak.native.fits import _FITSBufferedReaderWrapper as FITSReader
+from startrak.native.fits import _bitsize
 from mypy_extensions import mypyc_attr
 
 _defaults : Final[Dict[str, Type[ValueType]]] = \
 		{'SIMPLE' : int, 'BITPIX' : int, 'NAXIS' : int, 'EXPTIME' : float, 'BSCALE' : float, 'BZERO' : float}
 
+#region File management
 class Header():
 	_items : Dict[str, ValueType]
 	bitsize : np.dtype[NumberLike]
@@ -112,7 +113,66 @@ class FileInfo():
 		return self.path == __value.path
 	def __hash__(self) -> int:
 		return hash(self.path)
+#endregion
 
+#region Sessions
+@mypyc_attr(allow_interpreted_subclasses=True)
+class Session(ABC):
+	name : str
+	archetype : Optional[HeaderArchetype]
+	included_items : Set[FileInfo]
+	
+	def __init__(self, name : str):
+		self.name = name
+		self.archetype : HeaderArchetype = None
+		self.included_items : set[FileInfo] = set()
+	
+	def __repr__(self) -> str:
+				return ( f'{type(self).__name__} : "{self.name}"\x7f\n'
+							f'Included : {self.included_items}\n')
+
+	def add_item(self, item : FileInfo | List[FileInfo]): 
+		if type(item) is list:
+			_items = item
+		elif type(item) is FileInfo:
+			_items = [item]
+		else: raise TypeError()
+		_added = {_item for _item in _items if type(_item) is FileInfo}
+		if len(self.included_items) == 0:
+			first = next(iter(_added))
+			assert isinstance(first, FileInfo)
+			self.set_archetype(first.header)
+		
+		self.included_items |= _added
+		self.__item_added__(_added)
+		# todo: raise warning if no items were added
+
+	def remove_item(self, item : FileInfo | List[FileInfo]): 
+		if type(item) is list:
+			_items = item
+		elif type(item) is FileInfo:
+			_items = [item]
+		else: raise TypeError()
+		_removed = {_item for _item in _items if type(_item) is FileInfo}
+		self.included_items -= _removed
+		self.__item_removed__(_removed)
+	
+	def set_archetype(self, header : Optional[Header]):
+		if header is None: 
+			self.archetype = None
+			return
+		self.archetype = HeaderArchetype(header)
+
+	@abstractmethod
+	def __item_added__(self, added : Set[FileInfo]): pass
+	@abstractmethod
+	def __item_removed__(self, removed : Set[FileInfo]): pass
+	@abstractmethod
+	def save(self, out : str): pass
+
+#endregion
+
+#region Data types
 @mypyc_attr(allow_interpreted_subclasses=True)
 @dataclass
 class Star():
@@ -208,3 +268,5 @@ class PhotometryBase(ABC):
 
 	def evaluate(self, img : ImageLike, star : Star) -> PhotometryResult:
 		return self.evaluate_point(img, star.position, star.aperture)
+	
+#endregion

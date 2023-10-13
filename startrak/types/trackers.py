@@ -2,9 +2,9 @@ from dataclasses import dataclass
 from typing import Any, Generator, Iterator, List, Literal, Optional, Tuple, cast
 import numpy as np
 from numpy.typing import NDArray
-from startrak.types import PhotometryBase, PhotometryResult, Star, Tracker, TrackingModel, TrackingSolution
+from startrak.native import PhotometryBase, PhotometryResult, Star, Tracker, TrackingModel, TrackingSolution
 from startrak.types import phot
-from startrak.types.alias import ImageLike, Position, PositionArray
+from startrak.native.alias import ImageLike, Position, PositionArray
 from startrak.types.phot import AperturePhot
 
 # ------------------ Tracking methods ---------------

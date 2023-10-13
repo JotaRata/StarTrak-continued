@@ -1,4 +1,5 @@
 from enum import StrEnum
+from startrak.native import Session
 from startrak.types.sessions import *
 
 __all__ = ['new_session', 'get_session', 'SessionType']

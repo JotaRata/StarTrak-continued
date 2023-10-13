@@ -2,7 +2,7 @@ import os
 import random
 from startrak.io import import_stars, export_stars, load_file
 from startrak.starutils import detect_stars
-from startrak.types import Star, ReferenceStar
+from startrak.native import Star, ReferenceStar
 import unittest
 
 STAR_NUM = 12

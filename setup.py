@@ -7,7 +7,7 @@ from os.path import relpath, splitext, join
 
 def scan_files():
 	cwd = os.getcwd()
-	for path, _, files in os.walk(cwd + '/startrak/types'):
+	for path, _, files in os.walk(cwd + '/startrak/native'):
 		for f in files:
 			if not f.endswith('.py'): continue
 			rel =  relpath(join(path, f), cwd)

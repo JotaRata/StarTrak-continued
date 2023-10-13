@@ -2,8 +2,8 @@
 
 from math import pi
 import numpy as np
-from startrak.types import PhotometryBase, PhotometryResult, Star
-from startrak.types.alias import ImageLike, Position
+from startrak.native import PhotometryBase, PhotometryResult, Star
+from startrak.native.alias import ImageLike, Position
 
 def _get_cropped(img : ImageLike, position : Position, aperture: int, padding : int = 0, fillnan= True) -> ImageLike:
 		rmin, rmax = position[1] - aperture - padding, position[1] + aperture + padding

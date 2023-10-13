@@ -1,6 +1,6 @@
 from mmap import ACCESS_READ, ALLOCATIONGRANULARITY, mmap
 from typing import Any, Final, Iterator, TypeVar, Tuple, overload
-from startrak.types.alias import ValueType, NumberLike
+from startrak.native.alias import ValueType, NumberLike
 from numpy.typing import NDArray
 import numpy as np
 _BitDepth =  TypeVar('_BitDepth', bound= np.dtype)

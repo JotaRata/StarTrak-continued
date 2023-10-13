@@ -1,4 +1,4 @@
-from startrak.types.alias import *
+from startrak.native.alias import *
 import numpy as np
 
 __all__ = ['sigma_stretch']

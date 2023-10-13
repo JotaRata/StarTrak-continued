@@ -4,9 +4,9 @@ __unittest = True
 import unittest
 from startrak.internals.exceptions import InstantiationError 
 from startrak import *
-from startrak.types import *
+from startrak.native import *
 from startrak.io import *
-from startrak.types.sessions import *
+from startrak.native.sessions import *
 
 sessionName = 'Test Session'
 testDir = '/test/'

@@ -1,7 +1,7 @@
 # type: ignore
 import os
 import unittest
-from startrak.types import FileInfo, Header
+from startrak.native import FileInfo, Header
 from startrak.io import *
 
 paths = ["aefor4.fit", "aefor7.fit", "aefor16.fit", "aefor25.fit"]
