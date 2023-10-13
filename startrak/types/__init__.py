@@ -7,6 +7,7 @@ import os.path
 from startrak.types.alias import ImageLike, NumberLike, ValueType, Position, NDArray
 from startrak.types.fits import _FITSBufferedReaderWrapper as FITSReader
 from startrak.types.fits import _bitsize
+from mypy_extensions import mypyc_attr
 
 _defaults : Final[Dict[str, Type[ValueType]]] = \
 		{'SIMPLE' : int, 'BITPIX' : int, 'NAXIS' : int, 'EXPTIME' : float, 'BSCALE' : float, 'BZERO' : float}
@@ -112,6 +113,7 @@ class FileInfo():
 	def __hash__(self) -> int:
 		return hash(self.path)
 
+@mypyc_attr(allow_interpreted_subclasses=True)
 @dataclass
 class Star():
 	name : str
@@ -171,10 +173,12 @@ class TrackingSolution:
 					f'\n  error:       {self.error:.3f} px'
 					f'\n  lost stars:  {self.lost} ]')
 
+@mypyc_attr(allow_interpreted_subclasses=True)
 class TrackingModel:
 	pass
 _TrackingModel = TypeVar('_TrackingModel', bound= TrackingModel)
 
+@mypyc_attr(allow_interpreted_subclasses=True)
 class Tracker(ABC, Generic[_TrackingModel]):
 	_model : _TrackingModel | None
 
@@ -186,6 +190,7 @@ class Tracker(ABC, Generic[_TrackingModel]):
 
 
 # --------------- Photometry -------------------------
+@mypyc_attr(allow_interpreted_subclasses=True)
 @dataclass(frozen=True)
 class PhotometryResult:
 	flux : float
@@ -195,6 +200,7 @@ class PhotometryResult:
 	backg : float
 	backg_sigma : float
 
+@mypyc_attr(allow_interpreted_subclasses=True)
 class PhotometryBase(ABC):
 	@abstractmethod
 	def evaluate_point(self, img : ImageLike, position : Position, aperture: int) -> PhotometryResult:
