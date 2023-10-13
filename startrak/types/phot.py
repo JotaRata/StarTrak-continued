@@ -2,7 +2,7 @@
 
 from math import pi
 import numpy as np
-from startrak.types import PhotometryBase, Star
+from startrak.types import PhotometryBase, PhotometryResult, Star
 from startrak.types.alias import ImageLike, Position
 
 def _get_cropped(img : ImageLike, position : Position, aperture: int, padding : int = 0, fillnan= True) -> ImageLike:
@@ -26,7 +26,7 @@ class AperturePhot(PhotometryBase):
 		self.offset = offset
 		self.sigma = sigma
 	
-	def evaluate_point(self, img: ImageLike, position : Position, aperture: int) -> float | int:
+	def evaluate_point(self, img: ImageLike, position : Position, aperture: int) -> PhotometryResult:
 		_offset = (self.width + self.offset)
 		crop = _get_cropped(img, position, aperture, _offset)
 		_y, _x = np.ogrid[:crop.shape[0], :crop.shape[1]]
@@ -35,51 +35,15 @@ class AperturePhot(PhotometryBase):
 		circle_mask = _sqdst < _sqapert
 		annulus_mask = (_sqdst >= _sqapert + self.offset) & (_sqdst < _sqapert + _offset)
 		
-		flux = crop[circle_mask]
+		flux_raw = crop[circle_mask]
 		bg_flux = crop[annulus_mask]
 		if self.sigma != 0:
 			sigma_mask = np.abs(bg_flux - np.nanmean(bg_flux)) < np.nanstd(bg_flux) * self.sigma
 			bg_flux = bg_flux[sigma_mask]
-		return float(np.nanmean(flux) - np.nanmean(bg_flux))
-
-
-class BackgroundOnlyPhot(PhotometryBase):
-	''' Extracts the background used by aperture photometry'''
-	width : int
-	offset : int
-	sigma : int
-
-	def __init__(self, width : int, offset : int, sigma : int = 0) :
-		self.width = width
-		self.offset = offset
-		self.sigma = sigma
-	
-	def evaluate_point(self, img: ImageLike, position : Position, aperture: int) -> float | int:
-		_offset = (self.width + self.offset)
-		crop = _get_cropped(img, position, aperture, _offset)
-		_y, _x = np.ogrid[:crop.shape[0], :crop.shape[1]]
-		_sqdst = (_x -  crop.shape[0]/2) **2 + (_y - crop.shape[1]/2) **2
-		_sqapert = aperture ** 2
-
-		annulus_mask = (_sqdst >= _sqapert + self.offset) & (_sqdst < _sqapert + _offset)
-		bg_flux = crop[annulus_mask]
-		if self.sigma != 0:
-			sigma_mask = np.abs(bg_flux - np.nanmean(bg_flux)) < np.nanstd(bg_flux) * self.sigma
-			bg_flux = bg_flux[sigma_mask]
-		return float(np.nanmean(bg_flux))
-	
-class SimplePhot(PhotometryBase):
-	''' Uncalibrated photomery, returns the integrated flux of the star without background removal or sigma clipping'''
-	padding : int
-
-	def __init__(self, padding : int = 0) -> None:
-		self.padding = 0
-	
-	def evaluate_point(self, img: ImageLike, position : Position, aperture: int) -> float | int:
-		crop = _get_cropped(img, position, aperture, self.padding)
-		_y, _x = np.ogrid[:crop.shape[0], :crop.shape[1]]
-		_sqdst = (_x -  crop.shape[0]/2) **2 + (_y - crop.shape[1]/2) **2
-		_sqapert = aperture ** 2
-		circle_mask = _sqdst < _sqapert
-		flux = crop[circle_mask]
-		return float(np.nanmean(flux))
+		return PhotometryResult(flux= float(np.nanmean(flux_raw) - np.nanmean(bg_flux)),
+										flux_raw= float(np.nanmean(flux_raw)),
+										flux_median= float(np.nanmedian(flux_raw)),
+										flux_iqr= float(np.nanpercentile(flux_raw, 75) - np.nanpercentile(flux_raw, 25)),
+										backg= float(np.nanmean(bg_flux)),
+										backg_sigma= float(np.nanstd(bg_flux))
+										)

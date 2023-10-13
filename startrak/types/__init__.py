@@ -186,11 +186,19 @@ class Tracker(ABC, Generic[_TrackingModel]):
 
 
 # --------------- Photometry -------------------------
+@dataclass(frozen=True)
+class PhotometryResult:
+	flux : float
+	flux_raw : float
+	flux_iqr : float
+	flux_median : float
+	backg : float
+	backg_sigma : float
 
 class PhotometryBase(ABC):
 	@abstractmethod
-	def evaluate_point(self, img : ImageLike, position : Position, aperture: int) -> float | int:
+	def evaluate_point(self, img : ImageLike, position : Position, aperture: int) -> PhotometryResult:
 		pass
 
-	def evaluate(self, img : ImageLike, star : Star) -> float | int:
+	def evaluate(self, img : ImageLike, star : Star) -> PhotometryResult:
 		return self.evaluate_point(img, star.position, star.aperture)
