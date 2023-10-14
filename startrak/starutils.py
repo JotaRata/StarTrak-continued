@@ -111,7 +111,7 @@ def simple_hough_circles( image : ImageLike, threshold : float,
 	return list[Star]()
 
 def visualize_stars(image : ImageLike, stars : List[Star],
-					vsize : int= 720, sigma : int = 4):
+					vsize : int= 720, sigma : int = 4, color : Tuple[int, int, int] = (200, 0, 0)):
 	if vsize is not None and vsize != 0:
 		_f = vsize / np.min(image.shape) 
 		image = cv2.resize(image, None, fx=_f, fy=_f, interpolation=cv2.INTER_CUBIC)
@@ -121,8 +121,8 @@ def visualize_stars(image : ImageLike, stars : List[Star],
 	for star in stars:
 		pos = int(star.position[0] * _f), int(star.position[1] * _f)
 		rad = int(star.aperture * _f)
-		image = cv2.putText(image, star.name, (pos[0], pos[1] - rad-4), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (200, 0, 0), 1)
-		image = cv2.circle(image, pos, rad, (200, 0, 0), 2)
+		image = cv2.putText(image, star.name, (pos[0], pos[1] - rad-4), cv2.FONT_HERSHEY_PLAIN, 0.5, color, 1)
+		image = cv2.circle(image, pos, rad, color, 2)
 	cv2.imshow('Visualize stars', image)
 	cv2.waitKey(0)
 	cv2.destroyAllWindows()
