@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 from typing import Any, Generator, Iterator, List, Literal, Optional, Tuple, cast
+import cv2
 import numpy as np
 from numpy.typing import NDArray
 from startrak.native import PhotometryBase, PhotometryResult, Star, Tracker, TrackingModel, TrackingSolution
 from startrak.types import phot
 from startrak.native.alias import ImageLike, Position, PositionArray
-from startrak.types.phot import AperturePhot
+from startrak.types.phot import AperturePhot, _get_cropped
 
 # ------------------ Tracking methods ---------------
 
@@ -51,16 +52,19 @@ class SimpleTracker(Tracker[SimpleTrackerModel]):
 		assert self._model is not None, "Tracking model hasn't been set"
 		_reg : List[np.ndarray] = []
 		_lost : List[int ]= []
+		downs : int | None = None; ksize : int = 3
+		_f = downs / np.min(_image.shape) if downs is not None else 1
+		img = cv2.resize(_image, None, fx=_f, fy=_f, interpolation=cv2.INTER_CUBIC)
+		img = cv2.medianBlur(img, 3)
 		
 		for i in range(self._model.count):
 			row, col = self._model.coords[i]
-			crop = _image[row - self._size : row + self._size,
-								col - self._size : col + self._size]
+			crop = _get_cropped(img, (col, row), 0, padding= self._size)
 			
 			# background sigma clipping
 			# image minus the background should equal the integrated flux
 			# the candidate shouldn't be brighter than the current star
-			mask = np.abs(crop - self._model.phot[i].backg) > 4 * self._model.phot[i].backg_sigma
+			mask = np.abs(crop - self._model.phot[i].backg) > 2* self._model.phot[i].backg_sigma
 			mask &= (crop - self._model.phot[i].backg) >=  self._model.phot[i].flux
 			mask &= np.abs(crop - self._model.phot[i].flux) <  ( self._model.phot[i].flux_iqr * self._model.phot[i].flux / self._factor)
 			
@@ -73,21 +77,4 @@ class SimpleTracker(Tracker[SimpleTrackerModel]):
 			_median = np.median(indices, axis= 0)
 			_reg.append(_median - (self._size,) * 2 + self._model.coords[i])
 		_current = np.vstack(_reg)
-
-		dx = np.nanmean(_current[:, 0] - self._model.coords[:, 0])
-		dy = np.nanmean(_current[:, 1] - self._model.coords[:, 1])
-
-		#todo: if self._include_error:
-		ex = np.nanstd(_current[:, 0] - self._model.coords[:, 0])
-		ey = np.nanstd(_current[:, 1] - self._model.coords[:, 1])
-		error = np.sqrt(ex**2 + ey**2)
-
-		center : PositionArray = np.nanmean(self._model.coords, axis=0)
-		c_previous = self._model.coords - center
-		c_current = _current - center
-
-		_dot = np.nansum(c_previous * c_current, axis= 1)
-		_cross = np.cross(c_previous, c_current)
-		_angle = np.nanmean(np.arctan2(_cross,  _dot))
-
-		return TrackingSolution(cast(float, dx), cast(float, dy), _angle, error,  _lost)
+		return TrackingSolution(_current, self._model.coords, _image.shape, _lost), _current

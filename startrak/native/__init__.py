@@ -1,10 +1,11 @@
 from functools import lru_cache
+import math
 from typing import Any, Callable, ClassVar, Dict, Final, Generic, Iterator, List, Optional, Self, Set, Tuple, Type, TypeVar, cast
 from abc import ABC, abstractmethod
 import numpy as np
 from dataclasses import  dataclass
 import os.path
-from startrak.native.alias import ImageLike, NumberLike, ValueType, Position, NDArray
+from startrak.native.alias import ImageLike, NumberLike, PositionArray, ValueType, Position, NDArray
 from startrak.native.fits import _FITSBufferedReaderWrapper as FITSReader
 from startrak.native.fits import _bitsize
 from mypy_extensions import mypyc_attr
@@ -200,24 +201,54 @@ class ReferenceStar(Star):
 
 # ----------------- Tracking ------------------
 
-@dataclass(frozen=True)
 class TrackingSolution:
 	dx : float
 	dy : float
 	da : float
 	error : float
 	lost : List[int]
+	_center : Tuple
 	
+	# todo: optimize this mess
+	def __init__(self, current : PositionArray, model : PositionArray, 
+					img_shape : Tuple, lost_star_indices : List[int]) -> None:
+		self.lost = lost_star_indices
+		_diff = current - model
+		errors = _diff - np.nanmean(_diff, axis= 0)
+
+		for i, (exx, eyy) in enumerate(errors):
+			if (_err:= exx**2 + eyy**2) > max(2 * np.nanmean(errors**2), 1):
+				print(f'Star {i} is deviating from the solution ({_err:.1f} px)')
+				self.lost.append(i)
+
+		# self._center = img_shape[0] / 2, img_shape[1] / 2
+		bad_mask = [index not in self.lost for index in range(len(model))]
+		self._center = tuple(np.nanmean(current[bad_mask], axis=0).tolist())
+		c_previous = model[bad_mask] - self._center
+		c_current = current[bad_mask] - self._center
+
+		_dot = np.nansum(c_previous * c_current, axis= 1)
+		_cross = np.cross(c_previous, c_current)
+		self.da = np.nanmean(np.arctan2(_cross,  _dot))
+
+		ex, ey = np.nanstd(_diff[bad_mask], axis= 0)
+		self.error = np.sqrt(ex**2 + ey**2)
+		self.dx, self.dy = np.nanmean(_diff[bad_mask], axis= 0)
+
 	@classmethod
 	def identity(cls) -> Self:
-		return cls(0, 0, 0, 0, [])
+		return cls.__new__(cls)
 	@property
 	def matrix(self) -> np.ndarray:
-		_cos = np.cos(self.da)
-		_sin = np.sin(self.da)
-		return np.array([[_cos, -_sin, self.dx], 
-								[_sin, _cos,   self.dy],
-								[0,     0,       1   ]])
+		c = math.cos(self.da)
+		s = math.sin(self.da)
+
+		j, k = self._center
+		a = self.dx + j - j * c + k * s
+		b = self.dy + k - k * c - j * s
+		return np.array([ [c, -s, a], 
+								[s,  c, b],
+								[0,  0, 1]])
 	@property
 	def translation(self) -> np.ndarray:
 		return np.array((self.dx, self.dy))
@@ -230,8 +261,9 @@ class TrackingSolution:
 		return ( f'{type(self).__name__} ['
 					f'\n  translation: {self.dx:.1f} px, {self.dy:.1f} px'
 					f'\n  rotation:    {self.rotation:.2f}°'
-					f'\n  error:       {self.error:.3f} px'
-					f'\n  lost stars:  {self.lost} ]')
+					f'\n  error:       {self.error:.3f} px')
+	def __setattr__(self, __name: str, __value) -> None:
+		raise AttributeError(name= __name)
 
 @mypyc_attr(allow_interpreted_subclasses=True)
 class TrackingModel:
