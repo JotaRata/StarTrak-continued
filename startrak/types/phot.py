@@ -11,8 +11,9 @@ def _get_cropped(img : ImageLike, position : Position, aperture: int, padding : 
 		if ((rmin < 0 or rmax > img.shape[0]) or (cmin < 0 or cmax > img.shape[1])) and fillnan:
 			padr = max(-rmin + 1, 0), max(rmax - img.shape[0], 0)
 			padc = max(-cmin + 1, 0), max(cmax - img.shape[1], 0)
+			
 			padded_img = np.pad(img.astype(float), [padr, padc], mode= 'constant', constant_values= np.nan)
-			return padded_img[rmin + padr[0]:rmax + padr[1], cmin + padc[0]:cmax + padc[1]]
+			return padded_img[rmin + padr[0] :rmax + padr[1] + padr[0], cmin + padc[0]: cmax + padc[1] + padc[0]]
 		return img[rmin:rmax, cmin:cmax].copy()
 
 class AperturePhot(PhotometryBase):
