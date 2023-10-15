@@ -266,16 +266,10 @@ class TrackingSolution:
 		raise AttributeError(name= __name)
 
 @mypyc_attr(allow_interpreted_subclasses=True)
-class TrackingModel:
-	pass
-_TrackingModel = TypeVar('_TrackingModel', bound= TrackingModel)
-
-@mypyc_attr(allow_interpreted_subclasses=True)
-class Tracker(ABC, Generic[_TrackingModel]):
-	_model : _TrackingModel | None
-
-	def setup_model(self, model : _TrackingModel):
-		self._model = model
+class Tracker(ABC):
+	@abstractmethod
+	def setup_model(self, stars : List[Star]):
+		pass
 	@abstractmethod
 	def track(self, image : ImageLike) -> TrackingSolution:
 		pass
