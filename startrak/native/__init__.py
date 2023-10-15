@@ -233,33 +233,15 @@ class TrackingSolution:
 	da : float
 	error : float
 	lost : List[int]
-	_center : Tuple
+	_center : Tuple[float, float]
 	
-	# todo: optimize this mess
-	def __init__(self, current : PositionArray, model : PositionArray, 
-					img_shape : Tuple, lost_star_indices : List[int]) -> None:
-		self.lost = lost_star_indices
-		_diff = current - model
-		errors = _diff - np.nanmean(_diff, axis= 0)
-
-		for i, (exx, eyy) in enumerate(errors):
-			if (_err:= exx**2 + eyy**2) > max(2 * np.nanmean(errors**2), 1):
-				print(f'Star {i} is deviating from the solution ({_err:.1f} px)')
-				self.lost.append(i)
-
-		# self._center = img_shape[0] / 2, img_shape[1] / 2
-		bad_mask = [index not in self.lost for index in range(len(model))]
-		self._center = tuple(np.nanmean(current[bad_mask], axis=0).tolist())
-		c_previous = model[bad_mask] - self._center
-		c_current = current[bad_mask] - self._center
-
-		_dot = np.nansum(c_previous * c_current, axis= 1)
-		_cross = np.cross(c_previous, c_current)
-		self.da = np.nanmean(np.arctan2(_cross,  _dot))
-
-		ex, ey = np.nanstd(_diff[bad_mask], axis= 0)
-		self.error = np.sqrt(ex**2 + ey**2)
-		self.dx, self.dy = np.nanmean(_diff[bad_mask], axis= 0)
+	def __init__(self, delta_pos : Tuple[float, float], dangle_rad : float, sol_error : float, 
+					transform_origin : Tuple[float, float] = (0, 0), lost_indices : List[int] = []) -> None:
+		self.dx, self.dy = delta_pos
+		self.da = dangle_rad
+		self.error = sol_error
+		self._center = transform_origin
+		self.lost = lost_indices
 
 	@classmethod
 	def identity(cls) -> Self:

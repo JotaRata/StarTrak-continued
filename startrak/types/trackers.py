@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple, cast
 import cv2
 import numpy as np
 from startrak.native import Star, Tracker, TrackingSolution
@@ -25,8 +25,9 @@ class SimpleTracker(Tracker):
 		self._model_coords = np.vstack(coords)
 
 	def track(self, _image : ImageLike):
-		_reg : List[np.ndarray] = []
-		_lost : List[int ]= []
+		_reg= []
+		lost= []
+		TPos = Tuple[float, float]
 		img = cv2.resize(_image, None, fx=1, fy=1, interpolation=cv2.INTER_CUBIC)
 		img = cv2.medianBlur(img, 3)
 		
@@ -44,11 +45,36 @@ class SimpleTracker(Tracker):
 			
 			indices = np.transpose(np.nonzero(mask))
 			if len(indices) == 0:
-				_lost.append(i)
+				lost.append(i)
 				_reg.append(np.array([np.nan, np.nan]))
 				continue
 			
 			_median = np.median(indices, axis= 0)
 			_reg.append(_median - (self._size,) * 2 + self._model_coords[i])
-		_current = np.vstack(_reg)
-		return TrackingSolution(_current, self._model_coords, _image.shape, _lost), _current
+		current = np.vstack(_reg)
+
+		_diff = current - self._model_coords
+		errors = _diff - np.nanmean(_diff, axis= 0)
+
+		for i, (exx, eyy) in enumerate(errors):
+			if (_err:= exx**2 + eyy**2) > max(2 * np.nanmean(errors**2), 1):
+				print(f'Star {i} is deviating from the solution ({_err:.1f} px)')
+				lost.append(i)
+		bad_mask = [index not in lost for index in range(self._model_count)]
+
+		_center = tuple(np.nanmean(current[bad_mask], axis=0).tolist())
+		c_previous = self._model_coords[bad_mask] - _center
+		c_current = current[bad_mask] - _center
+
+		_dot = np.nansum(c_previous * c_current, axis= 1)
+		_cross = np.cross(c_previous, c_current)
+		da = np.nanmean(np.arctan2(_cross,  _dot))
+
+		ex, ey = np.nanstd(_diff[bad_mask], axis= 0)
+		error = np.sqrt(ex**2 + ey**2)
+		dpos = tuple(np.nanmean(_diff[bad_mask], axis= 0).tolist())
+		return TrackingSolution(cast(TPos, dpos), 
+										float(da), 
+										float(error), 
+										cast(TPos, _center), 
+										lost)
