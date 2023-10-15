@@ -174,31 +174,6 @@ class Session(ABC):
 #endregion
 
 
-
-@mypyc_attr(allow_interpreted_subclasses=True)
-class Star:
-	name : str
-	position : Position
-	aperture : int
-
-	def __init__(self, name : str, position : Position, aperture : int) -> None:
-		self.name = name
-		self.position = position
-		self.aperture = aperture
-	
-	def __iter__(self):
-		for var in dir(self):
-			if not var.startswith(('__', '_')):
-				yield var, getattr(var)
-
-	def __repr__(self) -> str:
-		s = [ f'  {key}: {value}' for key, value in self.__iter__()]
-		return self.__class__.__name__ + ':\n' + '\n'.join(s)
-
-
-class ReferenceStar(Star):
-	magnitude : float = 0
-	
 #region Photometry
 @mypyc_attr(allow_interpreted_subclasses=True)
 @dataclass(frozen=True)
@@ -214,6 +189,37 @@ class PhotometryBase(ABC):
 	@abstractmethod
 	def evaluate(self, img : ImageLike, position : Position, aperture: int) -> PhotometryResult:
 		pass
+
+
+@mypyc_attr(allow_interpreted_subclasses=True)
+class Star:
+	name : str
+	position : Position
+	aperture : int
+	photometry : Optional[PhotometryResult]
+	
+	def __init__(self, name : str, position : Position, aperture : int) -> None:
+		self.name = name
+		self.position = position
+		self.aperture = aperture
+
+	@property
+	def flux(self) -> float:
+		if not self.photometry:
+			raise ValueError(f'Photometry not set for "{self.name}"')
+		return self.photometry.flux
+	
+	def __iter__(self):
+		for var in dir(self):
+			if not var.startswith(('__', '_')):
+				yield var, getattr(var)
+
+	def __repr__(self) -> str:
+		s = [ f' {key}: {value}' for key, value in self.__iter__()]
+		return self.__class__.__name__ + ':\n' + '\n'.join(s)
+
+class ReferenceStar(Star):
+	magnitude : float = 0
 
 #endregion
 #region Tracking
