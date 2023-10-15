@@ -185,13 +185,6 @@ class PhotometryResult:
 	backg_sigma : float
 
 @mypyc_attr(allow_interpreted_subclasses=True)
-class PhotometryBase(ABC):
-	@abstractmethod
-	def evaluate(self, img : ImageLike, position : Position, aperture: int) -> PhotometryResult:
-		pass
-
-
-@mypyc_attr(allow_interpreted_subclasses=True)
 class Star:
 	name : str
 	position : Position
@@ -221,6 +214,15 @@ class Star:
 
 class ReferenceStar(Star):
 	magnitude : float = 0
+
+@mypyc_attr(allow_interpreted_subclasses=True)
+class PhotometryBase(ABC):
+	@abstractmethod
+	def evaluate(self, img : ImageLike, position : Position, aperture: int) -> PhotometryResult:
+		pass
+
+	def evaluate_star(self, img : ImageLike, star : Star) -> PhotometryResult:
+		return self.evaluate(img, star.position, star.aperture)
 
 #endregion
 #region Tracking
