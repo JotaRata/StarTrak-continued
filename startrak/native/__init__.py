@@ -173,33 +173,50 @@ class Session(ABC):
 
 #endregion
 
-#region Data types
+
+
 @mypyc_attr(allow_interpreted_subclasses=True)
-@dataclass
-class Star():
+class Star:
 	name : str
 	position : Position
 	aperture : int
-	
-	def __iter__(self) -> Iterator[Position | ValueType]:
-		params : List[Position | ValueType] = [type(self).__name__, self.name, self.position, self.aperture]
-		yield from params
-	
-	@classmethod
-	def From(cls : Type[Self], other : Star) -> Self:	#type:ignore
-		import inspect
-		_, *params = other
-		_n = len(inspect.signature(cls.__init__).parameters)
-		return cls(*params[:_n - 1])	#type: ignore
 
-@dataclass
+	def __init__(self, name : str, position : Position, aperture : int) -> None:
+		self.name = name
+		self.position = position
+		self.aperture = aperture
+	
+	def __iter__(self):
+		for var in dir(self):
+			if not var.startswith(('__', '_')):
+				yield var, getattr(var)
+
+	def __repr__(self) -> str:
+		s = [ f'  {key}: {value}' for key, value in self.__iter__()]
+		return self.__class__.__name__ + ':\n' + '\n'.join(s)
+
+
 class ReferenceStar(Star):
 	magnitude : float = 0
-	def __iter__(self) -> Iterator[Position | ValueType]:
-		yield from super().__iter__()
-		yield self.magnitude
+	
+#region Photometry
+@mypyc_attr(allow_interpreted_subclasses=True)
+@dataclass(frozen=True)
+class PhotometryResult:
+	flux : float
+	flux_raw : float
+	flux_iqr : float
+	backg : float
+	backg_sigma : float
 
-# ----------------- Tracking ------------------
+@mypyc_attr(allow_interpreted_subclasses=True)
+class PhotometryBase(ABC):
+	@abstractmethod
+	def evaluate(self, img : ImageLike, position : Position, aperture: int) -> PhotometryResult:
+		pass
+
+#endregion
+#region Tracking
 
 class TrackingSolution:
 	dx : float
@@ -274,25 +291,4 @@ class Tracker(ABC):
 	def track(self, image : ImageLike) -> TrackingSolution:
 		pass
 
-
-# --------------- Photometry -------------------------
-@mypyc_attr(allow_interpreted_subclasses=True)
-@dataclass(frozen=True)
-class PhotometryResult:
-	flux : float
-	flux_raw : float
-	flux_iqr : float
-	flux_median : float
-	backg : float
-	backg_sigma : float
-
-@mypyc_attr(allow_interpreted_subclasses=True)
-class PhotometryBase(ABC):
-	@abstractmethod
-	def evaluate_point(self, img : ImageLike, position : Position, aperture: int) -> PhotometryResult:
-		pass
-
-	def evaluate(self, img : ImageLike, star : Star) -> PhotometryResult:
-		return self.evaluate_point(img, star.position, star.aperture)
-	
 #endregion

@@ -38,15 +38,32 @@ class SimpleTrackerModel(TrackingModel):
 	def count(self) -> int:
 		return len(self.phot)
 
-class SimpleTracker(Tracker[SimpleTrackerModel]):
+class SimpleTracker(Tracker):
 	_size : int
 	_factor : float
-	_previous : PositionArray | None
 
-	def __init__(self, tracking_size : int, sensitivity : float) -> None:
+	def __init__(self, tracking_size : int, sensitivity : float,
+					phot_method : Literal['aperture'] | PhotometryBase = 'aperture') -> None:
 		self._size = tracking_size
 		self._factor = sensitivity
-		self._previous = None
+		self._phot_model : PhotometryBase
+		if phot_method == 'aperture':
+			self._phot_model = AperturePhot(4, 2)	# todo: set by configuration
+		elif isinstance(phot_method, PhotometryBase):
+			self._phot_model = phot_method
+		else:
+			raise ValueError(phot_method)
+
+	def setup_model(self, stars: List[Star]):
+		_coords : List[Position] = []
+		self.phot = []
+
+		# todo: use star brightness as an attribute
+		for star in stars:
+			_coords.append(star.position[::-1])
+			phr = self._phot_model.evaluate(sample_image, star)
+			self.phot.append(phr)
+		self.coords = np.vstack(_coords)
 
 	def track(self, _image : ImageLike):
 		assert self._model is not None, "Tracking model hasn't been set"
