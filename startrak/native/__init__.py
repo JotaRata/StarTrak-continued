@@ -202,17 +202,18 @@ class Star:
 		self.name = name
 		self.position = position
 		self.aperture = aperture
+		self.photometry = None
 
 	@property
 	def flux(self) -> float:
 		if not self.photometry:
-			raise ValueError(f'Photometry not set for "{self.name}"')
+			return 0
 		return self.photometry.flux
 	
 	def __iter__(self):
 		for var in dir(self):
 			if not var.startswith(('__', '_')):
-				yield var, getattr(var)
+				yield var, getattr(self, var)
 
 	def __repr__(self) -> str:
 		s = [ f' {key}: {value}' for key, value in self.__iter__()]
