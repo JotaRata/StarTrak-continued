@@ -261,7 +261,7 @@ class TrackingSolution:
 	def translation(self) -> np.ndarray:
 		return np.array((self.dx, self.dy))
 	
-	@property
+	@property	
 	def rotation(self) -> float:
 		return np.degrees(self.da)
 	
@@ -282,4 +282,12 @@ class Tracker(ABC):
 	def track(self, image : ImageLike) -> TrackingSolution:
 		pass
 
+#endregion
+
+#region Detectors
+@mypyc_attr(allow_interpreted_subclasses=True)
+class StarDetector(ABC):
+	@abstractmethod
+	def detect(self, image : ImageLike) -> List[Star]:
+		pass
 #endregion
