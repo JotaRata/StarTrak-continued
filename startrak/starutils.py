@@ -123,6 +123,12 @@ def visualize_stars(image : ImageLike, stars : List[Star],
 		rad = int(star.aperture * _f)
 		image = cv2.putText(image, star.name, (pos[0], pos[1] - rad-4), cv2.FONT_HERSHEY_PLAIN, 0.5, color, 1)
 		image = cv2.circle(image, pos, rad, color, 2)
-	cv2.imshow('Visualize stars', image)
+	
+	def on_click(event, x, y, *_):
+		if event == cv2.EVENT_LBUTTONDOWN:
+			print(x, y) 
+	cv2.namedWindow("image")
+	cv2.setMouseCallback('image', on_click) 
+	cv2.imshow('image', image)
 	cv2.waitKey(0)
 	cv2.destroyAllWindows()
