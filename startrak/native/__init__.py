@@ -289,12 +289,12 @@ class Tracker(ABC):
 class StarDetector(ABC):
 	star_name : str = 'star_'
 	@abstractmethod
-	def _detect_(self, image : ImageLike) -> List[List[float]]:
+	def _detect(self, image : ImageLike) -> List[List[float]]:
 		raise NotImplementedError()
 
 	@final
 	def detect(self, image : ImageLike) -> List[Star]:
-		result = self._detect_(image)
+		result = self._detect(image)
 		if len(result) == 0:
 			print('No stars were detected, try adjusting the parameters')
 			return list[Star]()

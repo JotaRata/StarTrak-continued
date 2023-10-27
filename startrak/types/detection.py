@@ -36,7 +36,7 @@ class HoughCircles(StarDetector):
 		self._p2 = param2
 		self._dp = dp
 	
-	def _detect_(self, image : ImageLike) -> List[List[float]]:
+	def _detect(self, image : ImageLike) -> List[List[float]]:
 		img = sigma_stretch(image, sigma= self._sigma)
 		if self._ksize is not None:
 			img = cv2.GaussianBlur(img, self._ksize, 0)
@@ -56,7 +56,7 @@ class AdaptiveHoughCircles(HoughCircles):
 		self._threshold = threshold
 		super().__init__(**kwargs)
 
-	def _detect_(self, image : ImageLike) -> List[List[float]]:
+	def _detect(self, image : ImageLike) -> List[List[float]]:
 		img = sigma_stretch(image, sigma= self._sigma)
 		if self._ksize is not None:
 			img = cv2.GaussianBlur(img, self._ksize, 0)
@@ -74,7 +74,7 @@ class ThresholdHoughCircles(HoughCircles):
 		self._threshold = threshold
 		super().__init__(**kwargs)
 
-	def _detect_(self, image : ImageLike) -> List[List[float]]:
+	def _detect(self, image : ImageLike) -> List[List[float]]:
 		img = sigma_stretch(image, sigma= self._sigma)
 		if self._ksize is not None:
 			img = cv2.GaussianBlur(img, self._ksize, 0)
