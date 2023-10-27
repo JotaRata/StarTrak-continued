@@ -50,66 +50,6 @@ def detect_stars(image : ImageLike, method : Literal['adaptive', 'threshold'] = 
 	'''
 	return __methods__[method](image, *args, **kwargs) # type: ignore
 
-def get_methods() -> Tuple[_DetectionMethod, ...]:
-	'''
-		Get a list of registered detection methods
-		see: @detect_stars
-	'''
-	return tuple(__methods__.values())
-
-# decorator method
-def detection_method(id : str, name : str) -> Decorator[List[Star]]:
-	def decorator(func : Callable[..., List[Star]]) -> _DetectionMethod:
-		def wrapper(*args : Any, **kwargs : Any):
-			return func(*args, **kwargs)
-		wrapper.name = name  # type: ignore
-		__methods__[id] = wrapper
-		return wrapper
-	return decorator
-
-# ------------------------- Methods ---------------------
-@detection_method('adaptive', 'Adaptive HoughCircles')
-def adaptive_hough_circles( image : ImageLike, sigma : float = 3.0,
-						min_size : int = 5, max_size : int = 15,
-						downs : int = 512, ksize : int = 15, min_dst : int = 16,
-						threshold : int = 2, blockSize : int = 11) -> list[Star]:
-	if downs is not None and downs != 0:
-		_f = downs / np.min(image.shape) 
-		image = cv2.resize(image, None, fx=_f, fy=_f, interpolation=cv2.INTER_CUBIC)
-	else: _f = 1
-	image = sigma_stretch(image, sigma=sigma)
-
-	image = cv2.GaussianBlur(image, (ksize, ksize), 0)
-	image = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, blockSize=blockSize, C=threshold)
-	
-	circles = cv2.HoughCircles(image, cv2.HOUGH_GRADIENT, 1, min_dst, param1=100, param2=min_size * 2, minRadius=min_size, maxRadius=max_size)
-	
-	if circles is not None:
-		_c = circles[0, :].copy()
-		return [Star(str(i), (int(c[0] / _f), int(c[1] / _f)), int(c[2] / _f)) for i, c in enumerate(_c)]
-	print('No stars were detected, try changing min/max sizes or decreasing the sigma value')
-	return list[Star]()
-	
-@detection_method('threshold', 'Simple HoughCircles')
-def simple_hough_circles( image : ImageLike, threshold : float,
-							sigma : int = 1, min_size : int = 5, max_size : int = 15,
-							downs : int = 512, ksize : int = 15, min_dst : int = 16) -> list[Star]:
-	if downs is not None and downs != 0:
-		_f = downs / np.min(image.shape) 
-		image = cv2.resize(image, None, fx=_f, fy=_f, interpolation=cv2.INTER_CUBIC)
-	else: _f = 1
-	image = sigma_stretch(image, sigma)
-	image = cv2.GaussianBlur(image, (ksize, ksize), 0)
-	_, image = cv2.threshold(image, threshold, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
-
-	circles = cv2.HoughCircles(image, cv2.HOUGH_GRADIENT, 1, min_dst, param1=100, param2=min_size * 2, minRadius=min_size, maxRadius=max_size)
-	
-	if circles is not None:
-		_c : NDArray = circles[0, :].copy()
-		return [Star(str(i), (int(c[0] / _f), int(c[1] / _f)), int(c[2] / _f)) for i, c in enumerate(_c)]
-	print('No stars were detected, try changing min/max sizes or decreasing the sigma value')
-	return list[Star]()
-
 def visualize_stars(image : ImageLike, stars : List[Star],
 					vsize : int= 720, sigma : int = 4, color : Tuple[int, int, int] = (200, 0, 0)):
 	if vsize is not None and vsize != 0:
@@ -128,7 +68,7 @@ def visualize_stars(image : ImageLike, stars : List[Star],
 		if event == cv2.EVENT_LBUTTONDOWN:
 			print(x, y) 
 	cv2.namedWindow("image")
-	cv2.setMouseCallback('image', on_click) 
+	cv2.setMouseCallback('image', on_click) #type:ignore
 	cv2.imshow('image', image)
 	cv2.waitKey(0)
 	cv2.destroyAllWindows()
