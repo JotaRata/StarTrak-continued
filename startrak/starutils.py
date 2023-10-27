@@ -1,54 +1,32 @@
 from typing import Any, Callable, List, Literal, Tuple
 from numpy.typing import NDArray
-from startrak.native import Star
+from startrak.native import Star, StarDetector
 from startrak.imageutils import sigma_stretch
+from startrak.types import detection
 import numpy as np
 import cv2
 
 from startrak.native.alias import ImageLike, Decorator
 
-__all__ = ['detect_stars', 'get_methods', 'detection_method']
-__methods__ = dict[str, Callable[..., List[Star]]]() # type: ignore
-_DetectionMethod = Callable[..., List[Star]]
+__all__ = ['detect_stars', ]
+_Method = Literal['hough', 'hough_adaptive', 'hough_threshold']
 
-def detect_stars(image : ImageLike, method : Literal['adaptive', 'threshold'] = 'adaptive', *args, **kwargs) -> List[Star]:
-	'''
-		## Automatic star detection.
-		Avaiable methods are 'adaptive' and 'threshold' that corresponds to 'Adaptive HoughCircles' and 'Simple HoughCircles' respectively.
-
-		Returns: A list containing the detected stars
-
-		---
-		### Adaptive Threshold + Hough Circles method
-		This method uses OpenCV adaptive threshold on a blurred and stretched version of the image using a gaussian kernel, then it uses the HughCircles algorithm to detect features in the image.
-
-		This method is suitable for images with a promitent gradient background or images that haven't been processed with a FLAT field image yet.
-
-		Parameters:
-		- image (arrayLike): The input image to detect features from
-		- sigma (float, default: 3): Sigma value for the contrast stretch algorithm, smaller values will make the stars more prominent but it will also increase the noise.
-		- min/max_size (int, default: 5 and 15): Minimum and maximum sizes respectively for the Hugh Circles algorithm to detect stars (scales with downsampling).
-		- downs (int, default: 512): Downsampling resolution, set it to None will use the original image size (slower)
-		- ksize (int/odd number, default: 15): The size of the gaussian kernel used to blur the image (scales with downsampling).
-		- min_dst (int, default: 16): The minimum distance in pixels detected stars should be, stars closer than this value will be ignored (scales with downsampling).
-		- threshold (int, default: 2): Threshold value passed to the cv2.adaptiveThreshold funtion.
-		- blockSize (int/odd number, default: 11): blockSize parameter of the cv2.adaptiveThreshold funtion.
-			
-		### Simple Threshold + Hough Circles method
-		This method uses OpenCV threshold function on a blurred and stretched version of the image using a gaussian kernel, then it uses the HughCircles algorithm to detect features in the image.
-
-		This method is suitable for processed images that have no noticeable background gradient.
-
-		Parameters:
-		- image (arrayLike): The input image to detect features from
-		- threshold (float[0..1]): The brightness percentage that determines which stars are bright enough to be included
-		- sigma (float, default: 1): Sigma value for the contrast stretch algorithm, smaller values will make the stars more prominent but it will also increase the noise.
-		- min/max_size (int, default: 5 and 15): Minimum and maximum sizes respectively for the Hugh Circles algorithm to detect stars (scales with downsampling).
-		- downs (int, default: 512): Downsampling resolution, set it to None will use the original image size (slower)
-		- ksize (int/odd number, default: 15): The size of the gaussian kernel used to blur the image (scales with downsampling).
-		- min_dst (int, default: 16): The minimum distance in pixels detected stars should be, stars closer than this value will be ignored (scales with downsampling).
-	'''
-	return __methods__[method](image, *args, **kwargs) # type: ignore
+def detect_stars(image : ImageLike, 
+					  method : _Method | StarDetector = 'hough', **detector_args) -> List[Star]:
+	_detector : StarDetector
+	# todo: replace with dict based mapping
+	if method == 'hough':
+		_detector = detection.HoughCircles(**detector_args)
+	elif method == 'hough_adaptive':
+		_detector = detection.AdaptiveHoughCircles(**detector_args)
+	elif method == 'hough_threshold':
+		_detector = detection.ThresholdHoughCircles(**detector_args)
+	elif isinstance(method, StarDetector):
+		_detector = method
+	else:
+		raise ValueError(method)
+	
+	return _detector.detect(image)
 
 def visualize_stars(image : ImageLike, stars : List[Star],
 					vsize : int= 720, sigma : int = 4, color : Tuple[int, int, int] = (200, 0, 0)):
