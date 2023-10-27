@@ -1,6 +1,6 @@
 from functools import lru_cache
 import math
-from typing import Any, Callable, ClassVar, Dict, Final, Generic, Iterator, List, Optional, Self, Set, Tuple, Type, TypeVar, cast
+from typing import Any, Callable, ClassVar, Dict, Final, Generic, Iterator, List, Optional, Self, Set, Tuple, Type, TypeVar, cast, final
 from abc import ABC, abstractmethod
 import numpy as np
 from dataclasses import  dataclass
@@ -261,7 +261,7 @@ class TrackingSolution:
 	def translation(self) -> np.ndarray:
 		return np.array((self.dx, self.dy))
 	
-	@property
+	@property	
 	def rotation(self) -> float:
 		return np.degrees(self.da)
 	
@@ -282,4 +282,22 @@ class Tracker(ABC):
 	def track(self, image : ImageLike) -> TrackingSolution:
 		pass
 
+#endregion
+
+#region Detectors
+@mypyc_attr(allow_interpreted_subclasses=True)
+class StarDetector(ABC):
+	star_name : str = 'star_'
+	@abstractmethod
+	def _detect(self, image : ImageLike) -> List[List[float]]:
+		raise NotImplementedError()
+
+	@final
+	def detect(self, image : ImageLike) -> List[Star]:
+		result = self._detect(image)
+		if len(result) == 0:
+			print('No stars were detected, try adjusting the parameters')
+			return list[Star]()
+		return [Star(self.star_name + str(i), ( int(x), int(y) ), int(rad)) 
+					for i, (x, y, rad) in enumerate(result)]
 #endregion
