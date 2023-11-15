@@ -1,6 +1,6 @@
 from functools import lru_cache
 import math
-from typing import Any, Callable, ClassVar, Dict, Final, Generic, Iterator, List, Optional, Self, Set, Tuple, Type, TypeVar, cast, final
+from typing import Any, Callable, ClassVar, Dict, Final, Generic, Iterator, List, Optional, Self, Set, Tuple, Type, TypeVar, cast, final, get_args
 from abc import ABC, abstractmethod
 import numpy as np
 from dataclasses import  dataclass
@@ -227,49 +227,52 @@ class PhotometryBase(ABC):
 #endregion
 #region Tracking
 
-class TrackingSolution:
-	dx : float
-	dy : float
-	da : float
-	error : float
-	lost : List[int]
-	_center : Tuple[float, float]
+class TrackingSolution():
+	_dx : float
+	_dy : float
+	_da : float
+	_error : float
+	_lost : List[int]
+	_matrix : np.ndarray
 	
-	def __init__(self, delta_pos : Tuple[float, float], dangle_rad : float, sol_error : float, 
-					transform_origin : Tuple[float, float] = (0, 0), lost_indices : List[int] = []) -> None:
-		self.dx, self.dy = delta_pos
-		self.da = dangle_rad
-		self.error = sol_error
-		self._center = transform_origin
-		self.lost = lost_indices
+	def __init__(self, *, delta_pos : Tuple[float, float], delta_angle : float, error : float, 
+					origin : Tuple[float, float] = (0, 0), lost_indices : List[int] = []) -> None:
+		# assert len(get_args(self.__class__)) == 1, "Type of Tracker must be used as Generic argument for TrackingSolution"
+		self._dx, self._dy = delta_pos
+		self._da = delta_angle
+		self._error = error
+		self._lost = lost_indices
+
+		c = math.cos(delta_angle)
+		s = math.sin(delta_angle)
+
+		j, k = origin
+		a = self._dx + j - j * c + k * s
+		b = self._dy + k - k * c - j * s
+		self._matrix = np.array([ [c, -s, a], 
+											[s,  c, b],
+											[0,  0, 1]])
+
 
 	@classmethod
 	def identity(cls) -> Self:
-		return cls.__new__(cls)
+		return cls(delta_pos= (0, 0), delta_angle= 0, error= 0)
 	@property
 	def matrix(self) -> np.ndarray:
-		c = math.cos(self.da)
-		s = math.sin(self.da)
-
-		j, k = self._center
-		a = self.dx + j - j * c + k * s
-		b = self.dy + k - k * c - j * s
-		return np.array([ [c, -s, a], 
-								[s,  c, b],
-								[0,  0, 1]])
+		return self._matrix
 	@property
 	def translation(self) -> np.ndarray:
-		return np.array((self.dx, self.dy))
+		return np.array((self._dx, self._dy))
 	
 	@property	
 	def rotation(self) -> float:
-		return np.degrees(self.da)
+		return np.degrees(self._da)
 	
 	def __repr__(self) -> str:
-		return ( f'{type(self).__name__} ['
-					f'\n  translation: {self.dx:.1f} px, {self.dy:.1f} px'
+		return ( f'{type(self).__name__}: '
+					f'\n  translation: {self._dx:.1f} px, {self._dy:.1f} px'
 					f'\n  rotation:    {self.rotation:.2f}°'
-					f'\n  error:       {self.error:.3f} px')
+					f'\n  error:       {self._error:.3f} px')
 	def __setattr__(self, __name: str, __value) -> None:
 		raise AttributeError(name= __name)
 

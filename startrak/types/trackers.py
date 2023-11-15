@@ -73,8 +73,9 @@ class SimpleTracker(Tracker):
 		ex, ey = np.nanstd(_diff[bad_mask], axis= 0)
 		error = np.sqrt(ex**2 + ey**2)
 		dpos = tuple(np.nanmean(_diff[bad_mask], axis= 0).tolist())
-		return TrackingSolution(cast(TPos, dpos), 
-										float(da), 
-										float(error), 
-										cast(TPos, _center), 
-										lost)
+		return TrackingSolution(delta_pos= cast(TPos, dpos), 
+										delta_angle= float(da), 
+										error= float(error), 
+										origin= cast(TPos, _center), 
+										lost_indices= lost)
+	
