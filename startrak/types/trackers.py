@@ -105,19 +105,15 @@ class GlobalAlignment(Tracker):
 		self._indices = self._neighbors(coords)
 		self._model = coords[self._indices]
 
+	# Compare triangles by SSS
 	def _compare(self, trig1, trig2) -> bool:
 		a1 =  (trig1[0][0] - trig1[1][0])**2 + (trig1[0][1] - trig1[1][1])**2
 		b1 =  (trig1[0][0] - trig1[2][0])**2 + (trig1[0][1] - trig1[2][1])**2
-		if a1 == 0 or b1 == 0: return False
 		c1 =  (trig1[1][0] - trig1[2][0])**2 + (trig1[1][1] - trig1[2][1])**2
-		ang1 = np.arccos((a1 + b1 - c1) / (2 * a1 * b1))
-
 		a2 =  (trig2[0][0] - trig2[1][0])**2 + (trig2[0][1] - trig2[1][1])**2
 		b2 =  (trig2[0][0] - trig2[2][0])**2 + (trig2[0][1] - trig2[2][1])**2
-		if a2 == 0 or b2 == 0: return False
 		c2 =  (trig2[1][0] - trig2[2][0])**2 + (trig2[1][1] - trig2[2][1])**2
-		ang2 = np.arccos((a2 + b2 - c2) / (2 * a2 * b2))
-		return ((0.95 <= a1/a2 < 1.05) and (0.95 <= b1/b2 < 1.05)) and (np.abs(ang2 - ang1) < 0.05)
+		return (0.95 <= a1/a2 < 1.05) and (0.95 <= b1/b2 < 1.05) and (0.95 <= c1/c2 < 1.05)
 
 	def track(self, image: ImageLike) -> TrackingSolution:
 		''' 
@@ -136,12 +132,13 @@ class GlobalAlignment(Tracker):
 				if self._compare(trig1, coords[indices]):
 					matched.append((i, j))
 					break
-		print(f'Matched {len(matched)} of {len(triangles)} triangles by SAS')
+		print(f'Matched {len(matched)} of {len(triangles)} triangles')
 		if len(matched) <= 1:
 			return TrackingSolution.identity()
 		delta_pos = []
 		delta_rot = []
 		_centroids = []
+		lost = []
 		for model_idx, current_idx in matched:
 			model = self._model.view((int, len(self._model.dtype.names)))[model_idx]
 			triangle = coords.view((int, len(coords.dtype.names)))[triangles[current_idx]]
@@ -156,12 +153,24 @@ class GlobalAlignment(Tracker):
 			delta_pos.append(centroid2 - centroid1)
 			delta_rot.append(da)
 			_centroids.append(centroid2)
+		delta_pos = np.vstack(delta_pos)
+		delta_rot = np.array(delta_rot)
+
+		errors = delta_pos - np.nanmean(delta_pos, axis= 0)
+		for i, (exx, eyy) in enumerate(errors):
+			if (_err:= exx**2 + eyy**2) > max(2 * np.nanmean(errors**2), 1):
+				star_indices = triangles[i]
+				print(f'Stars {star_indices} are deviating from the solution ({_err:.1f} px)')
+				lost.append(star_indices[0])
+				lost.append(star_indices[1])
+				lost.append(star_indices[2])
+		bad_mask = [index not in lost for index in range(len(matched))]
 		
-		ex, ey = np.nanstd(delta_pos, axis= 0)
+		ex, ey = np.nanstd(delta_pos[bad_mask], axis= 0)
 		error = np.sqrt(ex**2 + ey**2)
 		
-		dpos = tuple(np.nanmean(delta_pos, axis= 0).tolist())
-		dangle = np.nanmean(delta_rot)
+		dpos = tuple(np.nanmean(delta_pos[bad_mask], axis= 0).tolist())
+		dangle = np.nanmean(delta_rot[bad_mask])
 		center = tuple(np.nanmean(_centroids, axis= 0).tolist())
 		return TrackingSolution(delta_pos= cast(TPos, dpos),
 										delta_angle= cast(float, dangle),
