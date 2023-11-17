@@ -84,7 +84,7 @@ class SimpleTracker(Tracker):
 										origin= cast(TPos, _center), 
 										lost_indices= lost)
 _Method = Literal['hough', 'hough_adaptive', 'hough_threshold']
-class GlobalAlignment(Tracker):
+class GlobalAlignmentTracker(Tracker):
 	_detector : StarDetector
 	_method : str
 	_c : float
