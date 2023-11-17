@@ -245,17 +245,24 @@ class TrackingSolution():
 		j, k = image_size[0]/2, image_size[1]/2
 
 		mask = list(range(len(delta_pos)))
-		residuals = delta_pos - np.nanmean(delta_pos, axis= 0)
+		pos_residuals = delta_pos - np.nanmean(delta_pos, axis= 0)
+		ang_residuals = delta_angle - np.nanmean(delta_angle, axis= 0)
 		for _ in range(error_iter):
 			rej_count, rej_error = 0, 0.0
-			for i, (exx, eyy) in enumerate(residuals):
-				if (err:= exx**2 + eyy**2) > max(error_sigma * np.nanmean(residuals[mask]**2), 1):
+			for i, (exx, eyy) in enumerate(pos_residuals):
+				if (err:= exx**2 + eyy**2) > max(error_sigma * np.nanmean(pos_residuals[mask]**2), 1):
 					if i in mask:
 						mask.remove(i)
 						lost_indices.append(i)
 						rej_error += err; rej_count += 1
+			for i, eaa in enumerate(ang_residuals):
+				if eaa**2 > max(error_sigma * np.nanmean(ang_residuals[mask]**2), 1):
+					if i in mask:
+						mask.remove(i)
+						lost_indices.append(i)
+						rej_error += eaa * image_size[0]/2; rej_count += 1
 			if rej_count > 0:
-				print(f'{rej_count} stars deviated from the solution with average error: {math.sqrt(rej_error/rej_count):.2f}px (iter {_+1})')
+				print(f'{rej_count} stars deviated from the solution with average error: {np.sqrt(rej_error/rej_count):.2f}px (iter {_+1})')
 
 		self._dx, self._dy = np.nanmean(delta_pos[mask], axis= 0).tolist()
 		self._da = np.nanmean(delta_angle[mask])
