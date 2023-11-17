@@ -231,32 +231,47 @@ class TrackingSolution():
 	_dx : float
 	_dy : float
 	_da : float
-	_error : float
-	_lost : List[int]
-	_matrix : np.ndarray
+	error : float
+	lost : List[int]
 	
-	def __init__(self, *, delta_pos : Tuple[float, float], delta_angle : float, error : float, 
-					origin : Tuple[float, float] = (0, 0), lost_indices : List[int] = []) -> None:
-		# assert len(get_args(self.__class__)) == 1, "Type of Tracker must be used as Generic argument for TrackingSolution"
-		self._dx, self._dy = delta_pos
-		self._da = delta_angle
-		self._error = error
-		self._lost = lost_indices
+	def __init__(self, *,delta_pos : NDArray[np.float_],
+								delta_angle : NDArray[np.float_],
+								image_size : Tuple[int, ...],
+								lost_indices : List[int] = [],
+								error_sigma : int = 3,
+								error_iter = 1):
+		assert len(delta_pos) > 1
+		if image_size == (0, 0): return	# Identity  code
+		j, k = image_size[0]/2, image_size[1]/2
 
-		c = math.cos(delta_angle)
-		s = math.sin(delta_angle)
+		mask = list(range(len(delta_pos)))
+		residuals = delta_pos - np.nanmean(delta_pos, axis= 0)
+		for _ in range(error_iter):
+			rej_count, rej_error = 0, 0.0
+			for i, (exx, eyy) in enumerate(residuals):
+				if (err:= exx**2 + eyy**2) > max(error_sigma * np.nanmean(residuals[mask]**2), 1):
+					if i in mask:
+						mask.remove(i)
+						lost_indices.append(i)
+						rej_error += err; rej_count += 1
+			if rej_count > 0:
+				print(f'{rej_count} stars deviated from the solution with average error: {math.sqrt(rej_error/rej_count):.2f}px (iter {_+1})')
 
-		j, k = origin
+		self._dx, self._dy = np.nanmean(delta_pos[mask], axis= 0).tolist()
+		self._da = np.nanmean(delta_angle[mask])
+
+		ex, ey = np.nanstd(delta_pos[mask], axis= 0)
+		self.error = np.sqrt(ex**2 + ey**2)
+		self.lost = lost_indices
+
+		c = math.cos(self._da)
+		s = math.sin(self._da)
 		a = self._dx + j - j * c + k * s
 		b = self._dy + k - k * c - j * s
 		self._matrix = np.array([ [c, -s, a], 
 											[s,  c, b],
 											[0,  0, 1]])
 
-
-	@classmethod
-	def identity(cls) -> Self:
-		return cls(delta_pos= (0, 0), delta_angle= 0, error= 0)
 	@property
 	def matrix(self) -> np.ndarray:
 		return self._matrix
@@ -272,9 +287,19 @@ class TrackingSolution():
 		return ( f'{type(self).__name__}: '
 					f'\n  translation: {self._dx:.1f} px, {self._dy:.1f} px'
 					f'\n  rotation:    {self.rotation:.2f}°'
-					f'\n  error:       {self._error:.3f} px')
+					f'\n  error:       {self.error:.3f} px')
 	def __setattr__(self, __name: str, __value) -> None:
 		raise AttributeError(name= __name)
+
+class TrackingIdentity(TrackingSolution):
+	def __init__(self):
+		self._dx, self._dy = 0., 0.
+		self._da = 0.
+		self.error = 0.
+		self.lost = []
+		self._matrix =np.array([[1, 0, 0], 
+										[0, 1, 0],
+										[0, 0, 1]])
 
 @mypyc_attr(allow_interpreted_subclasses=True)
 class Tracker(ABC):

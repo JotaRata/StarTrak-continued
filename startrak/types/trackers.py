@@ -4,7 +4,7 @@ import math
 from typing import List, Literal, Tuple, cast
 import cv2
 import numpy as np
-from startrak.native import Star, StarDetector, Tracker, TrackingSolution
+from startrak.native import Star, StarDetector, Tracker, TrackingIdentity, TrackingSolution
 from startrak.native.alias import ImageLike
 from startrak.types.detection import HoughCircles
 from startrak.types.phot import _get_cropped
@@ -58,31 +58,21 @@ class SimpleTracker(Tracker):
 			_reg.append(_median - (self._size,) * 2 + self._model_coords[i])
 		current = np.vstack(_reg)
 
-		_diff = current - self._model_coords
-		errors = _diff - np.nanmean(_diff, axis= 0)
-
-		for i, (exx, eyy) in enumerate(errors):
-			if (_err:= exx**2 + eyy**2) > max(2 * np.nanmean(errors**2), 1):
-				print(f'Star {i} is deviating from the solution ({_err:.1f} px)')
-				lost.append(i)
-		bad_mask = [index not in lost for index in range(self._model_count)]
-
-		_center = tuple(np.nanmean(current[bad_mask], axis=0).tolist())
-		c_previous = self._model_coords[bad_mask] - _center
-		c_current = current[bad_mask] - _center
+		diff = current - self._model_coords
+		
+		_center = tuple(np.nanmean(current, axis=0).tolist())
+		c_previous = self._model_coords - _center
+		c_current = current - _center
 
 		_dot = np.nansum(c_previous * c_current, axis= 1)
 		_cross = np.cross(c_previous, c_current)
-		da = np.nanmean(np.arctan2(_cross,  _dot))
+		da = np.arctan2(_cross,  _dot)
 
-		ex, ey = np.nanstd(_diff[bad_mask], axis= 0)
-		error = np.sqrt(ex**2 + ey**2)
-		dpos = tuple(np.nanmean(_diff[bad_mask], axis= 0).tolist())
-		return TrackingSolution(delta_pos= cast(TPos, dpos), 
-										delta_angle= float(da), 
-										error= float(error), 
-										origin= cast(TPos, _center), 
+		return TrackingSolution(delta_pos= diff, 
+										delta_angle= da, 
+										image_size= _image.shape, 
 										lost_indices= lost)
+	
 _Method = Literal['hough', 'hough_adaptive', 'hough_threshold']
 class GlobalAlignmentTracker(Tracker):
 	_detector : StarDetector
@@ -155,7 +145,7 @@ class GlobalAlignmentTracker(Tracker):
 		detected_stars = self._detector.detect(image)
 		if len(detected_stars) <= 3:
 			print('Less than 3 stars were detected for this image')
-			return TrackingSolution.identity()
+			return TrackingIdentity()
 		dt = np.dtype([('x', 'int'), ('y', 'int')])
 		coords = np.array([star.position[::-1] for star in detected_stars], dtype= dt)
 		triangles = self._neighbors(coords)
@@ -170,14 +160,13 @@ class GlobalAlignmentTracker(Tracker):
 					break
 		if len(matched) == 0:
 			print('No triangles were matched for this image')
-			return TrackingSolution.identity()
+			return TrackingIdentity()
 		delta_pos = []
 		delta_rot = []
 		_centroids = []
-		lost = []
 		for model_idx, current_idx in matched:
 			model = self._model.view((int, len(self._model.dtype.names)))[model_idx]
-			triangle = coords.view((int, len(coords.dtype.names)))[triangles[current_idx]]
+			triangle = coords.view((int, len(coords.dtype.names)))[triangles[current_idx]]#type:ignore
 
 			centroid1 = np.mean(model, axis= 0)
 			centroid2 = np.mean(triangle, axis= 0)
@@ -189,28 +178,12 @@ class GlobalAlignmentTracker(Tracker):
 			delta_pos.append(centroid2 - centroid1)
 			delta_rot.append(da)
 			_centroids.append(centroid2)
-		delta_pos = np.vstack(delta_pos)
-		delta_rot = np.array(delta_rot)
+			
+		pos_array = np.repeat(np.vstack(delta_pos), 3, axis=0)
+		rot_array = np.repeat(delta_rot, 3)
 
-		errors = delta_pos - np.nanmean(delta_pos, axis= 0)
-		for i, (exx, eyy) in enumerate(errors):
-			if (_err:= exx**2 + eyy**2) > max(2 * np.nanmean(errors**2), 1):
-				star_indices = triangles[i]
-				print(f'Stars {star_indices} are deviating from the solution ({np.sqrt(_err):.1f} px)')
-				lost.append(star_indices[0])
-				lost.append(star_indices[1])
-				lost.append(star_indices[2])
-		bad_mask = [index not in lost for index in range(len(matched))]
-		
-		print(f'Matched {len(bad_mask)} of {len(triangles)} triangles')
-		ex, ey = np.nanstd(delta_pos[bad_mask], axis= 0)
-		error = np.sqrt(ex**2 + ey**2)
-		
-		dpos = tuple(np.nanmean(delta_pos[bad_mask], axis= 0).tolist())
-		dangle = np.nanmean(delta_rot[bad_mask])
-		center = tuple(np.nanmean(_centroids, axis= 0).tolist())
-		return TrackingSolution(delta_pos= cast(TPos, dpos),
-										delta_angle= cast(float, dangle),
-										error= error,
-										origin= cast(TPos, center),
-										lost_indices= lost)
+		print(f'Matched {len(matched)} of {len(triangles)} triangles')
+		return TrackingSolution(delta_pos= pos_array,
+										delta_angle= rot_array,
+										image_size= image.shape,
+										error_iter=3)
