@@ -8,6 +8,7 @@ from startrak.native import Star, StarDetector, Tracker, TrackingSolution
 from startrak.native.alias import ImageLike
 from startrak.types.detection import HoughCircles
 from startrak.types.phot import _get_cropped
+from startrak.types import detection
 
 class SimpleTracker(Tracker):
 	_size : int
@@ -82,17 +83,27 @@ class SimpleTracker(Tracker):
 										error= float(error), 
 										origin= cast(TPos, _center), 
 										lost_indices= lost)
-
+_Method = Literal['hough', 'hough_adaptive', 'hough_threshold']
 class GlobalAlignment(Tracker):
 	_detector : StarDetector
-	_c : float
 	_method : str
-
-	def __init__(self, congruence_method: Literal['sss', 'sas'] = 'sss',
+	_c : float
+	
+	def __init__(self, detection_method : _Method | StarDetector = 'hough',
+							congruence_method: Literal['sss', 'sas'] = 'sss',
 				  			congruence_criterium : float = 0.05,  **detector_args) -> None:
 		self._c = congruence_criterium
 		self._method = congruence_method
-		self._detector = HoughCircles(**detector_args)
+		if detection_method == 'hough':
+			self._detector = detection.HoughCircles(**detector_args)
+		elif detection_method == 'hough_adaptive':
+			self._detector = detection.AdaptiveHoughCircles(**detector_args)
+		elif detection_method == 'hough_threshold':
+			self._detector = detection.ThresholdHoughCircles(**detector_args)
+		elif isinstance(detection_method, StarDetector):
+			self._detector = detection_method
+		else:
+			raise ValueError(detection_method)
 
 	def _neighbors(self, pos_array):
 		n = len(pos_array); k = 2
@@ -183,7 +194,7 @@ class GlobalAlignment(Tracker):
 
 		errors = delta_pos - np.nanmean(delta_pos, axis= 0)
 		for i, (exx, eyy) in enumerate(errors):
-			if (_err:= exx**2 + eyy**2) > max(1 * np.nanmean(errors**2), 1):
+			if (_err:= exx**2 + eyy**2) > max(2 * np.nanmean(errors**2), 1):
 				star_indices = triangles[i]
 				print(f'Stars {star_indices} are deviating from the solution ({np.sqrt(_err):.1f} px)')
 				lost.append(star_indices[0])
