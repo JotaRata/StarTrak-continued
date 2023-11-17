@@ -238,8 +238,8 @@ class TrackingSolution():
 								delta_angle : NDArray[np.float_],
 								image_size : Tuple[int, ...],
 								lost_indices : List[int] = [],
-								error_sigma : int = 3,
-								error_iter = 1):
+								rejection_sigma : int = 3,
+								rejection_iter = 1):
 		assert len(delta_pos) > 1
 		if image_size == (0, 0): return	# Identity  code
 		j, k = image_size[0]/2, image_size[1]/2
@@ -247,16 +247,16 @@ class TrackingSolution():
 		mask = list(range(len(delta_pos)))
 		pos_residuals = delta_pos - np.nanmean(delta_pos, axis= 0)
 		ang_residuals = delta_angle - np.nanmean(delta_angle, axis= 0)
-		for _ in range(error_iter):
+		for _ in range(rejection_iter):
 			rej_count, rej_error = 0, 0.0
 			for i, (exx, eyy) in enumerate(pos_residuals):
-				if (err:= exx**2 + eyy**2) > max(error_sigma * np.nanmean(pos_residuals[mask]**2), 1):
+				if (err:= exx**2 + eyy**2) > max(rejection_sigma * np.nanmean(pos_residuals[mask]**2), 1):
 					if i in mask:
 						mask.remove(i)
 						lost_indices.append(i)
 						rej_error += err; rej_count += 1
 			for i, eaa in enumerate(ang_residuals):
-				if eaa**2 > max(error_sigma * np.nanmean(ang_residuals[mask]**2), 1):
+				if eaa**2 > max(rejection_sigma * np.nanmean(ang_residuals[mask]**2), 1):
 					if i in mask:
 						mask.remove(i)
 						lost_indices.append(i)

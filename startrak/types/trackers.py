@@ -77,11 +77,16 @@ _Method = Literal['hough', 'hough_adaptive', 'hough_threshold']
 class GlobalAlignmentTracker(Tracker):
 	_detector : StarDetector
 	_method : str
+	_r_sigma : int
+	_r_iter : int
 	_c : float
 	
 	def __init__(self, detection_method : _Method | StarDetector = 'hough',
 							congruence_method: Literal['sss', 'sas'] = 'sss',
-				  			congruence_criterium : float = 0.05,  **detector_args) -> None:
+							congruence_criterium : float = 0.05,
+							rejection_sigma= 3, rejection_iter= 3,  **detector_args) -> None:
+		self._r_sigma = rejection_sigma
+		self._r_iter = rejection_iter
 		self._c = congruence_criterium
 		self._method = congruence_method
 		if detection_method == 'hough':
@@ -186,4 +191,5 @@ class GlobalAlignmentTracker(Tracker):
 		return TrackingSolution(delta_pos= pos_array,
 										delta_angle= rot_array,
 										image_size= image.shape,
-										error_iter=3)
+										rejection_iter= self._r_iter,
+										rejection_sigma= self._r_sigma)
