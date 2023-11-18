@@ -1,6 +1,6 @@
 from functools import lru_cache
 import math
-from typing import Any, Callable, ClassVar, Dict, Final, Generic, Iterator, List, Optional, Self, Set, Tuple, Type, TypeVar, cast
+from typing import Any, Callable, ClassVar, Dict, Final, Generic, Iterator, List, Optional, Self, Set, Tuple, Type, TypeVar, cast, final, get_args
 from abc import ABC, abstractmethod
 import numpy as np
 from dataclasses import  dataclass
@@ -173,132 +173,180 @@ class Session(ABC):
 
 #endregion
 
-#region Data types
-@mypyc_attr(allow_interpreted_subclasses=True)
-@dataclass
-class Star():
-	name : str
-	position : Position
-	aperture : int
-	
-	def __iter__(self) -> Iterator[Position | ValueType]:
-		params : List[Position | ValueType] = [type(self).__name__, self.name, self.position, self.aperture]
-		yield from params
-	
-	@classmethod
-	def From(cls : Type[Self], other : Star) -> Self:	#type:ignore
-		import inspect
-		_, *params = other
-		_n = len(inspect.signature(cls.__init__).parameters)
-		return cls(*params[:_n - 1])	#type: ignore
 
-@dataclass
-class ReferenceStar(Star):
-	magnitude : float = 0
-	def __iter__(self) -> Iterator[Position | ValueType]:
-		yield from super().__iter__()
-		yield self.magnitude
-
-# ----------------- Tracking ------------------
-
-class TrackingSolution:
-	dx : float
-	dy : float
-	da : float
-	error : float
-	lost : List[int]
-	_center : Tuple
-	
-	# todo: optimize this mess
-	def __init__(self, current : PositionArray, model : PositionArray, 
-					img_shape : Tuple, lost_star_indices : List[int]) -> None:
-		self.lost = lost_star_indices
-		_diff = current - model
-		errors = _diff - np.nanmean(_diff, axis= 0)
-
-		for i, (exx, eyy) in enumerate(errors):
-			if (_err:= exx**2 + eyy**2) > max(2 * np.nanmean(errors**2), 1):
-				print(f'Star {i} is deviating from the solution ({_err:.1f} px)')
-				self.lost.append(i)
-
-		# self._center = img_shape[0] / 2, img_shape[1] / 2
-		bad_mask = [index not in self.lost for index in range(len(model))]
-		self._center = tuple(np.nanmean(current[bad_mask], axis=0).tolist())
-		c_previous = model[bad_mask] - self._center
-		c_current = current[bad_mask] - self._center
-
-		_dot = np.nansum(c_previous * c_current, axis= 1)
-		_cross = np.cross(c_previous, c_current)
-		self.da = np.nanmean(np.arctan2(_cross,  _dot))
-
-		ex, ey = np.nanstd(_diff[bad_mask], axis= 0)
-		self.error = np.sqrt(ex**2 + ey**2)
-		self.dx, self.dy = np.nanmean(_diff[bad_mask], axis= 0)
-
-	@classmethod
-	def identity(cls) -> Self:
-		return cls.__new__(cls)
-	@property
-	def matrix(self) -> np.ndarray:
-		c = math.cos(self.da)
-		s = math.sin(self.da)
-
-		j, k = self._center
-		a = self.dx + j - j * c + k * s
-		b = self.dy + k - k * c - j * s
-		return np.array([ [c, -s, a], 
-								[s,  c, b],
-								[0,  0, 1]])
-	@property
-	def translation(self) -> np.ndarray:
-		return np.array((self.dx, self.dy))
-	
-	@property
-	def rotation(self) -> float:
-		return np.degrees(self.da)
-	
-	def __repr__(self) -> str:
-		return ( f'{type(self).__name__} ['
-					f'\n  translation: {self.dx:.1f} px, {self.dy:.1f} px'
-					f'\n  rotation:    {self.rotation:.2f}°'
-					f'\n  error:       {self.error:.3f} px')
-	def __setattr__(self, __name: str, __value) -> None:
-		raise AttributeError(name= __name)
-
-@mypyc_attr(allow_interpreted_subclasses=True)
-class TrackingModel:
-	pass
-_TrackingModel = TypeVar('_TrackingModel', bound= TrackingModel)
-
-@mypyc_attr(allow_interpreted_subclasses=True)
-class Tracker(ABC, Generic[_TrackingModel]):
-	_model : _TrackingModel | None
-
-	def setup_model(self, model : _TrackingModel):
-		self._model = model
-	@abstractmethod
-	def track(self, image : ImageLike) -> TrackingSolution:
-		pass
-
-
-# --------------- Photometry -------------------------
+#region Photometry
 @mypyc_attr(allow_interpreted_subclasses=True)
 @dataclass(frozen=True)
 class PhotometryResult:
 	flux : float
 	flux_raw : float
 	flux_iqr : float
-	flux_median : float
 	backg : float
 	backg_sigma : float
 
 @mypyc_attr(allow_interpreted_subclasses=True)
+class Star:
+	name : str
+	position : Position
+	aperture : int
+	photometry : Optional[PhotometryResult]
+	
+	def __init__(self, name : str, position : Position, aperture : int) -> None:
+		self.name = name
+		self.position = position
+		self.aperture = aperture
+		self.photometry = None
+
+	@property
+	def flux(self) -> float:
+		if not self.photometry:
+			return 0
+		return self.photometry.flux
+	
+	def __iter__(self):
+		for var in dir(self):
+			if not var.startswith(('__', '_')):
+				yield var, getattr(self, var)
+
+	def __repr__(self) -> str:
+		s = [ f' {key}: {value}' for key, value in self.__iter__()]
+		return self.__class__.__name__ + ':\n' + '\n'.join(s)
+
+class ReferenceStar(Star):
+	magnitude : float = 0
+
+@mypyc_attr(allow_interpreted_subclasses=True)
 class PhotometryBase(ABC):
 	@abstractmethod
-	def evaluate_point(self, img : ImageLike, position : Position, aperture: int) -> PhotometryResult:
+	def evaluate(self, img : ImageLike, position : Position, aperture: int) -> PhotometryResult:
 		pass
 
-	def evaluate(self, img : ImageLike, star : Star) -> PhotometryResult:
-		return self.evaluate_point(img, star.position, star.aperture)
+	def evaluate_star(self, img : ImageLike, star : Star) -> PhotometryResult:
+		return self.evaluate(img, star.position, star.aperture)
+
+#endregion
+#region Tracking
+
+class TrackingSolution():
+	_dx : float
+	_dy : float
+	_da : float
+	error : float
+	lost : List[int]
 	
+	def __init__(self, *,delta_pos : NDArray[np.float_],
+								delta_angle : NDArray[np.float_],
+								image_size : Tuple[int, ...],
+								weights : NDArray[np.float_]|None = None,
+								lost_indices : List[int] = [],
+								rejection_sigma : int = 3,
+								rejection_iter = 1):
+		assert len(delta_pos) > 1
+		NAN = np.nan
+		j, k = image_size[0]/2, image_size[1]/2
+
+		mask = list(range(len(delta_pos)))
+		pos_residuals = delta_pos - np.nanmean(delta_pos, axis= 0)
+		ang_residuals = delta_angle - np.nanmean(delta_angle, axis= 0)
+		for _ in range(rejection_iter):
+
+			pos_std : float =  np.nanmean(pos_residuals[mask] ** 2)
+			ang_std : float =  np.nanmean(ang_residuals[mask] ** 2)
+			rej_count, rej_error = 0, 0.0
+			exx: float; eyy: float; eaa : float
+			for i, (exx, eyy) in enumerate(pos_residuals):
+				isnan = math.isnan(exx + eyy)
+				if ((err:= exx**2 + eyy**2) > max(rejection_sigma * pos_std, 1)) or isnan:
+					if i in mask:
+						mask.remove(i)
+						lost_indices.append(i)
+						if not isnan:
+							rej_error += err; rej_count += 1
+			for i, eaa in enumerate(ang_residuals):
+				isnan = math.isnan(eaa)
+				if (eaa**2 > max(rejection_sigma * ang_std, 1)) or isnan:
+					if i in mask:
+						mask.remove(i)
+						lost_indices.append(i)
+						if not isnan:
+							rej_error += eaa * image_size[0]/2; rej_count += 1
+			if rej_count > 0:
+				print(f'{rej_count} stars deviated from the solution with average error: {np.sqrt(rej_error/rej_count):.2f}px (iter {_+1})')
+
+		if weights is not None:
+			weights = weights[mask]
+			if np.sum(weights) == 0:
+				weights = None
+		
+		self._dx, self._dy = np.average(delta_pos[mask], axis= 0, weights= weights).tolist()
+		self._da = np.average(delta_angle[mask], weights= weights)
+
+		ex, ey = np.nanstd(delta_pos[mask], axis= 0)
+		self.error = (ex**2 + ey**2) ** 0.5
+		self.lost = lost_indices
+
+		c = math.cos(self._da)
+		s = math.sin(self._da)
+		a = self._dx + j - j * c + k * s
+		b = self._dy + k - k * c - j * s
+		self._matrix = np.array([ [c, -s, a], 
+											[s,  c, b],
+											[0,  0, 1]])
+
+	@property
+	def matrix(self) -> np.ndarray:
+		return self._matrix
+	@property
+	def translation(self) -> np.ndarray:
+		return np.array((self._dx, self._dy))
+	
+	@property	
+	def rotation(self) -> float:
+		return np.degrees(self._da)
+	
+	def __repr__(self) -> str:
+		return ( f'{type(self).__name__}: '
+					f'\n  translation: {self._dx:.1f} px, {self._dy:.1f} px'
+					f'\n  rotation:    {self.rotation:.2f}°'
+					f'\n  error:       {self.error:.3f} px')
+	def __setattr__(self, __name: str, __value) -> None:
+		raise AttributeError(name= __name)
+
+class TrackingIdentity(TrackingSolution):
+	def __init__(self):
+		self._dx, self._dy = 0., 0.
+		self._da = 0.
+		self.error = 0.
+		self.lost = []
+		self._matrix =np.array([[1, 0, 0], 
+										[0, 1, 0],
+										[0, 0, 1]])
+
+@mypyc_attr(allow_interpreted_subclasses=True)
+class Tracker(ABC):
+	@abstractmethod
+	def setup_model(self, stars : List[Star]):
+		pass
+	@abstractmethod
+	def track(self, image : ImageLike) -> TrackingSolution:
+		pass
+
+#endregion
+
+#region Detectors
+@mypyc_attr(allow_interpreted_subclasses=True)
+class StarDetector(ABC):
+	star_name : str = 'star_'
+	@abstractmethod
+	def _detect(self, image : ImageLike) -> List[List[float]]:
+		raise NotImplementedError()
+
+	@final
+	def detect(self, image : ImageLike) -> List[Star]:
+		result = self._detect(image)
+		if len(result) == 0:
+			print('No stars were detected, try adjusting the parameters')
+			return list[Star]()
+		return [Star(self.star_name + str(i), ( int(x), int(y) ), int(rad)) 
+					for i, (x, y, rad) in enumerate(result)]
 #endregion
