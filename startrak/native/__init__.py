@@ -246,12 +246,12 @@ class TrackingSolution():
 		j, k = image_size[0]/2, image_size[1]/2
 
 		mask = list(range(len(delta_pos)))
+		pos_residuals = delta_pos - np.nanmean(delta_pos, axis= 0)
+		ang_residuals = delta_angle - np.nanmean(delta_angle, axis= 0)
 		for _ in range(rejection_iter):
-			pos_residuals = delta_pos[mask] - np.nanmean(delta_pos[mask], axis= 0)
-			ang_residuals = delta_angle[mask] - np.nanmean(delta_angle[mask], axis= 0)
 
-			pos_std =  sum([res[0]** 2 + res[1]**2 for res in pos_residuals if not math.isnan(res[0]) ])/len(pos_residuals)
-			ang_std =  sum([res ** 2 for res in ang_residuals if not math.isnan(res) ])/len(ang_residuals)
+			pos_std : float =  np.nanmean(pos_residuals[mask] ** 2)
+			ang_std : float =  np.nanmean(ang_residuals[mask] ** 2)
 			rej_count, rej_error = 0, 0.0
 			exx: float; eyy: float; eaa : float
 			for i, (exx, eyy) in enumerate(pos_residuals):

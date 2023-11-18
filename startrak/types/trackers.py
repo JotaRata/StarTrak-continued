@@ -87,7 +87,7 @@ class GlobalAlignmentTracker(Tracker):
 	_method : str
 	def __init__(self, detection_method : _Method | StarDetector = 'hough',
 							congruence_method: Literal['sss', 'sas'] = 'sss',
-							congruence_criterium : float = 0.1,
+							congruence_criterium : float = 0.05,
 							area_weight : bool = True,
 							rejection_sigma= 3, rejection_iter= 3,  **detector_args) -> None:
 		self._r_sigma = rejection_sigma
@@ -199,12 +199,13 @@ class GlobalAlignmentTracker(Tracker):
 			delta_pos.append(centroid2 - centroid1)
 			delta_rot.append(da)
 			_centroids.append(centroid2)
-			_areas.append(self._areas[model_idx])
+			if self._use_w:
+				_areas.append(self._areas[model_idx])
 			
 		pos_array = np.repeat(np.vstack(delta_pos), 3, axis=0)
 		rot_array = np.repeat(delta_rot, 3)
 		if self._use_w:
-			weight_array = np.repeat( np.sqrt(_areas), 3)
+			weight_array = np.repeat(_areas, 3)
 		else:
 			weight_array = None
 
