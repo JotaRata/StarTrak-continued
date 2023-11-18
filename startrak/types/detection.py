@@ -43,6 +43,8 @@ class HoughCircles(StarDetector):
 
 		circles = cv2.HoughCircles(img, cv2.HOUGH_GRADIENT, 1,
 										minDist= self._min_dst, param1= self._p1, param2= self._p2, minRadius= self._min_size, maxRadius= self._max_size)
+		if circles is None:
+			return []
 		return circles[0].tolist()
 	
 class AdaptiveHoughCircles(HoughCircles):

@@ -237,38 +237,52 @@ class TrackingSolution():
 	def __init__(self, *,delta_pos : NDArray[np.float_],
 								delta_angle : NDArray[np.float_],
 								image_size : Tuple[int, ...],
+								weights : NDArray[np.float_]|None = None,
 								lost_indices : List[int] = [],
 								rejection_sigma : int = 3,
 								rejection_iter = 1):
 		assert len(delta_pos) > 1
-		if image_size == (0, 0): return	# Identity  code
+		NAN = np.nan
 		j, k = image_size[0]/2, image_size[1]/2
 
 		mask = list(range(len(delta_pos)))
-		pos_residuals = delta_pos - np.nanmean(delta_pos, axis= 0)
-		ang_residuals = delta_angle - np.nanmean(delta_angle, axis= 0)
 		for _ in range(rejection_iter):
+			pos_residuals = delta_pos[mask] - np.nanmean(delta_pos[mask], axis= 0)
+			ang_residuals = delta_angle[mask] - np.nanmean(delta_angle[mask], axis= 0)
+
+			pos_std =  sum([res[0]** 2 + res[1]**2 for res in pos_residuals if not math.isnan(res[0]) ])/len(pos_residuals)
+			ang_std =  sum([res ** 2 for res in ang_residuals if not math.isnan(res) ])/len(ang_residuals)
 			rej_count, rej_error = 0, 0.0
+			exx: float; eyy: float; eaa : float
 			for i, (exx, eyy) in enumerate(pos_residuals):
-				if (err:= exx**2 + eyy**2) > max(rejection_sigma * np.nanmean(pos_residuals[mask]**2), 1):
+				isnan = math.isnan(exx + eyy)
+				if ((err:= exx**2 + eyy**2) > max(rejection_sigma * pos_std, 1)) or isnan:
 					if i in mask:
 						mask.remove(i)
 						lost_indices.append(i)
-						rej_error += err; rej_count += 1
+						if not isnan:
+							rej_error += err; rej_count += 1
 			for i, eaa in enumerate(ang_residuals):
-				if eaa**2 > max(rejection_sigma * np.nanmean(ang_residuals[mask]**2), 1):
+				isnan = math.isnan(eaa)
+				if (eaa**2 > max(rejection_sigma * ang_std, 1)) or isnan:
 					if i in mask:
 						mask.remove(i)
 						lost_indices.append(i)
-						rej_error += eaa * image_size[0]/2; rej_count += 1
+						if not isnan:
+							rej_error += eaa * image_size[0]/2; rej_count += 1
 			if rej_count > 0:
 				print(f'{rej_count} stars deviated from the solution with average error: {np.sqrt(rej_error/rej_count):.2f}px (iter {_+1})')
 
-		self._dx, self._dy = np.nanmean(delta_pos[mask], axis= 0).tolist()
-		self._da = np.nanmean(delta_angle[mask])
+		if weights is not None:
+			weights = weights[mask]
+			if np.sum(weights) == 0:
+				weights = None
+		
+		self._dx, self._dy = np.average(delta_pos[mask], axis= 0, weights= weights).tolist()
+		self._da = np.average(delta_angle[mask], weights= weights)
 
 		ex, ey = np.nanstd(delta_pos[mask], axis= 0)
-		self.error = np.sqrt(ex**2 + ey**2)
+		self.error = (ex**2 + ey**2) ** 0.5
 		self.lost = lost_indices
 
 		c = math.cos(self._da)
