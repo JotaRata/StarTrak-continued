@@ -181,37 +181,34 @@ class GlobalAlignmentTracker(Tracker):
 			print('No triangles were matched for this image')
 			return TrackingIdentity()
 		
-		delta_pos = []
-		delta_rot = []
-		_centroids = []
-		_areas = []
+		_reference = []
+		_current = []
+		_areas = list[float]()
 		for model_idx, current_idx in matched:
-			model = self._model.view((int, len(self._model.dtype.names)))[model_idx]
-			triangle = coords.view((int, len(coords.dtype.names)))[triangles[current_idx]]#type:ignore
-
-			centroid1 = np.mean(model, axis= 0)
-			centroid2 = np.mean(triangle, axis= 0)
-
-			_dot = np.nansum((model - centroid1) * (triangle - centroid2), axis= 1)
-			_cross = np.cross((model - centroid1), (triangle - centroid2))
-			da = np.nanmean(np.arctan2(_cross,  _dot))
-
-			delta_pos.append(centroid2 - centroid1)
-			delta_rot.append(da)
-			_centroids.append(centroid2)
+			model = self._model.view((int, 2))[model_idx]
+			triangle = coords.view((int, 2))[triangles[current_idx]]#type:ignore
+			for j in range(3):
+				_reference.append(model[j])
+				_current.append(triangle[j])
 			if self._use_w:
 				_areas.append(self._areas[model_idx])
-			
-		pos_array = np.repeat(np.vstack(delta_pos), 3, axis=0)
-		rot_array = np.repeat(delta_rot, 3)
+		reference = np.vstack(_reference)
+		current = 	np.vstack(_current)
+
+		center = image.shape[0]/2, image.shape[1]/2
+		_dot = np.nansum((reference - center) * (current - center), axis= 1)
+		_cross = np.cross((reference - center), (current - center))
+		delta_pos = np.vstack(current - reference)
+		delta_rot = np.arctan2(_cross,  _dot)
+
 		if self._use_w:
 			weight_array = np.repeat(_areas, 3)
 		else:
 			weight_array = None
 
 		print(f'Matched {len(matched)} of {len(triangles)} triangles')
-		return TrackingSolution(delta_pos= pos_array,
-										delta_angle= rot_array,
+		return TrackingSolution(delta_pos= delta_pos,
+										delta_angle= delta_rot,
 										image_size= image.shape,
 										weights= weight_array,
 										rejection_iter= self._r_iter,
