@@ -8,13 +8,45 @@ import os.path
 from startrak.native.alias import ImageLike, NumberLike, PositionArray, ValueType, Position, NDArray
 from startrak.native.fits import _FITSBufferedReaderWrapper as FITSReader
 from startrak.native.fits import _bitsize
-from mypy_extensions import mypyc_attr
+from mypy_extensions import mypyc_attr, trait
 
 _defaults : Final[Dict[str, Type[ValueType]]] = \
 		{'SIMPLE' : int, 'BITPIX' : int, 'NAXIS' : int, 'EXPTIME' : float, 'BSCALE' : float, 'BZERO' : float}
 
+#region Structures
+@mypyc_attr(allow_interpreted_subclasses=True)
+@trait
+class STObject:
+	_sp : ClassVar[str] = '  '
+	name : str
+	def __iter__(self):
+		for var in dir(self):
+			if not var.startswith(('__', '_')) and var != 'name':
+				attr = getattr(self, var)
+				if callable(attr):
+					continue
+				yield var, attr
+	def __pprint__(self, indent : int = 0) -> str:
+		_ind = STObject._sp * (indent + 1)
+		_str = ['', STObject._sp*indent + self.__class__.__name__ + ': ' + getattr(self, "name", "")]
+		for key, value in self.__iter__():
+			if isinstance(value, STObject):
+				_str.append(_ind + f'{key}: {value.__pprint__(indent + 2)}')
+			else:
+				_str.append(_ind + f'{key}: {value}')
+		return '\n'.join(_str)
+	
+	def __str__(self) -> str:
+		return self.__pprint__()
+	def __repr__(self) -> str:
+		name = getattr(self, 'name', None)
+		if name is None:
+			return self.__class__.__name__
+		return self.__class__.__name__ + ': ' + name
+#endregion
+
 #region File management
-class Header():
+class Header(STObject):
 	_items : Dict[str, ValueType]
 	bitsize : np.dtype[NumberLike]
 	shape : Tuple[int, int]
@@ -39,8 +71,10 @@ class Header():
 		return self._items[key]
 	def __getattr__(self, __name: str):
 		return self._items[__name]
-	def __repr__(self) -> str:
-		return '\n'.join([f'{k} = {v}' for k,v in self._items.items()])
+	
+	def __iter__(self):
+		for key, val in self._items.items():
+			yield key, val
 
 class HeaderArchetype(Header):
 	_entries : ClassVar[Dict[str, Type[ValueType]]] = {}
@@ -72,8 +106,7 @@ class HeaderArchetype(Header):
 		assert all([ value in (int, bool, float, str) for value in user_keys.values()])
 		HeaderArchetype._entries = user_keys
 
-@dataclass
-class FileInfo():
+class FileInfo(STObject):
 	path : Final[str]
 	size : Final[int]
 	_file : FITSReader
@@ -84,6 +117,7 @@ class FileInfo():
 			'Input path is not a FITS file'
 		self._file = FITSReader(path)
 		self.path = os.path.abspath(path)
+		self.name = os.path.basename(self.path)
 		self.size = os.path.getsize(path)
 		self.__header = None
 
@@ -92,6 +126,7 @@ class FileInfo():
 		if self.__header is None:
 			_dict = {key.rstrip() : value for key, value in self._file._read_header()}
 			self.__header = Header(_dict)
+			self.__header.name = self.name
 		return self.__header
 	
 	@lru_cache(maxsize=5)	# todo: Add parameter to config
@@ -107,8 +142,6 @@ class FileInfo():
 	
 	def __setattr__(self, __name: str, __value) -> None:
 		raise AttributeError(name= __name)
-	def __repr__(self):
-		return f'\n{type(self).__name__}(path={os.path.basename(self.path)}, size={self.size} bytes)'
 	def __eq__(self, __value):
 		if not  isinstance(__value, type(self)): return False
 		return self.path == __value.path
@@ -118,8 +151,7 @@ class FileInfo():
 
 #region Sessions
 @mypyc_attr(allow_interpreted_subclasses=True)
-class Session(ABC):
-	name : str
+class Session(ABC, STObject):
 	archetype : Optional[HeaderArchetype]
 	included_items : Set[FileInfo]
 	
@@ -127,10 +159,6 @@ class Session(ABC):
 		self.name = name
 		self.archetype : HeaderArchetype = None
 		self.included_items : set[FileInfo] = set()
-	
-	def __repr__(self) -> str:
-				return ( f'{type(self).__name__} : "{self.name}"\x7f\n'
-							f'Included : {self.included_items}\n')
 
 	def add_item(self, item : FileInfo | List[FileInfo]): 
 		if type(item) is list:
@@ -175,42 +203,47 @@ class Session(ABC):
 
 
 #region Photometry
-@mypyc_attr(allow_interpreted_subclasses=True)
-@dataclass(frozen=True)
-class PhotometryResult:
+class PhotometryResult(STObject):
 	flux : float
 	flux_raw : float
 	flux_iqr : float
 	backg : float
 	backg_sigma : float
 
+	def __init__(self, *, flux : float, flux_raw : float,
+					flux_range : float, background : float, background_sigma : float) -> None:
+		self.flux = flux
+		self.flux_raw = flux_raw
+		self.flux_iqr = flux_range
+		self.backg = background
+		self.backg_sigma = background_sigma
+
+	def __repr__(self) -> str:
+		return str(self.flux)
+
 @mypyc_attr(allow_interpreted_subclasses=True)
-class Star:
-	name : str
+class Star(STObject):
 	position : Position
 	aperture : int
 	photometry : Optional[PhotometryResult]
-	
-	def __init__(self, name : str, position : Position, aperture : int) -> None:
+
+	def __init__(self, name : str, position : Position | NDArray[np.int_], 
+					aperture : int = 16, photometry : Optional[PhotometryResult] = None) -> None:
 		self.name = name
-		self.position = position
+		if isinstance(position, tuple):
+			self.position = position
+		elif isinstance(position, np.ndarray):
+			self,position = tuple(position.tolist())
+		else:
+			raise ValueError(f'Unsupported type {type(position)} for position')
 		self.aperture = aperture
-		self.photometry = None
+		self.photometry = photometry
 
 	@property
 	def flux(self) -> float:
 		if not self.photometry:
 			return 0
 		return self.photometry.flux
-	
-	def __iter__(self):
-		for var in dir(self):
-			if not var.startswith(('__', '_')):
-				yield var, getattr(self, var)
-
-	def __repr__(self) -> str:
-		s = [ f' {key}: {value}' for key, value in self.__iter__()]
-		return self.__class__.__name__ + ':\n' + '\n'.join(s)
 
 class ReferenceStar(Star):
 	magnitude : float = 0
@@ -227,7 +260,7 @@ class PhotometryBase(ABC):
 #endregion
 #region Tracking
 
-class TrackingSolution():
+class TrackingSolution(STObject):
 	_dx : float
 	_dy : float
 	_da : float
@@ -304,11 +337,16 @@ class TrackingSolution():
 	def rotation(self) -> float:
 		return np.degrees(self._da)
 	
-	def __repr__(self) -> str:
-		return ( f'{type(self).__name__}: '
-					f'\n  translation: {self._dx:.1f} px, {self._dy:.1f} px'
-					f'\n  rotation:    {self.rotation:.2f}°'
-					f'\n  error:       {self.error:.3f} px')
+	def __iter__(self):
+		yield from [(self._dx, self._dy), self.rotation, self.error, self.lost]
+	
+	def __pprint__(self, indent: int = 0) -> str:
+		__ = STObject._sp* (indent + 1)
+		return ( f'{STObject._sp* indent}{type(self).__name__}: '
+					f'\n{__}translation: {self._dx:.1f} px, {self._dy:.1f} px'
+					f'\n{__}rotation:    {self.rotation:.2f}°'
+					f'\n{__}error:       {self.error:.3f} px')
+
 	def __setattr__(self, __name: str, __value) -> None:
 		raise AttributeError(name= __name)
 
