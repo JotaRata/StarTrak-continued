@@ -4,12 +4,37 @@ from __future__ import annotations
 import numpy as np
 from numpy.typing import NDArray
 from typing import Any, ClassVar, Collection, Iterable, List, NamedTuple, Self, Dict, Tuple, overload
+from startrak.native.alias import PositionLike
 
 
 class Position(NamedTuple):
 	x : int
 	y : int
 
+	@classmethod 
+	def new(cls, value : Position | PositionLike, is_rc : bool = False) -> Position:
+		err_msg = f"Only size 2 {type(value).__name__} can be converted into Position"
+		
+		if type(value) is Position:
+			return value 
+		elif type(value) is tuple or type(value) is list:
+			if len(value) != 2:
+				raise ValueError(err_msg)
+			if not is_rc:
+				return Position(value[0], value[1])
+			else:
+				return Position(value[1], value[0])
+		elif isinstance(type(value), np.ndarray):
+			if len(value) != 2:
+				raise ValueError(err_msg)
+			_int = np.round(value).astype(np.int_)
+			if not is_rc:
+				return Position(_int[0], _int[1])
+			else:
+				return Position(_int[1], _int[0])
+		else:
+			raise TypeError(type(value))
+			
 	def rc(self) -> NDArray[np.int_]:
 		return np.array(self[::-1])
 	
