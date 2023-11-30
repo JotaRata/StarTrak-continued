@@ -20,7 +20,7 @@ class Position(NamedTuple):
 		
 		if type(value) is Position:
 			return value 
-		elif type(value) is tuple or type(value) is list or isinstance(type(value), np.ndarray):
+		elif (type(value) is tuple) or (type(value) is list) or (isinstance(value, np.ndarray)):
 			if len(value) != 2:
 				raise ValueError(err_msg)
 			if not is_rc:
@@ -56,7 +56,7 @@ class Position(NamedTuple):
 	
 class PositionArray:
 	_list : List[Position]
-	def __init__(self, positions: Iterable[Position]):
+	def __init__(self, positions: Iterable[Position|PositionLike]):
 		self._list = [Position.new(pos) for pos in positions]
 
 	def __array__(self, dtype=None) -> NDArray[np.float_]:
@@ -97,6 +97,12 @@ class PositionArray:
 		if type(value) is tuple:
 			value = Position(value[0], value[1])
 		self._list[index] = value
+
+	def __add__(self, other : PositionArray):
+		return PositionArray([ a + b for a,b in zip(self._list, other._list)])
+	def __sub__(self, other : PositionArray):
+		return PositionArray([ a - b for a,b in zip(self._list, other._list)])
+	
 	def __contains__(self, value : Position) -> bool:
 		return value in self._list
 	def __iter__(self) -> Iterator[Position]:
