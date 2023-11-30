@@ -5,7 +5,7 @@ import numpy as np
 from numpy.typing import NDArray
 from typing import Any, ClassVar, Collection, Iterable, Iterator, List, Literal, NamedTuple, Never, Optional, Self, Dict, Sized, Tuple, Union, overload
 
-PositionLike = Tuple[float, ...] | Tuple[float, float] | List[float] | NDArray[np.float_]
+PositionLike = Union[Tuple[float|Any, ...], Tuple[float|Any, float|Any], List[float|Any], NDArray[np.float_]]
 _IndexLike = int | bool 
 _IndexLike_n =  np.int_ | np.bool_
 _MaskLike = List[_IndexLike] | NDArray[_IndexLike_n]
@@ -41,13 +41,13 @@ class Position(NamedTuple):
 		dt = np.dtype([('x', 'float'), ('y', 'float')])
 		return np.array(self[:], dtype= dt)
 	
-	def __add__(self, other : Position | Tuple[float|Any,...],/) -> Position:
+	def __add__(self, other : Position | PositionLike,/) -> Position:
 		if len(other) != 2: raise ValueError(other)
 		return Position(self[0] + other[0], self[1] + other[1])
 	
-	def __sub__(self, other : Position) -> Position:
+	def __sub__(self, other : Position | PositionLike, /) -> Position:
 		if len(other) != 2: raise ValueError(other)
-		return Position(self.x - other.x, self.y - other.y)
+		return Position(self.x - other[0], self.y - other[1])
 	
 	def __array__(self, dtype=None) -> NDArray[np.float_]:
 		return np.array(self[:])
@@ -60,8 +60,11 @@ class Position(NamedTuple):
 	
 class PositionArray:
 	_list : List[Position]
-	def __init__(self, positions: Iterable[Position|PositionLike]):
-		self._list = [Position.new(pos) for pos in positions]
+	def __init__(self, positions: Iterable[Position|PositionLike]|None = None):
+		if positions is None:
+			self._list = list[Position]()
+		else:
+			self._list = [Position.new(pos) for pos in positions]
 
 	@property
 	def x(self) -> List[float]:
@@ -129,7 +132,7 @@ class PositionArray:
 			if isinstance(index[0], np.bool_):
 				if (l1:=len(index)) != (l2:=len(self)): raise IndexError(f"Sizes don't match, got {l1}, expected{l2}")
 				return PositionArray([pos for i, pos in enumerate(self._list) if index[i] ])
-			elif isinstance(index[0], np.int_):
+			elif isinstance(index[0], np.integer):
 				return PositionArray([self._list[i] for i in index ])
 			else:
 				raise ValueError(type(index[0]))
@@ -142,10 +145,22 @@ class PositionArray:
 			value = Position(value[0], value[1])
 		self._list[index] = value
 
-	def __add__(self, other : PositionArray):
-		return PositionArray([ a + b for a,b in zip(self._list, other._list)])
-	def __sub__(self, other : PositionArray):
-		return PositionArray([ a - b for a,b in zip(self._list, other._list)])
+
+	def __add__(self, other : PositionArray | Position | PositionLike):
+		if type(other) is PositionArray:
+			return PositionArray([ a + b for a,b in zip(self._list, other._list)])
+		elif isinstance(other, Position) or isinstance(other, tuple|list|np.ndarray):
+			return PositionArray( [a + other for a in self._list] )
+		else:
+			raise ValueError(type(other))
+	
+	def __sub__(self, other : PositionArray | Position | PositionLike):
+		if type(other) is PositionArray:
+			return PositionArray([ a - b for a,b in zip(self._list, other._list)])
+		elif isinstance(other, Position) or isinstance(other, tuple|list|np.ndarray):
+			return PositionArray( [a - other for a in self._list] )
+		else:
+			raise ValueError(type(other))
 	
 	def __contains__(self, value : Position) -> bool:
 		return value in self._list
@@ -160,8 +175,11 @@ class PositionArray:
 			value = Position(value[0], value[1])
 		self._list.append(value)
 	
-	def extend(self, positions: List[Position]): 
-		self._list.extend(positions)
+	def extend(self, positions: List[Position] | PositionArray): 
+		if type(positions) is PositionArray:
+			self._list.extend(positions._list)
+		else:
+			self._list.extend(positions)
 	
 	def insert(self, index: int, value: Position): 
 		if type(value) is tuple:
