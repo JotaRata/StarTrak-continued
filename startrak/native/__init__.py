@@ -1,11 +1,11 @@
 from functools import lru_cache
 import math
-from typing import Any, Callable, ClassVar, Dict, Final, Generic, Iterator, List, Optional, Self, Set, Tuple, Type, TypeVar, cast, final, get_args
+from typing import Any, Callable, ClassVar, Dict, Final, List, Optional, Set, Tuple, Type, cast, final
 from abc import ABC, abstractmethod
 import numpy as np
-from dataclasses import  dataclass
 import os.path
-from startrak.native.alias import ImageLike, NumberLike, PositionArray, StarList, ValueType, Position, NDArray
+from startrak.native.alias import ImageLike, NumberLike, ValueType, NDArray
+from startrak.native.collections import Position, PositionArray, PositionLike
 from startrak.native.fits import _FITSBufferedReaderWrapper as FITSReader
 from startrak.native.fits import _bitsize
 from mypy_extensions import mypyc_attr, trait
@@ -227,15 +227,10 @@ class Star(STObject):
 	aperture : int
 	photometry : Optional[PhotometryResult]
 
-	def __init__(self, name : str, position : Position | NDArray[np.int_], 
+	def __init__(self, name : str, position : Position|PositionLike, 
 					aperture : int = 16, photometry : Optional[PhotometryResult] = None) -> None:
 		self.name = name
-		if isinstance(position, tuple):
-			self.position = position
-		elif isinstance(position, np.ndarray):
-			self,position = tuple(position.tolist())
-		else:
-			raise ValueError(f'Unsupported type {type(position)} for position')
+		self.position = Position.new(position)
 		self.aperture = aperture
 		self.photometry = photometry
 
@@ -251,7 +246,7 @@ class ReferenceStar(Star):
 @mypyc_attr(allow_interpreted_subclasses=True)
 class PhotometryBase(ABC):
 	@abstractmethod
-	def evaluate(self, img : ImageLike, position : Position, aperture: int) -> PhotometryResult:
+	def evaluate(self, img : ImageLike, position : Position | PositionLike, aperture: int) -> PhotometryResult:
 		pass
 
 	def evaluate_star(self, img : ImageLike, star : Star) -> PhotometryResult:
@@ -267,7 +262,7 @@ class TrackingSolution(STObject):
 	error : float
 	lost : List[int]
 	
-	def __init__(self, *,delta_pos : NDArray[np.float_],
+	def __init__(self, *,delta_pos : PositionArray,
 								delta_angle : NDArray[np.float_],
 								image_size : Tuple[int, ...],
 								weights : NDArray[np.float_]|None = None,
@@ -283,8 +278,8 @@ class TrackingSolution(STObject):
 		ang_residuals = delta_angle - np.nanmean(delta_angle, axis= 0)
 		for _ in range(rejection_iter):
 
-			pos_std : float =  np.nanmean(pos_residuals[mask] ** 2)
-			ang_std : float =  np.nanmean(ang_residuals[mask] ** 2)
+			pos_std : float =  np.nanmean(np.power(pos_residuals[mask], 2))
+			ang_std : float =  np.nanmean(np.power(ang_residuals[mask], 2))
 			rej_count, rej_error = 0, 0.0
 			exx: float; eyy: float; eaa : float
 			for i, (exx, eyy) in enumerate(pos_residuals):
@@ -363,7 +358,7 @@ class TrackingIdentity(TrackingSolution):
 @mypyc_attr(allow_interpreted_subclasses=True)
 class Tracker(ABC):
 	@abstractmethod
-	def setup_model(self, stars : StarList):
+	def setup_model(self, stars : List[Star]):
 		pass
 	@abstractmethod
 	def track(self, image : ImageLike) -> TrackingSolution:
@@ -376,15 +371,15 @@ class Tracker(ABC):
 class StarDetector(ABC):
 	star_name : str = 'star_'
 	@abstractmethod
-	def _detect(self, image : ImageLike) -> List[List[float]]:
+	def _detect(self, image : ImageLike) -> Tuple[PositionArray, List[float]]:
 		raise NotImplementedError()
 
 	@final
-	def detect(self, image : ImageLike) -> StarList:
-		result = self._detect(image)
-		if len(result) == 0:
+	def detect(self, image : ImageLike) -> List[Star]:
+		positions, apertures = self._detect(image)
+		if len(positions) == 0:
 			print('No stars were detected, try adjusting the parameters')
-			return StarList()
-		return [Star(self.star_name + str(i), ( int(x), int(y) ), int(rad)) 
-					for i, (x, y, rad) in enumerate(result)]
+			return List[Star]()
+		return [Star(self.star_name + str(i), positions[i], int(apertures[i])) 
+					for i in range(len(positions))]
 #endregion
