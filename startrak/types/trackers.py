@@ -5,7 +5,8 @@ from typing import List, Literal, Tuple, cast
 import cv2
 import numpy as np
 from startrak.native import PhotometryResult, Star, StarDetector, Tracker, TrackingIdentity, TrackingSolution
-from startrak.native.alias import ImageLike, Position
+from startrak.native.alias import ImageLike, NDArray
+from startrak.native.collections import Position, PositionArray
 from startrak.types.detection import HoughCircles
 from startrak.types.phot import _get_cropped
 from startrak.types import detection
@@ -106,13 +107,12 @@ class GlobalAlignmentTracker(Tracker):
 		else:
 			raise ValueError(detection_method)
 
-	def _neighbors(self, pos_array):
-		n = len(pos_array); k = 2
-		
-		a = pos_array.reshape(n, 1)
-		b = pos_array.reshape(1, n)
-		dist = (a['x'] - b['x'])**2 + (a['y'] - b['y'])**2
+	def _neighbors(self, pos_array : PositionArray, k= 2) -> NDArray[np.int_]:
+		x = pos_array[:, 0]
+		y = pos_array[:, 1]
+		dist = np.subtract.outer(x, x)**2 + np.subtract.outer(y, y)**2
 		return np.argpartition(dist, k+1, axis=1)[:, :k+1]
+	
 	def _compare_sss(self, trig1, trig2) -> bool:
 		a1 =  (trig1[0][0] - trig1[1][0])**2 + (trig1[0][1] - trig1[1][1])**2
 		b1 =  (trig1[0][0] - trig1[2][0])**2 + (trig1[0][1] - trig1[2][1])**2
@@ -137,21 +137,21 @@ class GlobalAlignmentTracker(Tracker):
 					((1-self._c) <= b1/b2 < 1+self._c) and
 					((1-self._c) <= angle1/angle2 < 1+self._c) )
 	def _calc_area(self, trig) -> float:
-		a = math.sqrt((trig[0][0] - trig[1][0])**2 + (trig[0][1] - trig[1][1])**2)
-		b = math.sqrt((trig[0][0] - trig[2][0])**2 + (trig[0][1] - trig[2][1])**2)
-		c = math.sqrt((trig[1][0] - trig[2][0])**2 + (trig[1][1] - trig[2][1])**2)
+		a = math.sqrt((trig[0, 0] - trig[1, 0])**2 + (trig[0, 1] - trig[1, 1])**2)
+		b = math.sqrt((trig[0, 0] - trig[2, 0])**2 + (trig[0, 1] - trig[2, 1])**2)
+		c = math.sqrt((trig[1, 0] - trig[2, 0])**2 + (trig[1, 1] - trig[2, 1])**2)
 		s = (a+b+c) / 2
 		return np.sqrt(s*(s-a)*(s-b)*(s-c))
 
 	def setup_model(self, stars: List[Star]):
 		if len(stars) <= 3:
-			raise RuntimeError(f'Model of {type(self).__name__} requires more rhan 3 stars to set up')
-		# todo: include this in Position class
-		dt = np.dtype([('x', 'int'), ('y', 'int')])
-		coords = np.array([star.position[::-1] for star in stars], dtype= dt)
+			raise RuntimeError(f'Model of {type(self).__name__} requires more than 3 stars to set up')
+		
+		# todo: Implement a way to directly extract position arrays from stars
+		coords = PositionArray([star.position for star in stars])
 		
 		self._indices = self._neighbors(coords)
-		self._model = coords[self._indices]
+		self._model : List[PositionArray] = [coords[idx] for idx in self._indices]
 		if self._use_w:
 			self._areas = np.array([self._calc_area(trig) for trig in self._model])
 
@@ -166,40 +166,41 @@ class GlobalAlignmentTracker(Tracker):
 			return TrackingIdentity()
 		method = self._compare_sas if self._method == 'sas' else self._compare_sss
 		
-		dt = np.dtype([('x', 'int'), ('y', 'int')])
-		coords = np.array([star.position[::-1] for star in detected_stars], dtype= dt)
-		triangles = self._neighbors(coords)
+		coords = PositionArray([star.position for star in detected_stars])
+		indices = self._neighbors(coords)
+		triangles : List[PositionArray] = [coords[idx] for idx in self._indices]
 		
 		# !warning: slow code
 		matched = list[Tuple[int, int]]()
 		for i, trig1 in enumerate(self._model):
-			for j, indices in enumerate(triangles):
-				if method(trig1, coords[indices]):
+			for j, trig2 in enumerate(triangles):
+				if method(trig1, trig2):
 					matched.append((i, j))
 					break
 		if len(matched) == 0:
 			print('No triangles were matched for this image')
 			return TrackingIdentity()
 		
-		_reference = []
-		_current = []
+		reference = PositionArray()
+		current = PositionArray()
 		_areas = list[float]()
+
 		for model_idx, current_idx in matched:
-			model = self._model.view((int, 2))[model_idx]
-			triangle = coords.view((int, 2))[triangles[current_idx]]#type:ignore
-			for j in range(3):
-				_reference.append(model[j])
-				_current.append(triangle[j])
+			model = self._model[model_idx]
+			triangle = triangles[current_idx]
+			
+			reference.extend(model)
+			current.extend(triangle)
 			if self._use_w:
 				_areas.append(self._areas[model_idx])
-		reference = np.vstack(_reference)
-		current = 	np.vstack(_current)
 
 		center = image.shape[0]/2, image.shape[1]/2
-		_dot = np.nansum((reference - center) * (current - center), axis= 1)
-		_cross = np.cross((reference - center), (current - center))
-		delta_pos = np.vstack(current - reference)
-		delta_rot = np.arctan2(_cross,  _dot)
+		
+		dot = np.nansum(np.multiply((reference - center), (current - center)), axis= 1)
+		cross = np.cross((reference - center), (current - center))
+		
+		delta_pos = current - reference
+		delta_rot = np.arctan2(cross,  dot)
 
 		if self._use_w:
 			weight_array = np.repeat(_areas, 3)

@@ -1,18 +1,17 @@
-from typing import Any, Callable, List, Literal, Tuple
-from numpy.typing import NDArray
+from typing import List, Literal, Tuple
 from startrak.native import Star, StarDetector
 from startrak.imageutils import sigma_stretch
 from startrak.types import detection
 import numpy as np
 import cv2
 
-from startrak.native.alias import ImageLike, Decorator, StarList
+from startrak.native.alias import ImageLike
 
 __all__ = ['detect_stars', ]
 _Method = Literal['hough', 'hough_adaptive', 'hough_threshold']
 
 def detect_stars(image : ImageLike, 
-					  method : _Method | StarDetector = 'hough', **detector_args) -> StarList:
+					  method : _Method | StarDetector = 'hough', **detector_args) -> List[Star]:
 	_detector : StarDetector
 	# todo: replace with dict based mapping
 	if method == 'hough':
@@ -28,7 +27,7 @@ def detect_stars(image : ImageLike,
 	
 	return _detector.detect(image)
 
-def visualize_stars(image : ImageLike, stars : StarList,
+def visualize_stars(image : ImageLike, stars : List[Star],
 					vsize : int= 720, sigma : int = 4, color : Tuple[int, int, int] = (200, 0, 0)):
 	if vsize is not None and vsize != 0:
 		_f = vsize / np.min(image.shape) 
