@@ -32,6 +32,7 @@ class SimpleTracker(Tracker):
 		self._model_phot = phot
 		self._model_count = len(phot)
 		self._model_coords = coords
+		self._model_coords.close()
 		self._model_weights = np.array([p.flux for p in phot])
 		self._model_weights = self._model_weights / np.mean(self._model_weights)
 
@@ -146,9 +147,15 @@ class GlobalAlignmentTracker(Tracker):
 		
 		# todo: Implement a way to directly extract position arrays from stars
 		coords = PositionArray([star.position for star in stars])
-		
 		self._indices = self._neighbors(coords)
-		self._model : List[PositionArray] = [coords[idx] for idx in self._indices]
+		self._model = list[PositionArray]()
+		
+		idx : NDArray[np.int_]
+		for idx in self._indices:
+			coord = coords[idx]
+			coord.close()
+			self._model.append(coord)
+
 		if self._use_w:
 			self._areas = np.array([self._calc_area(trig) for trig in self._model])
 

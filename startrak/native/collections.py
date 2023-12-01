@@ -1,7 +1,7 @@
 # compiled
 
 from __future__ import annotations
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, abstractproperty
 import numpy as np
 from numpy.typing import NDArray
 from typing import Any, ClassVar, Collection, Generic, Iterable, Iterator, List, Literal, NamedTuple, Never, Optional, Self, Dict, Sized, Tuple, TypeVar, Union, overload
@@ -15,12 +15,25 @@ _LiteralAxis = Literal['x', 0, 'y', 1, 'all', ':']
 TList = TypeVar('TList')
 class STCollection(ABC, Generic[TList]):
 	_internal : List[TList]
+	_closed : bool
 
 	def __init__(self, values : Iterable[TList] | None = None ):
+		self._closed = False
 		if values is None:
 			self._internal = list[TList]()
 		else:
 			self._internal = list[TList](values)
+
+	@abstractproperty
+	def is_closed(self) -> bool:
+		return self._closed
+	
+	def close(self):
+		self._closed = True
+
+	def __clexc__(self):
+		if self._closed:
+			raise KeyError(self.__class__.__name__ + ' is marked as closed.')
 
 	def __iter__(self) -> Iterator[TList]:
 		return self._internal.__iter__()
@@ -71,27 +84,35 @@ class STCollection(ABC, Generic[TList]):
 			raise ValueError(type(index))
 
 	def __setitem__(self, index : int, value : TList):
+		self.__clexc__()
 		return self._internal.__setitem__(index, value)
 
 	def append(self, value: TList): 
+		self.__clexc__()
 		self._internal.append(value)
 	
 	def extend(self, values: Self | Iterable[TList]): 
+		self.__clexc__()
 		return self._internal.extend(values)
 	
 	def insert(self, index: int, value: TList): 
+		self.__clexc__()
 		self._internal.insert(index, value)
 	
 	def remove(self, value: TList): 
+		self.__clexc__()
 		self._internal.remove(value)
 	
 	def pop(self, index: int) -> TList: 
+		self.__clexc__()
 		return self._internal.pop(index)
 	
 	def clear(self): 
+		self.__clexc__()
 		self._internal.clear()
 	
 	def reverse(self): 
+		self.__clexc__()
 		self._internal.reverse()
 	def copy(self) -> Self:
 		return type(self)(self._internal.copy())
@@ -159,10 +180,14 @@ class Position(NamedTuple):
 	
 class PositionArray(STCollection[Position]):
 	def __init__(self, positions: Iterable[Position] | Iterable[PositionLike] | None = None):
+		self._closed = False
 		if positions is None:
 			self._internal = list[Position]()
 		else:
 			self._internal = [Position.new(pos) for pos in positions]
+	@property
+	def is_closed(self) -> bool:
+		return super().is_closed
 
 	@property
 	def x(self) -> List[float]:
