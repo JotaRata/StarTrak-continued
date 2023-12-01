@@ -1,15 +1,98 @@
 # compiled
 
 from __future__ import annotations
+from abc import ABC, abstractmethod
 import numpy as np
 from numpy.typing import NDArray
-from typing import Any, ClassVar, Collection, Iterable, Iterator, List, Literal, NamedTuple, Never, Optional, Self, Dict, Sized, Tuple, Union, overload
+from typing import Any, ClassVar, Collection, Generic, Iterable, Iterator, List, Literal, NamedTuple, Never, Optional, Self, Dict, Sized, Tuple, TypeVar, Union, overload
 
 PositionLike = Union[Tuple[float|Any, ...], Tuple[float|Any, float|Any], List[float|Any], NDArray[np.float_]]
 _IndexLike = int | bool 
 _IndexLike_n =  np.int_ | np.bool_
 _MaskLike = List[_IndexLike] | NDArray[_IndexLike_n]
 _LiteralAxis = Literal['x', 0, 'y', 1, 'all', ':']
+
+TList = TypeVar('TList')
+class STCollection(ABC, Generic[TList]):
+	_internal : List[TList]
+
+	@abstractmethod
+	def __init__(self, values: Iterable[TList]|None = None): ...
+	
+	def __iter__(self) -> Iterator[TList]:
+		return self._internal.__iter__()
+	def __len__(self) -> int:
+		return self._internal.__len__()
+	def __contains__(self, value : TList) -> bool:
+		return self._internal.__contains__(value)
+	
+	def __add__(self, other : Self | TList) -> Self:
+		raise NotImplementedError(f"Operator '+' is not defined for type {type(self).__name__}")
+	def __sub__(self, other : Self | TList) -> Self:
+		raise NotImplementedError(f"Operator '-' is not defined for type {type(self).__name__}")
+	def __mul__(self, other : Self | TList) -> Self:
+		raise NotImplementedError(f"Operator '*' is not defined for type {type(self).__name__}")
+
+	@overload
+	def __getitem__(self, index : int ) ->  TList: ...
+	@overload
+	def __getitem__(self, index :  slice | _MaskLike) -> Self: ...
+
+	def __getitem__(self, index : int | slice | _MaskLike) -> Self | TList:
+		cls = self.__class__
+		if type(index) is int:
+			return self._internal[index]
+		
+		elif type(index) is slice:
+			return cls(self._internal[index])
+		
+		# case: index list or boolean mask
+		elif type(index) is list:
+			if type(index[0]) is bool:
+				if (l1:=len(index)) != (l2:=len(self)): raise IndexError(f"Sizes don't match, got {l1}, expected{l2}")
+				return cls([pos for i, pos in enumerate(self._internal) if index[i] ])
+			elif type(index[0]) is int:
+				return cls([self._internal[i] for i in index ])
+			else:
+				raise ValueError(type(index[0]))
+		
+		elif isinstance(index, np.ndarray):
+			if isinstance(index[0], np.bool_):
+				if (l1:=len(index)) != (l2:=len(self)): raise IndexError(f"Sizes don't match, got {l1}, expected{l2}")
+				return cls([pos for i, pos in enumerate(self._internal) if index[i] ])
+			elif isinstance(index[0], np.integer):
+				return cls([self._internal[int(i)] for i in index ])
+			else:
+				raise ValueError(type(index[0]))
+		else:
+			raise ValueError(type(index))
+
+	def __setitem__(self, index : int, value : TList):
+		return self._internal.__setitem__(index, value)
+
+	def append(self, value: TList): 
+		self._internal.append(value)
+	
+	def extend(self, values: Self | Iterable[TList]): 
+		return self._internal.extend(values)
+	
+	def insert(self, index: int, value: TList): 
+		self._internal.insert(index, value)
+	
+	def remove(self, value: TList): 
+		self._internal.remove(value)
+	
+	def pop(self, index: int) -> TList: 
+		return self._internal.pop(index)
+	
+	def clear(self): 
+		self._internal.clear()
+	
+	def reverse(self): 
+		self._internal.reverse()
+	def copy(self) -> Self:
+		return type(self)(self._internal.copy())
+
 
 class Position(NamedTuple):
 	x : float
@@ -58,7 +141,7 @@ class Position(NamedTuple):
 	def __str__(self) -> str:
 		return f'[{self.x:.1f}, {self.y:.1f}]'
 	
-class PositionArray:
+class PositionArray(STCollection[Position | PositionLike]):
 	_list : List[Position]
 	def __init__(self, positions: Iterable[Position|PositionLike]|None = None):
 		if positions is None:
@@ -75,12 +158,10 @@ class PositionArray:
 	
 	def __array__(self, dtype=None) -> NDArray[np.float_]:
 		return np.vstack(self._list)
-	def __len__(self) -> int:
-		return len(self._list)
 	
 	#region getter and setter
 	@overload
-	def __getitem__(self, index : int) -> Position: ...
+	def __getitem__(self, index : int) -> Position | PositionLike: ...
 	@overload
 	def __getitem__(self, index : slice | _MaskLike) -> PositionArray: ...
 	@overload
@@ -88,18 +169,12 @@ class PositionArray:
 	@overload
 	def __getitem__(self, index : Tuple[slice, Literal['x', 'y', 0, 1]]) ->  List[float]: ...
 	@overload
-	def __getitem__(self, index : Tuple[int, Literal['all', ':']]) ->  Position: ...
+	def __getitem__(self, index : Tuple[int, Literal['all', ':']]) ->  Position | PositionLike: ...
 	@overload
 	def __getitem__(self, index : Tuple[slice, Literal['all', ':']]) ->  PositionArray: ...
 	
-	def __getitem__(self, index : int | slice | _MaskLike | Tuple[int|slice, _LiteralAxis]) -> Position | PositionArray | List[float] | float:
-		if type(index) is int:
-			return self._list[index]
-		
-		elif type(index) is slice:
-			return PositionArray(self._list[index])
-		
-		elif type(index) is tuple:
+	def __getitem__(self, index : int | slice | _MaskLike | Tuple[int|slice, _LiteralAxis]) -> Position | PositionLike | PositionArray | List[float] | float:
+		if type(index) is tuple:
 			if len(index) != 2:
 				raise ValueError(index)
 			if type(index[0]) is int:
@@ -123,32 +198,14 @@ class PositionArray:
 					raise ValueError(index[1])
 			else:
 				raise ValueError("Only 'int' and 'slice' can be used with 2D indexing")
-		
-		elif type(index) is list:
-			if type(index[0]) is bool:
-				if (l1:=len(index)) != (l2:=len(self)): raise IndexError(f"Sizes don't match, got {l1}, expected{l2}")
-				return PositionArray([pos for i, pos in enumerate(self._list) if index[i] ])
-			elif type(index[0]) is int:
-				return PositionArray([self._list[i] for i in index ])
-			else:
-				raise ValueError(type(index[0]))
-		
-		elif isinstance(index, np.ndarray):
-			if isinstance(index[0], np.bool_):
-				if (l1:=len(index)) != (l2:=len(self)): raise IndexError(f"Sizes don't match, got {l1}, expected{l2}")
-				return PositionArray([pos for i, pos in enumerate(self._list) if index[i] ])
-			elif isinstance(index[0], np.integer):
-				return PositionArray([self._list[i] for i in index ])
-			else:
-				raise ValueError(type(index[0]))
-		
 		else:
-			raise ValueError(type(index))
-
-	def __setitem__(self, index : int, value : Position):
-		if type(value) is tuple:
+			assert not isinstance(index, tuple)
+		return super().__getitem__(index)
+	
+	def __setitem__(self, index: int, value: PositionLike | Position):
+		if type(value) is not Position:
 			value = Position(value[0], value[1])
-		self._list[index] = value
+		return super().__setitem__(index, value)
 #endregion
 
 	def __add__(self, other : PositionArray | Position | PositionLike):
@@ -167,41 +224,14 @@ class PositionArray:
 		else:
 			raise ValueError(type(other))
 	
-	def __contains__(self, value : Position) -> bool:
-		return value in self._list
-	def __iter__(self) -> Iterator[Position]:
-		return self._list.__iter__()
 	def __repr__(self) -> str:
 		return 'PositionArray:\n' + '  \n'.join(map(str, self._list))
 
-	#region List methods
-	def append(self, value: Position): 
-		if type(value) is tuple:
+	def append(self, value: PositionLike | Position):
+		if type(value) is not Position:
 			value = Position(value[0], value[1])
-		self._list.append(value)
-	
-	def extend(self, positions: List[Position] | PositionArray): 
-		if type(positions) is PositionArray:
-			self._list.extend(positions._list)
-		else:
-			self._list.extend(positions)
-	
-	def insert(self, index: int, value: Position): 
-		if type(value) is tuple:
+		return super().append(value)	
+	def insert(self, index: int, value: PositionLike | Position):
+		if type(value) is not Position:
 			value = Position(value[0], value[1])
-		self._list.insert(index, value)
-	
-	def remove(self, position: Position): 
-		self._list.remove(position)
-	
-	def pop(self, index: int) -> Position: 
-		return self._list.pop(index)
-	
-	def clear(self): 
-		self._list.clear()
-	
-	def reverse(self): 
-		self._list.reverse()
-	def copy(self) -> "PositionArray":
-		return PositionArray(self._list.copy())
-	#endregion
+		return super().insert(index, value)
