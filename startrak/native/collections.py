@@ -16,9 +16,12 @@ TList = TypeVar('TList')
 class STCollection(ABC, Generic[TList]):
 	_internal : List[TList]
 
-	@abstractmethod
-	def __init__(self, values: Iterable[TList]|None = None): ...
-	
+	def __init__(self, values : Iterable[TList] | None = None ):
+		if values is None:
+			self._internal = list[TList]()
+		else:
+			self._internal = list[TList](values)
+
 	def __iter__(self) -> Iterator[TList]:
 		return self._internal.__iter__()
 	def __len__(self) -> int:
@@ -92,6 +95,19 @@ class STCollection(ABC, Generic[TList]):
 		self._internal.reverse()
 	def copy(self) -> Self:
 		return type(self)(self._internal.copy())
+	
+	def __pprint__(self, indent : int = 0) -> str:
+		sp = '  '
+		_ind = sp * (indent + 1)
+		_str = ['', sp*indent + self.__class__.__name__ + f':  ({self.__len__()} entries)']
+		for value in self.__iter__():
+			_str.append(_ind + f'{str(value)}')
+		return '\n'.join(_str)
+	def __str__(self) -> str:
+		return self.__pprint__()
+	
+	def __repr__(self) -> str:
+		return self.__str__()
 
 
 class Position(NamedTuple):
@@ -141,27 +157,26 @@ class Position(NamedTuple):
 	def __str__(self) -> str:
 		return f'[{self.x:.1f}, {self.y:.1f}]'
 	
-class PositionArray(STCollection[Position | PositionLike]):
-	_list : List[Position]
-	def __init__(self, positions: Iterable[Position|PositionLike]|None = None):
+class PositionArray(STCollection[Position]):
+	def __init__(self, positions: Iterable[Position] | Iterable[PositionLike] | None = None):
 		if positions is None:
-			self._list = list[Position]()
+			self._internal = list[Position]()
 		else:
-			self._list = [Position.new(pos) for pos in positions]
+			self._internal = [Position.new(pos) for pos in positions]
 
 	@property
 	def x(self) -> List[float]:
-		return [pos.x for pos in self._list]
+		return [pos.x for pos in self._internal]
 	@property
 	def y(self) -> List[float]:
-		return [pos.y for pos in self._list]
+		return [pos.y for pos in self._internal]
 	
 	def __array__(self, dtype=None) -> NDArray[np.float_]:
-		return np.vstack(self._list)
+		return np.vstack(self._internal)
 	
 	#region getter and setter
 	@overload
-	def __getitem__(self, index : int) -> Position | PositionLike: ...
+	def __getitem__(self, index : int) -> Position: ...
 	@overload
 	def __getitem__(self, index : slice | _MaskLike) -> PositionArray: ...
 	@overload
@@ -169,31 +184,31 @@ class PositionArray(STCollection[Position | PositionLike]):
 	@overload
 	def __getitem__(self, index : Tuple[slice, Literal['x', 'y', 0, 1]]) ->  List[float]: ...
 	@overload
-	def __getitem__(self, index : Tuple[int, Literal['all', ':']]) ->  Position | PositionLike: ...
+	def __getitem__(self, index : Tuple[int, Literal['all', ':']]) ->  Position: ...
 	@overload
 	def __getitem__(self, index : Tuple[slice, Literal['all', ':']]) ->  PositionArray: ...
 	
-	def __getitem__(self, index : int | slice | _MaskLike | Tuple[int|slice, _LiteralAxis]) -> Position | PositionLike | PositionArray | List[float] | float:
+	def __getitem__(self, index : int | slice | _MaskLike | Tuple[int|slice, _LiteralAxis]) -> Position | PositionArray | List[float] | float:
 		if type(index) is tuple:
 			if len(index) != 2:
 				raise ValueError(index)
 			if type(index[0]) is int:
 				if index[1] == 'all' or index[1] == ':':
-					return self._list[index[0]]
+					return self._internal[index[0]]
 				elif index[1] == 'x' or index[1] == 0:
-					return self._list[index[0]].x
+					return self._internal[index[0]].x
 				elif index[1] == 'y' or index[1] == 1:
-					return self._list[index[0]].y
+					return self._internal[index[0]].y
 				else:
 					raise ValueError(index[1])
 
 			elif type(index[0]) is slice:
 				if index[1] == 'all' or index[1] == ':':
-					return PositionArray(self._list[index[0]])
+					return PositionArray(self._internal[index[0]])
 				elif index[1] == 'x' or index[1] == 0:
-					return [pos.x for pos in self._list[index[0]]]
+					return [pos.x for pos in self._internal[index[0]]]
 				elif index[1] == 'y' or index[1] == 1:
-					return [pos.y for pos in self._list[index[0]]]
+					return [pos.y for pos in self._internal[index[0]]]
 				else:
 					raise ValueError(index[1])
 			else:
@@ -210,22 +225,19 @@ class PositionArray(STCollection[Position | PositionLike]):
 
 	def __add__(self, other : PositionArray | Position | PositionLike):
 		if type(other) is PositionArray:
-			return PositionArray([ a + b for a,b in zip(self._list, other._list)])
+			return PositionArray([ a + b for a,b in zip(self._internal, other._internal)])
 		elif isinstance(other, Position) or isinstance(other, tuple|list|np.ndarray):
-			return PositionArray( [a + other for a in self._list] )
+			return PositionArray( [a + other for a in self._internal] )
 		else:
 			raise ValueError(type(other))
 	
 	def __sub__(self, other : PositionArray | Position | PositionLike):
 		if type(other) is PositionArray:
-			return PositionArray([ a - b for a,b in zip(self._list, other._list)])
+			return PositionArray([ a - b for a,b in zip(self._internal, other._internal)])
 		elif isinstance(other, Position) or isinstance(other, tuple|list|np.ndarray):
-			return PositionArray( [a - other for a in self._list] )
+			return PositionArray( [a - other for a in self._internal] )
 		else:
 			raise ValueError(type(other))
-	
-	def __repr__(self) -> str:
-		return 'PositionArray:\n' + '  \n'.join(map(str, self._list))
 
 	def append(self, value: PositionLike | Position):
 		if type(value) is not Position:

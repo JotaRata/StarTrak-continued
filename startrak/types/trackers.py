@@ -23,28 +23,26 @@ class SimpleTracker(Tracker):
 		self._factor = sensitivity
 
 	def setup_model(self, stars: List[Star]):
-		coords = list[Position]()
+		coords = PositionArray()
 		phot = list[PhotometryResult]()
 		for star in stars:
 			if star.photometry:
-				coords.append(star.position[::-1])
+				coords.append(star.position)
 				phot.append(star.photometry)
 		self._model_phot = phot
 		self._model_count = len(phot)
-		self._model_coords = np.vstack(coords)
+		self._model_coords = coords
 		self._model_weights = np.array([p.flux for p in phot])
 		self._model_weights = self._model_weights / np.mean(self._model_weights)
 
 	def track(self, _image : ImageLike):
-		_reg= []
-		lost= []
-		TPos = Tuple[float, float]
+		current= PositionArray()
+		lost= list[int]()
 		img = cv2.resize(_image, None, fx=1, fy=1, interpolation=cv2.INTER_CUBIC)
 		img = cv2.medianBlur(img, 3)
 		
-		for i in range(self._model_count):
-			row, col = self._model_coords[i]
-			crop = _get_cropped(img, (col, row), 0, padding= self._size)
+		for i in range(self._model_count): 
+			crop = _get_cropped(img, self._model_coords[i], 0, padding= self._size)
 			
 			# background sigma clipping
 			# image minus the background should equal the integrated flux
@@ -57,16 +55,15 @@ class SimpleTracker(Tracker):
 			indices = np.transpose(np.nonzero(mask))
 			if len(indices) == 0:
 				lost.append(i)
-				_reg.append(np.array([np.nan, np.nan]))
+				current.append(np.array([np.nan, np.nan]))
 				continue
 			
-			_median = np.median(indices, axis= 0)
-			_reg.append(_median - (self._size,) * 2 + self._model_coords[i])
-		current = np.vstack(_reg)
-
+			median_rc = np.median(indices, axis= 0)
+			current.append(median_rc[::-1] - (self._size,) * 2 + self._model_coords[i])
+		
 		delta_pos = current - self._model_coords
 		
-		center = _image.shape[0]/2, _image.shape[1]/2
+		center = _image.shape[1]/2, _image.shape[0]/2
 		c_previous = self._model_coords - center
 		c_current = current - center
 
@@ -194,7 +191,7 @@ class GlobalAlignmentTracker(Tracker):
 			if self._use_w:
 				_areas.append(self._areas[model_idx])
 
-		center = image.shape[0]/2, image.shape[1]/2
+		center = image.shape[1]/2, image.shape[0]/2
 		
 		dot = np.nansum(np.multiply((reference - center), (current - center)), axis= 1)
 		cross = np.cross((reference - center), (current - center))
