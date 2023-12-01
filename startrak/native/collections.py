@@ -64,6 +64,8 @@ class STCollection(ABC, Generic[TList]):
 		
 		# case: index list or boolean mask
 		elif type(index) is list:
+			if len(index) == 0:
+				return cls()
 			if type(index[0]) is bool:
 				if (l1:=len(index)) != (l2:=len(self)): raise IndexError(f"Sizes don't match, got {l1}, expected{l2}")
 				return cls([pos for i, pos in enumerate(self._internal) if index[i] ])
@@ -73,6 +75,8 @@ class STCollection(ABC, Generic[TList]):
 				raise ValueError(type(index[0]))
 		
 		elif isinstance(index, np.ndarray):
+			if len(index) == 0:
+				return cls()
 			if isinstance(index[0], np.bool_):
 				if (l1:=len(index)) != (l2:=len(self)): raise IndexError(f"Sizes don't match, got {l1}, expected{l2}")
 				return cls([pos for i, pos in enumerate(self._internal) if index[i] ])
