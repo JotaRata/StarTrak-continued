@@ -78,14 +78,19 @@ class PositionArray:
 	def __len__(self) -> int:
 		return len(self._list)
 	
+	#region getter and setter
 	@overload
 	def __getitem__(self, index : int) -> Position: ...
 	@overload
 	def __getitem__(self, index : slice | _MaskLike) -> PositionArray: ...
 	@overload
-	def __getitem__(self, index : Tuple[int, _LiteralAxis]) -> Position | float: ...
+	def __getitem__(self, index : Tuple[int, Literal['x', 'y', 0, 1]]) ->  float: ...
 	@overload
-	def __getitem__(self, index : Tuple[slice, _LiteralAxis]) -> PositionArray | List[float]: ...
+	def __getitem__(self, index : Tuple[slice, Literal['x', 'y', 0, 1]]) ->  List[float]: ...
+	@overload
+	def __getitem__(self, index : Tuple[int, Literal['all', ':']]) ->  Position: ...
+	@overload
+	def __getitem__(self, index : Tuple[slice, Literal['all', ':']]) ->  PositionArray: ...
 	
 	def __getitem__(self, index : int | slice | _MaskLike | Tuple[int|slice, _LiteralAxis]) -> Position | PositionArray | List[float] | float:
 		if type(index) is int:
@@ -144,7 +149,7 @@ class PositionArray:
 		if type(value) is tuple:
 			value = Position(value[0], value[1])
 		self._list[index] = value
-
+#endregion
 
 	def __add__(self, other : PositionArray | Position | PositionLike):
 		if type(other) is PositionArray:
