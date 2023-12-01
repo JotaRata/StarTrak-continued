@@ -277,7 +277,8 @@ class TrackingSolution(STObject):
 		pos_residuals = delta_pos - np.nanmean(delta_pos, axis= 0)
 		ang_residuals = delta_angle - np.nanmean(delta_angle, axis= 0)
 		for _ in range(rejection_iter):
-
+			if len(mask) == 0:
+				break
 			pos_std : float =  np.nanmean(np.power(pos_residuals[mask], 2))
 			ang_std : float =  np.nanmean(np.power(ang_residuals[mask], 2))
 			rej_count, rej_error = 0, 0.0
@@ -305,13 +306,19 @@ class TrackingSolution(STObject):
 			weights = weights[mask]
 			if np.sum(weights) == 0:
 				weights = None
-		
-		self._dx, self._dy = np.average(delta_pos[mask], axis= 0, weights= weights).tolist()
-		self._da = np.average(delta_angle[mask], weights= weights)
+		if len(mask) > 0:
+			self._dx, self._dy = np.average(delta_pos[mask], axis= 0, weights= weights).tolist()
+			self._da = np.average(delta_angle[mask], weights= weights)
 
-		ex, ey = np.nanstd(delta_pos[mask], axis= 0)
-		self.error = (ex**2 + ey**2) ** 0.5
-		self.lost = lost_indices
+			ex, ey = np.nanstd(delta_pos[mask], axis= 0)
+			self.error = (ex**2 + ey**2) ** 0.5
+			self.lost = lost_indices
+		# If all values were masked out, then return the identity
+		else:
+			self._dx, self._dy = 0.0, 0.0
+			self._da = 0.0
+			self.error = 0.0
+			self.lost = list(range(len(delta_pos)))
 
 		c = math.cos(self._da)
 		s = math.sin(self._da)

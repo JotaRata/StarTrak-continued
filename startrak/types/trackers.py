@@ -56,11 +56,10 @@ class SimpleTracker(Tracker):
 			indices = np.transpose(np.nonzero(mask))
 			if len(indices) == 0:
 				lost.append(i)
-				current.append(np.array([np.nan, np.nan]))
+				current.append([np.nan, np.nan])
 				continue
-			
-			median_rc = np.median(indices, axis= 0)
-			current.append(median_rc[::-1] - (self._size,) * 2 + self._model_coords[i])
+			median_rc = np.median(indices, axis= 0)[::-1]
+			current.append(median_rc - (self._size,) * 2 + self._model_coords[i])
 		
 		delta_pos = current - self._model_coords
 		
@@ -68,9 +67,9 @@ class SimpleTracker(Tracker):
 		c_previous = self._model_coords - center
 		c_current = current - center
 
-		_dot = np.nansum(c_previous * c_current, axis= 1)
-		_cross = np.cross(c_previous, c_current)
-		da = np.arctan2(_cross,  _dot)
+		dot = np.nansum(np.multiply(c_previous, c_current), axis= 1)
+		cross = np.cross(c_previous, c_current)
+		da = np.arctan2(cross,  dot)
 
 		return TrackingSolution(delta_pos= delta_pos, 
 										delta_angle= da, 
