@@ -5,7 +5,6 @@ from abc import ABC, abstractproperty
 import numpy as np
 from numpy.typing import NDArray
 from typing import Any, Dict, Generic, Iterable, Iterator, List, Literal, NamedTuple, Self, Tuple, TypeVar, Union, final, overload
-
 from startrak.native import Star
 
 PositionLike = Union[Tuple[float|Any, ...], Tuple[float|Any, float|Any], List[float|Any], NDArray[np.float_]]

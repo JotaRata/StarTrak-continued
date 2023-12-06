@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 import os.path
 from startrak.native.alias import ImageLike, NumberLike, ValueType, NDArray
-from startrak.native.collections import Position, PositionArray, PositionLike
+from startrak.native.collections import Position, PositionArray, PositionLike, StarList
 from startrak.native.fits import _FITSBufferedReaderWrapper as FITSReader
 from startrak.native.fits import _bitsize
 from mypy_extensions import mypyc_attr, trait
@@ -365,7 +365,7 @@ class TrackingIdentity(TrackingSolution):
 @mypyc_attr(allow_interpreted_subclasses=True)
 class Tracker(ABC):
 	@abstractmethod
-	def setup_model(self, stars : List[Star]):
+	def setup_model(self, stars : StarList):
 		pass
 	@abstractmethod
 	def track(self, image : ImageLike) -> TrackingSolution:
@@ -382,11 +382,11 @@ class StarDetector(ABC):
 		raise NotImplementedError()
 
 	@final
-	def detect(self, image : ImageLike) -> List[Star]:
+	def detect(self, image : ImageLike) -> StarList:
 		positions, apertures = self._detect(image)
 		if len(positions) == 0:
 			print('No stars were detected, try adjusting the parameters')
-			return List[Star]()
-		return [Star(self.star_name + str(i), positions[i], int(apertures[i])) 
-					for i in range(len(positions))]
+			return StarList()
+		return StarList([Star(self.star_name + str(i), positions[i], int(apertures[i])) 
+					for i in range(len(positions))])
 #endregion
