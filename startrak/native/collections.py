@@ -4,12 +4,14 @@ from __future__ import annotations
 from abc import ABC, abstractproperty
 import numpy as np
 from numpy.typing import NDArray
-from typing import Any, Generic, Iterable, Iterator, List, Literal, NamedTuple, Self, Tuple, TypeVar, Union, overload
+from typing import Any, Dict, Generic, Iterable, Iterator, List, Literal, NamedTuple, Self, Tuple, TypeVar, Union, overload
+
+from startrak.native import Star
 
 PositionLike = Union[Tuple[float|Any, ...], Tuple[float|Any, float|Any], List[float|Any], NDArray[np.float_]]
 _IndexLike = int | bool 
 _IndexLike_n =  np.int_ | np.bool_
-_MaskLike = List[_IndexLike] | NDArray[_IndexLike_n]
+MaskLike = List[_IndexLike] | NDArray[_IndexLike_n]
 
 _MatrixLike3x3 = NDArray[np.floating] | List[List | Tuple | NDArray] | Tuple[List | Tuple | NDArray, ...]
 _LiteralAxis = Literal['x', 0, 'y', 1]
@@ -25,7 +27,10 @@ class STCollection(ABC, Generic[TList]):
 			self._internal = list[TList]()
 		else:
 			self._internal = list[TList](values)
+		self.__post_init__()
 
+	def __post_init__(self):
+		pass
 	@abstractproperty
 	def is_closed(self) -> bool:
 		return self._closed
@@ -54,9 +59,9 @@ class STCollection(ABC, Generic[TList]):
 	@overload
 	def __getitem__(self, index : int ) ->  TList: ...
 	@overload
-	def __getitem__(self, index :  slice | _MaskLike) -> Self: ...
+	def __getitem__(self, index :  slice | MaskLike) -> Self: ...
 
-	def __getitem__(self, index : int | slice | _MaskLike) -> Self | TList:
+	def __getitem__(self, index : int | slice | MaskLike) -> Self | TList:
 		cls = self.__class__
 		if type(index) is int:
 			return self._internal[index]
@@ -234,13 +239,13 @@ class PositionArray(STCollection[Position]):
 	@overload
 	def __getitem__(self, index : int) -> Position: ...
 	@overload
-	def __getitem__(self, index : slice | _MaskLike) -> PositionArray: ...
+	def __getitem__(self, index : slice | MaskLike) -> PositionArray: ...
 	@overload
 	def __getitem__(self, index : Tuple[int, Literal['x', 'y', 0, 1]]) ->  float: ...
 	@overload
 	def __getitem__(self, index : Tuple[slice, Literal['x', 'y', 0, 1]]) ->  List[float]: ...
 
-	def __getitem__(self, index : int | slice | _MaskLike | Tuple[int|slice, _LiteralAxis]) -> Position | PositionArray | List[float] | float:
+	def __getitem__(self, index : int | slice | MaskLike | Tuple[int|slice, _LiteralAxis]) -> Position | PositionArray | List[float] | float:
 		if type(index) is tuple:
 			if len(index) != 2:
 				raise ValueError(index)
@@ -296,3 +301,46 @@ class PositionArray(STCollection[Position]):
 	def trim(self):
 		self._cached_x =  None
 		self._cached_y =  None
+
+class StarList(STCollection[Star]):
+	_dict : Dict[str, int]
+	def __post_init__(self):
+		self._dict = {s.name : i for i, s in enumerate(self._internal)}
+	
+	@property
+	def is_closed(self) -> bool:
+		return super().is_closed
+
+	@property
+	def positions(self) -> PositionArray:
+		return PositionArray((s.position for s in self._internal))
+	
+	def to_dict(self) -> Dict[str, Star]:
+		return {s.name : s for s in self._internal}
+
+	@overload
+	def __getitem__(self, index: int | str, /) -> Star: ...
+	@overload
+	def __getitem__(self, index: slice | MaskLike, /) -> StarList: ...
+	def __getitem__(self, index : int | slice  | MaskLike | str) -> Star | StarList:
+		if type(index) is str:
+			idx = self._dict[index]
+			return self._internal[idx]
+		else:
+			assert not isinstance(index, str)
+		return super().__getitem__(index)
+	
+	def __setitem__(self, index: int, value: Star):
+		original = self._internal[index].name
+		super().__setitem__(index, value)
+		if original != value.name:
+			del self._dict[original]
+			self._dict[value.name] = index
+
+	def append(self, value: Star):
+		super().append(value)
+		self._dict[value.name] = len(self)
+	
+	def insert(self, index: int, value: Star):
+		super().insert(index, value)
+		self._dict[value.name] = index
