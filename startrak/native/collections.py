@@ -12,7 +12,7 @@ _IndexLike_n =  np.int_ | np.bool_
 _MaskLike = List[_IndexLike] | NDArray[_IndexLike_n]
 
 _MatrixLike3x3 = NDArray[np.floating] | List[List | Tuple | NDArray] | Tuple[List | Tuple | NDArray, ...]
-_LiteralAxis = Literal['x', 0, 'y', 1, 'all', ':']
+_LiteralAxis = Literal['x', 0, 'y', 1]
 
 TList = TypeVar('TList')
 class STCollection(ABC, Generic[TList]):
@@ -201,8 +201,13 @@ class Position(NamedTuple):
 		return f'[{self.x:.1f}, {self.y:.1f}]'
 	
 class PositionArray(STCollection[Position]):
+	_cached_y : List[float] | None
+	_cached_x : List[float] | None
+
 	def __init__(self, positions: Iterable[Position] | Iterable[PositionLike] | None = None):
 		self._closed = False
+		self._cached_y = None
+		self._cached_x = None
 		if positions is None:
 			self._internal = list[Position]()
 		else:
@@ -213,10 +218,14 @@ class PositionArray(STCollection[Position]):
 
 	@property
 	def x(self) -> List[float]:
-		return [pos.x for pos in self._internal]
+		if self._cached_x is None:
+			self._cached_x = [pos.x for pos in self._internal]
+		return self._cached_x
 	@property
 	def y(self) -> List[float]:
-		return [pos.y for pos in self._internal]
+		if self._cached_y is None:
+			self._cached_y =  [pos.y for pos in self._internal]
+		return self._cached_y
 	
 	def __array__(self, dtype=None) -> NDArray[np.float_]:
 		return np.vstack(self._internal)
@@ -230,36 +239,22 @@ class PositionArray(STCollection[Position]):
 	def __getitem__(self, index : Tuple[int, Literal['x', 'y', 0, 1]]) ->  float: ...
 	@overload
 	def __getitem__(self, index : Tuple[slice, Literal['x', 'y', 0, 1]]) ->  List[float]: ...
-	@overload
-	def __getitem__(self, index : Tuple[int, Literal['all', ':']]) ->  Position: ...
-	@overload
-	def __getitem__(self, index : Tuple[slice, Literal['all', ':']]) ->  PositionArray: ...
-	
+
 	def __getitem__(self, index : int | slice | _MaskLike | Tuple[int|slice, _LiteralAxis]) -> Position | PositionArray | List[float] | float:
 		if type(index) is tuple:
 			if len(index) != 2:
 				raise ValueError(index)
-			if type(index[0]) is int:
-				if index[1] == 'all' or index[1] == ':':
-					return self._internal[index[0]]
-				elif index[1] == 'x' or index[1] == 0:
-					return self._internal[index[0]].x
-				elif index[1] == 'y' or index[1] == 1:
-					return self._internal[index[0]].y
+			idx, axis = index
+			if type(idx) is int or type(idx) is slice:
+				if axis == 'x' or axis == 0:
+					return self.x[idx]
+				elif axis == 'y' or axis == 1:
+					return self.y[idx]
 				else:
-					raise ValueError(index[1])
-
-			elif type(index[0]) is slice:
-				if index[1] == 'all' or index[1] == ':':
-					return PositionArray(self._internal[index[0]])
-				elif index[1] == 'x' or index[1] == 0:
-					return [pos.x for pos in self._internal[index[0]]]
-				elif index[1] == 'y' or index[1] == 1:
-					return [pos.y for pos in self._internal[index[0]]]
-				else:
-					raise ValueError(index[1])
+					raise ValueError(axis)
 			else:
 				raise ValueError("Only 'int' and 'slice' can be used with 2D indexing")
+			
 		else:
 			assert not isinstance(index, tuple)
 		return super().__getitem__(index)
@@ -267,6 +262,7 @@ class PositionArray(STCollection[Position]):
 	def __setitem__(self, index: int, value: PositionLike | Position):
 		if type(value) is not Position:
 			value = Position(value[0], value[1])
+		self.trim()
 		return super().__setitem__(index, value)
 #endregion
 
@@ -289,8 +285,14 @@ class PositionArray(STCollection[Position]):
 	def append(self, value: PositionLike | Position):
 		if type(value) is not Position:
 			value = Position(value[0], value[1])
+		self.trim()
 		return super().append(value)	
 	def insert(self, index: int, value: PositionLike | Position):
 		if type(value) is not Position:
 			value = Position(value[0], value[1])
+		self.trim()
 		return super().insert(index, value)
+
+	def trim(self):
+		self._cached_x =  None
+		self._cached_y =  None
