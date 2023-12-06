@@ -4,7 +4,7 @@ from __future__ import annotations
 from abc import ABC, abstractproperty
 import numpy as np
 from numpy.typing import NDArray
-from typing import Any, Dict, Generic, Iterable, Iterator, List, Literal, NamedTuple, Self, Tuple, TypeVar, Union, overload
+from typing import Any, Dict, Generic, Iterable, Iterator, List, Literal, NamedTuple, Self, Tuple, TypeVar, Union, final, overload
 
 from startrak.native import Star
 
@@ -38,7 +38,7 @@ class STCollection(ABC, Generic[TList]):
 	def close(self):
 		self._closed = True
 
-	def __clexc__(self):
+	def __on_change__(self):
 		if self._closed:
 			raise KeyError(self.__class__.__name__ + ' is marked as closed.')
 
@@ -95,35 +95,35 @@ class STCollection(ABC, Generic[TList]):
 			raise ValueError(type(index))
 
 	def __setitem__(self, index : int, value : TList):
-		self.__clexc__()
+		self.__on_change__()
 		return self._internal.__setitem__(index, value)
-
+	
 	def append(self, value: TList): 
-		self.__clexc__()
+		self.__on_change__()
 		self._internal.append(value)
 	
 	def extend(self, values: Self | Iterable[TList]): 
-		self.__clexc__()
+		self.__on_change__()
 		return self._internal.extend(values)
 	
 	def insert(self, index: int, value: TList): 
-		self.__clexc__()
+		self.__on_change__()
 		self._internal.insert(index, value)
 	
 	def remove(self, value: TList): 
-		self.__clexc__()
+		self.__on_change__()
 		self._internal.remove(value)
 	
 	def pop(self, index: int) -> TList: 
-		self.__clexc__()
+		self.__on_change__()
 		return self._internal.pop(index)
 	
 	def clear(self): 
-		self.__clexc__()
+		self.__on_change__()
 		self._internal.clear()
 	
 	def reverse(self): 
-		self.__clexc__()
+		self.__on_change__()
 		self._internal.reverse()
 	def copy(self) -> Self:
 		return type(self)(self._internal.copy())
@@ -140,7 +140,7 @@ class STCollection(ABC, Generic[TList]):
 	
 	def __repr__(self) -> str:
 		return self.__str__()
-
+	
 
 class Position(NamedTuple):
 	x : float
@@ -290,14 +290,16 @@ class PositionArray(STCollection[Position]):
 	def append(self, value: PositionLike | Position):
 		if type(value) is not Position:
 			value = Position(value[0], value[1])
-		self.trim()
 		return super().append(value)	
 	def insert(self, index: int, value: PositionLike | Position):
 		if type(value) is not Position:
 			value = Position(value[0], value[1])
-		self.trim()
 		return super().insert(index, value)
 
+	def __on_change__(self):
+		self.trim()
+		return super().__on_change__()
+	
 	def trim(self):
 		self._cached_x =  None
 		self._cached_y =  None
@@ -329,18 +331,7 @@ class StarList(STCollection[Star]):
 		else:
 			assert not isinstance(index, str)
 		return super().__getitem__(index)
-	
-	def __setitem__(self, index: int, value: Star):
-		original = self._internal[index].name
-		super().__setitem__(index, value)
-		if original != value.name:
-			del self._dict[original]
-			self._dict[value.name] = index
 
-	def append(self, value: Star):
-		super().append(value)
-		self._dict[value.name] = len(self)
-	
-	def insert(self, index: int, value: Star):
-		super().insert(index, value)
-		self._dict[value.name] = index
+	def __on_change__(self):
+		super().__on_change__()
+		self._dict = {s.name : i for i, s in enumerate(self._internal)}
