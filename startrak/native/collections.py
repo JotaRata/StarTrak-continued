@@ -1,15 +1,17 @@
 # compiled
 
 from __future__ import annotations
-from abc import ABC, abstractmethod, abstractproperty
+from abc import ABC, abstractproperty
 import numpy as np
 from numpy.typing import NDArray
-from typing import Any, ClassVar, Collection, Generic, Iterable, Iterator, List, Literal, NamedTuple, Never, Optional, Self, Dict, Sized, Tuple, TypeVar, Union, overload
+from typing import Any, Generic, Iterable, Iterator, List, Literal, NamedTuple, Self, Tuple, TypeVar, Union, overload
 
 PositionLike = Union[Tuple[float|Any, ...], Tuple[float|Any, float|Any], List[float|Any], NDArray[np.float_]]
 _IndexLike = int | bool 
 _IndexLike_n =  np.int_ | np.bool_
 _MaskLike = List[_IndexLike] | NDArray[_IndexLike_n]
+
+_MatrixLike3x3 = NDArray[np.floating] | List[List | Tuple | NDArray] | Tuple[List | Tuple | NDArray, ...]
 _LiteralAxis = Literal['x', 0, 'y', 1, 'all', ':']
 
 TList = TypeVar('TList')
@@ -141,17 +143,22 @@ class Position(NamedTuple):
 
 	@classmethod 
 	def new(cls, value : Position | PositionLike, is_rc : bool = False) -> Position:
-		err_msg = f"Only size 2 {type(value).__name__} can be converted into Position"
+		assert len(value) == 2, f"Only size 2 {type(value).__name__} can be converted into Position"
 		
 		if type(value) is Position:
 			return value 
-		elif (type(value) is tuple) or (type(value) is list) or (isinstance(value, np.ndarray)):
-			if len(value) != 2:
-				raise ValueError(err_msg)
+		elif (type(value) is tuple) or (type(value) is list):
 			if not is_rc:
 				return Position(value[0], value[1])
 			else:
 				return Position(value[1], value[0])
+		elif isinstance(value, np.ndarray):
+			_value : List[float] = value.tolist()
+			if not is_rc:
+				return Position(_value[0], _value[1])
+			else:
+				return Position(_value[1], _value[0])
+
 		else:
 			raise TypeError(type(value))
 	
@@ -164,6 +171,17 @@ class Position(NamedTuple):
 	def sarray(self) -> NDArray[np.float_]:
 		dt = np.dtype([('x', 'float'), ('y', 'float')])
 		return np.array(self[:], dtype= dt)
+	
+	def transform(self, matrix : _MatrixLike3x3) -> Position:
+		assert len(matrix) == 3, f'Transformation matrix must have 3 rows (got {len(matrix)}).'
+		assert len(matrix[0]) == 3, f'Transformation matrix must have 3 columns (got {len(matrix[0])}).'
+
+		vector = (*self, 1)
+		result = [0, 0]
+		# Perform the matrix-vector multiplication
+		result[0] = matrix[0][0] * vector[0] + matrix[0][1] * vector[1] + matrix[0][2] * vector[2]
+		result[1] = matrix[1][0] * vector[0] + matrix[1][1] * vector[1] + matrix[1][2] * vector[2]
+		return Position(*result)
 	
 	def __add__(self, other : Position | PositionLike,/) -> Position:
 		if len(other) != 2: raise ValueError(other)
