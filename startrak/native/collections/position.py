@@ -1,144 +1,17 @@
 # compiled
 
 from __future__ import annotations
-from abc import ABC, abstractproperty
 import numpy as np
 from numpy.typing import NDArray
-from typing import Any, Dict, Generic, Iterable, Iterator, List, Literal, NamedTuple, Self, Tuple, TypeVar, Union, final, overload
-from startrak.native import Star
+from typing import Any, Iterable, List, Literal, NamedTuple, Tuple, Union, overload
+
+from startrak.native.alias import MaskLike
+from startrak.native.ext import STCollection
 
 PositionLike = Union[Tuple[float|Any, ...], Tuple[float|Any, float|Any], List[float|Any], NDArray[np.float_]]
-_IndexLike = int | bool 
-_IndexLike_n =  np.int_ | np.bool_
-MaskLike = List[_IndexLike] | NDArray[_IndexLike_n]
-
 _MatrixLike3x3 = NDArray[np.floating] | List[List | Tuple | NDArray] | Tuple[List | Tuple | NDArray, ...]
 _LiteralAxis = Literal['x', 0, 'y', 1]
 
-TList = TypeVar('TList')
-class STCollection(ABC, Generic[TList]):
-	_internal : List[TList]
-	_closed : bool
-
-	def __init__(self, values : Iterable[TList] | None = None ):
-		self._closed = False
-		if values is None:
-			self._internal = list[TList]()
-		else:
-			self._internal = list[TList](values)
-		self.__post_init__()
-
-	def __post_init__(self):
-		pass
-	@abstractproperty
-	def is_closed(self) -> bool:
-		return self._closed
-	
-	def close(self):
-		self._closed = True
-
-	def __on_change__(self):
-		if self._closed:
-			raise KeyError(self.__class__.__name__ + ' is marked as closed.')
-
-	def __iter__(self) -> Iterator[TList]:
-		return self._internal.__iter__()
-	def __len__(self) -> int:
-		return self._internal.__len__()
-	def __contains__(self, value : TList) -> bool:
-		return self._internal.__contains__(value)
-	
-	def __add__(self, other : Self | TList) -> Self:
-		raise NotImplementedError(f"Operator '+' is not defined for type {type(self).__name__}")
-	def __sub__(self, other : Self | TList) -> Self:
-		raise NotImplementedError(f"Operator '-' is not defined for type {type(self).__name__}")
-	def __mul__(self, other : Self | TList) -> Self:
-		raise NotImplementedError(f"Operator '*' is not defined for type {type(self).__name__}")
-
-	@overload
-	def __getitem__(self, index : int ) ->  TList: ...
-	@overload
-	def __getitem__(self, index :  slice | MaskLike) -> Self: ...
-
-	def __getitem__(self, index : int | slice | MaskLike) -> Self | TList:
-		cls = self.__class__
-		if type(index) is int:
-			return self._internal[index]
-		
-		elif type(index) is slice:
-			return cls(self._internal[index])
-		
-		# case: index list or boolean mask
-		elif type(index) is list:
-			if len(index) == 0:
-				return cls()
-			if type(index[0]) is bool:
-				if (l1:=len(index)) != (l2:=len(self)): raise IndexError(f"Sizes don't match, got {l1}, expected{l2}")
-				return cls([pos for i, pos in enumerate(self._internal) if index[i] ])
-			elif type(index[0]) is int:
-				return cls([self._internal[i] for i in index ])
-			else:
-				raise ValueError(type(index[0]))
-		
-		elif isinstance(index, np.ndarray):
-			if len(index) == 0:
-				return cls()
-			if isinstance(index[0], np.bool_):
-				if (l1:=len(index)) != (l2:=len(self)): raise IndexError(f"Sizes don't match, got {l1}, expected{l2}")
-				return cls([pos for i, pos in enumerate(self._internal) if index[i] ])
-			elif isinstance(index[0], np.integer):
-				return cls([self._internal[int(i)] for i in index ])
-			else:
-				raise ValueError(type(index[0]))
-		else:
-			raise ValueError(type(index))
-
-	def __setitem__(self, index : int, value : TList):
-		self.__on_change__()
-		return self._internal.__setitem__(index, value)
-	
-	def append(self, value: TList): 
-		self.__on_change__()
-		self._internal.append(value)
-	
-	def extend(self, values: Self | Iterable[TList]): 
-		self.__on_change__()
-		return self._internal.extend(values)
-	
-	def insert(self, index: int, value: TList): 
-		self.__on_change__()
-		self._internal.insert(index, value)
-	
-	def remove(self, value: TList): 
-		self.__on_change__()
-		self._internal.remove(value)
-	
-	def pop(self, index: int) -> TList: 
-		self.__on_change__()
-		return self._internal.pop(index)
-	
-	def clear(self): 
-		self.__on_change__()
-		self._internal.clear()
-	
-	def reverse(self): 
-		self.__on_change__()
-		self._internal.reverse()
-	def copy(self) -> Self:
-		return type(self)(self._internal.copy())
-	
-	def __pprint__(self, indent : int = 0) -> str:
-		sp = '  '
-		_ind = sp * (indent + 1)
-		_str = ['', sp*indent + self.__class__.__name__ + f':  ({self.__len__()} entries)']
-		for value in self.__iter__():
-			_str.append(_ind + f'{str(value)}')
-		return '\n'.join(_str)
-	def __str__(self) -> str:
-		return self.__pprint__()
-	
-	def __repr__(self) -> str:
-		return self.__str__()
 	
 
 class Position(NamedTuple):
@@ -302,35 +175,3 @@ class PositionArray(STCollection[Position]):
 	def trim(self):
 		self._cached_x =  None
 		self._cached_y =  None
-
-class StarList(STCollection[Star]):
-	_dict : Dict[str, int]
-	def __post_init__(self):
-		self._dict = {s.name : i for i, s in enumerate(self._internal)}
-	
-	@property
-	def is_closed(self) -> bool:
-		return super().is_closed
-
-	@property
-	def positions(self) -> PositionArray:
-		return PositionArray((s.position for s in self._internal))
-	
-	def to_dict(self) -> Dict[str, Star]:
-		return {s.name : s for s in self._internal}
-
-	@overload
-	def __getitem__(self, index: int | str, /) -> Star: ...
-	@overload
-	def __getitem__(self, index: slice | MaskLike, /) -> StarList: ...
-	def __getitem__(self, index : int | slice  | MaskLike | str) -> Star | StarList:
-		if type(index) is str:
-			idx = self._dict[index]
-			return self._internal[idx]
-		else:
-			assert not isinstance(index, str)
-		return super().__getitem__(index)
-
-	def __on_change__(self):
-		super().__on_change__()
-		self._dict = {s.name : i for i, s in enumerate(self._internal)}

@@ -5,7 +5,7 @@ import cv2
 from startrak.imageutils import sigma_stretch
 from startrak.native import Star, StarDetector
 from startrak.native.alias import ImageLike
-from startrak.native.collections import PositionArray
+from startrak.native import PositionArray
 
 
 class HoughCircles(StarDetector):
