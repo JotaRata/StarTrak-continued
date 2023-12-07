@@ -1,13 +1,10 @@
-from calendar import c
-import itertools
 import math
-from typing import List, Literal, Tuple, cast
+from typing import List, Literal, Tuple
 import cv2
 import numpy as np
-from startrak.native import PhotometryResult, Star, StarDetector, StarList, Tracker, TrackingIdentity, TrackingSolution
+from startrak.native import PhotometryResult, StarDetector, StarList, Tracker, TrackingIdentity, TrackingSolution
 from startrak.native.alias import ImageLike, NDArray
-from startrak.native import Position, PositionArray
-from startrak.types.detection import HoughCircles
+from startrak.native import PositionArray
 from startrak.types.phot import _get_cropped
 from startrak.types import detection
 

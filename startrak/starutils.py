@@ -1,5 +1,5 @@
 from typing import List, Literal, Tuple
-from startrak.native import Star, StarDetector
+from startrak.native import Star, StarDetector, StarList
 from startrak.imageutils import sigma_stretch
 from startrak.types import detection
 import numpy as np
@@ -11,7 +11,7 @@ __all__ = ['detect_stars', ]
 _Method = Literal['hough', 'hough_adaptive', 'hough_threshold']
 
 def detect_stars(image : ImageLike, 
-					  method : _Method | StarDetector = 'hough', **detector_args) -> List[Star]:
+					  method : _Method | StarDetector = 'hough', **detector_args) -> StarList:
 	_detector : StarDetector
 	# todo: replace with dict based mapping
 	if method == 'hough':

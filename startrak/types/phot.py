@@ -1,7 +1,6 @@
 
-from math import pi
 import numpy as np
-from startrak.native import PhotometryBase, PhotometryResult, Star
+from startrak.native import PhotometryBase, PhotometryResult
 from startrak.native.alias import ImageLike
 from startrak.native import Position, PositionLike
 

@@ -3,7 +3,7 @@ from typing import List, Tuple
 
 import cv2
 from startrak.imageutils import sigma_stretch
-from startrak.native import Star, StarDetector
+from startrak.native import StarDetector
 from startrak.native.alias import ImageLike
 from startrak.native import PositionArray
 

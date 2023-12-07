@@ -1,7 +1,6 @@
 # compiled module
 from __future__ import __annotations__
-from abc import abstractproperty
-from typing import Any, ClassVar, Final, Generic, Iterable, Iterator, List, Self, TypeVar, overload
+from typing import Any, Final, Generic, Iterable, Iterator, List, Self, TypeVar, overload
 import numpy as np
 from startrak.native.alias import MaskLike
 from mypy_extensions import mypyc_attr, trait
