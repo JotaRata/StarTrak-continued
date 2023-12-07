@@ -78,13 +78,13 @@ class HeaderArchetype(Header):
 class FileInfo(STObject):
 	path : Final[str]
 	size : Final[int]
-	_file : FITSReader
+	__file : FITSReader
 	__header : Header | None
 
 	def __init__(self, path : str):
 		assert path.lower().endswith(('.fit', '.fits')),\
 			'Input path is not a FITS file'
-		self._file = FITSReader(path)
+		self.__file = FITSReader(path)
 		self.path = os.path.abspath(path)
 		self.name = os.path.basename(self.path)
 		self.size = os.path.getsize(path)
@@ -93,7 +93,7 @@ class FileInfo(STObject):
 	@property
 	def header(self) -> Header:
 		if self.__header is None:
-			_dict = {key.rstrip() : value for key, value in self._file._read_header()}
+			_dict = {key.rstrip() : value for key, value in self.__file._read_header()}
 			self.__header = Header(_dict)
 			self.__header.name = self.name
 		return self.__header
@@ -102,7 +102,7 @@ class FileInfo(STObject):
 	def get_data(self, scale = True) -> np.ndarray[Any, np.dtype[NumberLike]]:
 		_dtype = self.header.bitsize
 		_shape = self.header.shape
-		_raw = self._file._read_data(_dtype.newbyteorder('>'), _shape[0] * _shape[1])
+		_raw = self.__file._read_data(_dtype.newbyteorder('>'), _shape[0] * _shape[1])
 		if scale:
 			_scale, _zero = self.header.bscale, self.header.bzero
 			if _scale != 1 or _zero != 0:
