@@ -3,8 +3,9 @@ from typing import List, Tuple
 
 import cv2
 from startrak.imageutils import sigma_stretch
-from startrak.native import Star, StarDetector
-from startrak.native.alias import ImageLike, Position
+from startrak.native import StarDetector
+from startrak.native.alias import ImageLike
+from startrak.native import PositionArray
 
 
 class HoughCircles(StarDetector):
@@ -36,16 +37,14 @@ class HoughCircles(StarDetector):
 		self._p2 = param2
 		self._dp = dp
 	
-	def _detect(self, image : ImageLike) -> List[List[float]]:
+	def _detect(self, image : ImageLike) -> Tuple[PositionArray, List[float]]:
 		img = sigma_stretch(image, sigma= self._sigma)
 		if self._ksize is not None:
 			img = cv2.GaussianBlur(img, self._ksize, 0)
 
 		circles = cv2.HoughCircles(img, cv2.HOUGH_GRADIENT, 1,
 										minDist= self._min_dst, param1= self._p1, param2= self._p2, minRadius= self._min_size, maxRadius= self._max_size)
-		if circles is None:
-			return []
-		return circles[0].tolist()
+		return PositionArray(circles[0][:, :2]), circles[0][:, 2].tolist()
 	
 class AdaptiveHoughCircles(HoughCircles):
 	_block_size : int
@@ -58,7 +57,7 @@ class AdaptiveHoughCircles(HoughCircles):
 		self._threshold = threshold
 		super().__init__(**kwargs)
 
-	def _detect(self, image : ImageLike) -> List[List[float]]:
+	def _detect(self, image : ImageLike) -> Tuple[PositionArray, List[float]]:
 		img = sigma_stretch(image, sigma= self._sigma)
 		if self._ksize is not None:
 			img = cv2.GaussianBlur(img, self._ksize, 0)
@@ -66,7 +65,7 @@ class AdaptiveHoughCircles(HoughCircles):
 											255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, blockSize= self._block_size, C= self._threshold)
 		circles = cv2.HoughCircles(img, cv2.HOUGH_GRADIENT, 1,
 										minDist= self._min_dst, param1= self._p1, param2= self._p2, minRadius= self._min_size, maxRadius= self._max_size)
-		return circles[0].tolist()
+		return PositionArray(circles[0][:, :2]), circles[0][:, 2].tolist()
 
 class ThresholdHoughCircles(HoughCircles):
 	_threshold : int
@@ -76,12 +75,12 @@ class ThresholdHoughCircles(HoughCircles):
 		self._threshold = threshold
 		super().__init__(**kwargs)
 
-	def _detect(self, image : ImageLike) -> List[List[float]]:
+	def _detect(self, image : ImageLike) -> Tuple[PositionArray, List[float]]:
 		img = sigma_stretch(image, sigma= self._sigma)
 		if self._ksize is not None:
 			img = cv2.GaussianBlur(img, self._ksize, 0)
 		_, img = cv2.threshold(img, self._threshold, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
 		circles = cv2.HoughCircles(img, cv2.HOUGH_GRADIENT, 1,
 										minDist= self._min_dst, param1= self._p1, param2= self._p2, minRadius= self._min_size, maxRadius= self._max_size)
-		return circles[0].tolist()
+		return PositionArray(circles[0][:, :2]), circles[0][:, 2].tolist()
 	

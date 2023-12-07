@@ -11,7 +11,9 @@ def scan_files():
 		for f in files:
 			if not f.endswith('.py'): continue
 			rel =  relpath(join(path, f), cwd)
-			yield (splitext(rel)[0].replace(os.sep, '.'),  rel)
+			result = (splitext(rel)[0].replace(os.sep, '.'),  rel)
+			print(result)
+			yield result
 
 paths = [path for _, path in scan_files()]
 

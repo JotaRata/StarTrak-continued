@@ -1,6 +1,5 @@
-from abc import ABC, abstractmethod
-from typing import List, Optional, Set
-from startrak.native import FileInfo, HeaderArchetype, Header, Session
+from typing import Set
+from startrak.native import FileInfo, Session
 
 class InspectionSession(Session):
 	def __item_added__(self, added : Set[FileInfo]): pass

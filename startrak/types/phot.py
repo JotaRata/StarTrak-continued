@@ -1,13 +1,15 @@
-# compiled module
 
-from math import pi
 import numpy as np
-from startrak.native import PhotometryBase, PhotometryResult, Star
-from startrak.native.alias import ImageLike, Position
+from startrak.native import PhotometryBase, PhotometryResult
+from startrak.native.alias import ImageLike
+from startrak.native import Position, PositionLike
 
-def _get_cropped(img : ImageLike, position : Position, aperture: int, padding : int = 0, fillnan= True) -> ImageLike:
+def _get_cropped(img : ImageLike, position : Position | PositionLike, aperture: float, padding : int = 0, fillnan= True) -> ImageLike:
 		rmin, rmax = position[1] - aperture - padding, position[1] + aperture + padding
 		cmin, cmax = position[0] - aperture - padding, position[0] + aperture + padding
+		
+		rmin, rmax = int(rmin), int(rmax)
+		cmin, cmax = int(cmin), int(cmax)
 		if ((rmin < 0 or rmax > img.shape[0]) or (cmin < 0 or cmax > img.shape[1])) and fillnan:
 			padr = max(-rmin + 1, 0), max(rmax - img.shape[0], 0)
 			padc = max(-cmin + 1, 0), max(cmax - img.shape[1], 0)
@@ -27,7 +29,7 @@ class AperturePhot(PhotometryBase):
 		self.offset = offset
 		self.sigma = sigma
 	
-	def evaluate(self, img: ImageLike, position : Position, aperture: int) -> PhotometryResult:
+	def evaluate(self, img: ImageLike, position : Position | PositionLike, aperture: int) -> PhotometryResult:
 		_offset = (self.width + self.offset)
 		crop = _get_cropped(img, position, aperture, _offset)
 		_y, _x = np.ogrid[:crop.shape[0], :crop.shape[1]]
