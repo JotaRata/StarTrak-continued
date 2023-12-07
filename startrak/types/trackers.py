@@ -4,7 +4,7 @@ import math
 from typing import List, Literal, Tuple, cast
 import cv2
 import numpy as np
-from startrak.native import PhotometryResult, Star, StarDetector, Tracker, TrackingIdentity, TrackingSolution
+from startrak.native import PhotometryResult, Star, StarDetector, StarList, Tracker, TrackingIdentity, TrackingSolution
 from startrak.native.alias import ImageLike, NDArray
 from startrak.native import Position, PositionArray
 from startrak.types.detection import HoughCircles
@@ -22,7 +22,7 @@ class SimpleTracker(Tracker):
 		self._size = tracking_size
 		self._factor = sensitivity
 
-	def setup_model(self, stars: List[Star]):
+	def setup_model(self, stars: StarList):
 		coords = PositionArray()
 		phot = list[PhotometryResult]()
 		for star in stars:
@@ -140,7 +140,7 @@ class GlobalAlignmentTracker(Tracker):
 		s = (a+b+c) / 2
 		return np.sqrt(s*(s-a)*(s-b)*(s-c))
 
-	def setup_model(self, stars: List[Star]):
+	def setup_model(self, stars: StarList):
 		if len(stars) <= 3:
 			raise RuntimeError(f'Model of {type(self).__name__} requires more than 3 stars to set up')
 		
@@ -171,7 +171,7 @@ class GlobalAlignmentTracker(Tracker):
 		
 		coords = PositionArray([star.position for star in detected_stars])
 		indices = self._neighbors(coords)
-		triangles : List[PositionArray] = [coords[idx] for idx in self._indices]
+		triangles : List[PositionArray] = [coords[idx] for idx in indices]
 		
 		# !warning: slow code
 		matched = list[Tuple[int, int]]()
