@@ -1,14 +1,28 @@
 # compiled module
+from __future__ import __annotations__
 from abc import abstractproperty
-from typing import ClassVar, Generic, Iterable, Iterator, List, Self, TypeVar, overload
+from typing import Any, ClassVar, Final, Generic, Iterable, Iterator, List, Self, TypeVar, overload
 import numpy as np
 from startrak.native.alias import MaskLike
 from mypy_extensions import mypyc_attr, trait
 
+spaces : Final[str] = '  '
+separator : Final[str] = ': '
+
+
+def pprint(obj : Any, compact : bool = False):
+	string : str
+	if isinstance(obj, STObject):
+		string = obj.__pprint__(0, compact)
+	elif hasattr(obj, '__pprint__'):
+		string = obj.__pprint__(0, compact)
+	else:
+		string = str(obj)
+	print(string)
+
 @mypyc_attr(allow_interpreted_subclasses=True)
 @trait
 class STObject:
-	_sp : ClassVar[str] = '  '
 	name : str
 	def __iter__(self):
 		for var in dir(self):
@@ -17,15 +31,16 @@ class STObject:
 				if callable(attr):
 					continue
 				yield var, attr
-	def __pprint__(self, indent : int = 0) -> str:
-		_ind = STObject._sp * (indent + 1)
-		_str = ['', STObject._sp*indent + self.__class__.__name__ + ': ' + getattr(self, "name", "")]
+
+	def __pprint__(self, indent : int = 0, compact : bool = False) -> str:
+		indentation = spaces * (indent + 1)
+		string : List[str] = ['', spaces * indent + self.__class__.__name__ + separator + getattr(self, "name", "")]
 		for key, value in self.__iter__():
-			if isinstance(value, STObject):
-				_str.append(_ind + f'{key}: {value.__pprint__(indent + 2)}')
+			if isinstance(value, STObject) and not compact:
+				string.append(indentation + key + separator + value.__pprint__(indent + 2))
 			else:
-				_str.append(_ind + f'{key}: {value}')
-		return '\n'.join(_str)
+				string.append(indentation + key + separator  + repr(value))
+		return '\n'.join(string)
 	
 	def __str__(self) -> str:
 		return self.__pprint__()
@@ -33,7 +48,7 @@ class STObject:
 		name = getattr(self, 'name', None)
 		if name is None:
 			return self.__class__.__name__
-		return self.__class__.__name__ + ': ' + name
+		return self.__class__.__name__ + separator + name
 
 TList = TypeVar('TList')
 class STCollection(STObject, Generic[TList]):
@@ -148,15 +163,19 @@ class STCollection(STObject, Generic[TList]):
 	def copy(self) -> Self:
 		return type(self)(self._internal.copy())
 	
-	def __pprint__(self, indent : int = 0) -> str:
-		sp = '  '
-		_ind = sp * (indent + 1)
-		_str = ['', sp*indent + self.__class__.__name__ + f':  ({self.__len__()} entries)']
-		for value in self.__iter__():
-			_str.append(_ind + f'{str(value)}')
-		return '\n'.join(_str)
+	def __pprint__(self, indent : int = 0, compact : bool = False) -> str:
+		indentation = spaces * (indent + 1)
+		closed = '*' if self.is_closed else ''
+		string : List[str] = ['', spaces *  indent + self.__class__.__name__ + closed + separator + f'({self.__len__()} entries)']
+		for i, value in enumerate(self.__iter__()):
+			index = f'{i}.'
+			if isinstance(value, STObject) and not compact:
+				string.append(index + indentation + value.__pprint__(indent + 2))
+			else:
+				string.append(index + indentation + repr(value))
+		return '\n'.join(string)
 	def __str__(self) -> str:
 		return self.__pprint__()
 	
 	def __repr__(self) -> str:
-		return self.__str__()
+		return self.__pprint__(compact=True)
