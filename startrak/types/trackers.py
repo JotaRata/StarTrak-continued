@@ -144,8 +144,7 @@ class GlobalAlignmentTracker(Tracker):
 		if len(stars) <= 3:
 			raise RuntimeError(f'Model of {type(self).__name__} requires more than 3 stars to set up')
 		
-		# todo: Implement a way to directly extract position arrays from stars
-		coords = PositionArray([star.position for star in stars])
+		coords = stars.positions
 		self._indices = self._neighbors(coords)
 		self._model = list[PositionArray]()
 		
@@ -169,7 +168,7 @@ class GlobalAlignmentTracker(Tracker):
 			return TrackingIdentity()
 		method = self._compare_sas if self._method == 'sas' else self._compare_sss
 		
-		coords = PositionArray([star.position for star in detected_stars])
+		coords = detected_stars.positions
 		indices = self._neighbors(coords)
 		triangles : List[PositionArray] = [coords[idx] for idx in indices]
 		
