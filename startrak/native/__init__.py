@@ -6,6 +6,7 @@ import startrak.native.collections.starlist
 import startrak.native.abstract
 
 Position = startrak.native.collections.position.Position
+PositionLike = startrak.native.collections.position.PositionLike
 PositionArray = startrak.native.collections.position.PositionArray
 
 Star = startrak.native.classes.Star

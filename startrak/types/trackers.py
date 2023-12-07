@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 from startrak.native import PhotometryResult, Star, StarDetector, Tracker, TrackingIdentity, TrackingSolution
 from startrak.native.alias import ImageLike, NDArray
-from startrak.native.collections import Position, PositionArray
+from startrak.native import Position, PositionArray
 from startrak.types.detection import HoughCircles
 from startrak.types.phot import _get_cropped
 from startrak.types import detection

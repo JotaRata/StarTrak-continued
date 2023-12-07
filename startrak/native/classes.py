@@ -10,7 +10,7 @@ from startrak.native.collections.position import Position, PositionArray, Positi
 from startrak.native.fits import _FITSBufferedReaderWrapper as FITSReader
 from startrak.native.fits import _bitsize
 from mypy_extensions import mypyc_attr
-from startrak.native.ext import STObject
+from startrak.native.ext import STObject, spaces
 
 #region File management
 _defaults : Final[Dict[str, Type[ValueType]]] = \
@@ -251,12 +251,14 @@ class TrackingSolution(STObject):
 	def __iter__(self):
 		yield from [(self._dx, self._dy), self.rotation, self.error, self.lost]
 	
-	def __pprint__(self, indent: int = 0) -> str:
-		__ = STObject._sp* (indent + 1)
-		return ( f'{STObject._sp* indent}{type(self).__name__}: '
-					f'\n{__}translation: {self._dx:.1f} px, {self._dy:.1f} px'
-					f'\n{__}rotation:    {self.rotation:.2f}°'
-					f'\n{__}error:       {self.error:.3f} px')
+	def __pprint__(self, indent: int = 0, compact : bool = False) -> str:
+		if compact:
+			return type(self).__name__
+		indentation = spaces * (indent + 1)
+		return ( f'{spaces * indent}{type(self).__name__}: '
+					'\n' + indentation + f'translation: {self._dx:.1f} px, {self._dy:.1f} px'
+					'\n' + indentation + f'rotation:    {self.rotation:.2f}°'
+					'\n' + indentation + f'error:       {self.error:.3f} px')
 
 	def __setattr__(self, __name: str, __value) -> None:
 		raise AttributeError(name= __name)
