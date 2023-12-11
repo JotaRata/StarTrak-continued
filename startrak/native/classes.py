@@ -1,4 +1,5 @@
 # compiled module
+from dataclasses import dataclass
 from functools import lru_cache
 import math
 from typing import Any, Callable, ClassVar, Dict, Final, Iterator, List, Optional, Tuple, Type, cast
@@ -78,6 +79,7 @@ class HeaderArchetype(Header):
 		assert all([ value in (int, bool, float, str) for value in user_keys.values()])
 		HeaderArchetype._entries = user_keys
 
+@dataclass #! Hotfix for __setattr__ until a proper mypyc fix is implemented
 class FileInfo(STObject):
 	path : Final[str]
 	size : Final[int]
@@ -124,6 +126,7 @@ class FileInfo(STObject):
 
 
 #region Photometry
+@dataclass #! Hotfix for __setattr__ until a proper mypyc fix is implemented
 class PhotometryResult(STObject):
 	flux : float
 	flux_raw : float
@@ -141,7 +144,9 @@ class PhotometryResult(STObject):
 
 	def __repr__(self) -> str:
 		return str(self.flux)
-
+	def __setattr__(self, __name: str, __value) -> None:
+			raise AttributeError(name= __name)
+	
 @mypyc_attr(allow_interpreted_subclasses=True)
 class Star(STObject):
 	position : Position
@@ -166,7 +171,7 @@ class ReferenceStar(Star):
 
 #endregion
 #region Tracking
-
+@dataclass #! Hotfix for __setattr__ until a proper mypyc fix is implemented
 class TrackingSolution(STObject):
 	_dx : float
 	_dy : float
