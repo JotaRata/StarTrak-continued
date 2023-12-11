@@ -118,3 +118,18 @@ class STExporter(ABC):
 	@abstractmethod
 	def write(self, obj : STObject):
 		raise NotImplementedError()
+	
+@mypyc_attr(allow_interpreted_subclasses=True)
+class STImporter(ABC):
+	@abstractmethod
+	def __enter__(self) -> IO:
+		raise NotImplementedError()
+	
+	@abstractmethod
+	def __exit__(self) -> None:
+		raise NotImplementedError()
+	
+	@abstractmethod
+	def read(self) -> STObject:
+		raise NotImplementedError()
+	
