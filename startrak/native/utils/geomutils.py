@@ -1,11 +1,12 @@
 # Compiled module
 
 import math
+from typing import Callable, List
 from startrak.native.collections.position import Position, PositionArray
 
 def distance(p1 : Position, p2 : Position) -> float:
 	d = p1 - p2
-	return d.x ** 2 + d.y ** 2
+	return math.sqrt(d.x ** 2 + d.y ** 2)
 
 def angle(s1 : float, s2 : float, s3 : float) -> float:
 	return math.degrees(math.acos((s1**2 + s2**2 - s3**2) / (2 * s1 * s2)))
@@ -18,6 +19,8 @@ def area(trig : PositionArray) -> float:
 		return math.sqrt(s * (s - a) * (s - b) * (s - c))
 
 # Triangle congruence
+
+CongruenceMethod = Callable[[PositionArray, PositionArray, float], bool]
 def congruence_aaa(trig1: PositionArray, trig2: PositionArray, tolerance: float = 0.05) -> bool:
 	a1, b1, c1 = distance(trig1[0], trig1[1]), distance(trig1[0], trig1[2]), distance(trig1[1], trig1[2])
 	a2, b2, c2 = distance(trig2[0], trig2[1]), distance(trig2[0], trig2[2]), distance(trig2[1], trig2[2])
@@ -44,7 +47,7 @@ def congruence_sss(trig1: PositionArray, trig2: PositionArray, tolerance: float 
 	diff_c = abs(c1 - c2)
 	return all(diff < tolerance for diff in [diff_a, diff_b, diff_c])
 
-def ongruence_sas(trig1: PositionArray, trig2: PositionArray, tolerance: float = 0.05) -> bool:
+def congruence_sas(trig1: PositionArray, trig2: PositionArray, tolerance: float = 0.05) -> bool:
 	a1, b1, c1 = distance(trig1[0], trig1[1]), distance(trig1[0], trig1[2]), distance(trig1[1], trig1[2])
 	a2, b2, c2 = distance(trig2[0], trig2[1]), distance(trig2[0], trig2[2]), distance(trig2[1], trig2[2])
 
@@ -64,3 +67,17 @@ def ongruence_sas(trig1: PositionArray, trig2: PositionArray, tolerance: float =
 	diff_b = abs(b1 - b2)
 	diff_c = abs(c1 - c2)
 	return all(diff < tolerance for diff in [diff_0, diff_1, diff_2, diff_a, diff_b, diff_c])
+
+def k_neighbors(positions: PositionArray, k : int) -> List[List[int]]:
+	num_points = len(positions)
+	neighbors_list = list[list[int]]()
+
+	for i in range(num_points):
+		distances = [(j, distance(positions[i], positions[j])) for j in range(num_points) if i != j]
+
+		# Sort distances and get indices of k+1 smallest distances
+		sorted_distances = sorted(distances, key=lambda x: x[1])
+		k_neighbors = [idx for idx, _ in sorted_distances[:k+1]]
+
+		neighbors_list.append(k_neighbors)
+	return neighbors_list
