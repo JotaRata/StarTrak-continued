@@ -1,6 +1,7 @@
 # compiled module
-from typing import List, Optional, Set, Tuple, final
+from typing import IO, List, Optional, Set, Tuple, final
 from abc import ABC, abstractmethod
+
 from startrak.native.alias import ImageLike
 from startrak.native.classes import FileInfo, Header, HeaderArchetype, PhotometryResult, Star, TrackingSolution
 from startrak.native.collections.position import Position, PositionArray, PositionLike
@@ -96,3 +97,17 @@ class Session(ABC, STObject):
 	def save(self, out : str): pass
 
 #endregion
+
+@mypyc_attr(allow_interpreted_subclasses=True)
+class STExporter(ABC):
+	@abstractmethod
+	def __enter__(self) -> IO:
+		raise NotImplementedError()
+	
+	@abstractmethod
+	def __exit__(self) -> None:
+		raise NotImplementedError()
+	
+	@abstractmethod
+	def write(self, obj : STObject):
+		raise NotImplementedError()
