@@ -1,7 +1,7 @@
 # compiled module
 from functools import lru_cache
 import math
-from typing import Any, Callable, ClassVar, Dict, Final, List, Optional, Tuple, Type, cast
+from typing import Any, Callable, ClassVar, Dict, Final, Iterator, List, Optional, Tuple, Type, cast
 import numpy as np
 import os.path
 from startrak.native.alias import NumberLike, ValueType, NDArray
@@ -42,6 +42,9 @@ class Header(STObject):
 		return self._items[__name]
 	
 	def __iter__(self):
+		return self._items.__iter__()
+
+	def __export__(self) -> Iterator[Tuple[str, Any]]:
 		for key, val in self._items.items():
 			yield key, val
 
@@ -248,12 +251,15 @@ class TrackingSolution(STObject):
 	def rotation(self) -> float:
 		return np.degrees(self._da)
 	
-	def __iter__(self):
-		yield from [(self._dx, self._dy), self.rotation, self.error, self.lost]
+	def __export__(self) -> Iterator[Tuple[str, Any]]:
+		yield "translation", (self._dx, self._dy)
+		yield "rotation", self._da
+		yield "error", self.error
+		yield "lost_indices", self.lost
 	
 	def __pprint__(self, indent: int = 0, compact : bool = False) -> str:
 		if compact:
-			return type(self).__name__
+			return f'{type(self).__name__} ({self._dx:.1f} px, {self._dy:.1f} px, {self.rotation:.1f}°)'
 		indentation = spaces * (indent + 1)
 		return ( f'{spaces * indent}{type(self).__name__}: '
 					'\n' + indentation + f'translation: {self._dx:.1f} px, {self._dy:.1f} px'

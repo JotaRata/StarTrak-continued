@@ -1,6 +1,6 @@
 # compiled module
 from __future__ import __annotations__
-from typing import Any, Final, Generic, Iterable, Iterator, List, Self, TypeVar, overload
+from typing import Any, Final, Generic, Iterable, Iterator, List, Self, Tuple, TypeVar, overload
 import numpy as np
 from startrak.native.alias import MaskLike
 from mypy_extensions import mypyc_attr, trait
@@ -23,9 +23,10 @@ def pprint(obj : Any, compact : bool = False):
 @trait
 class STObject:
 	name : str
-	def __iter__(self):
+
+	def __export__(self) -> Iterator[Tuple[str, Any]]:
 		for var in dir(self):
-			if not var.startswith(('__', '_')) and var != 'name':
+			if not var.startswith(('__', '_')):
 				attr = getattr(self, var)
 				if callable(attr):
 					continue
@@ -34,7 +35,9 @@ class STObject:
 	def __pprint__(self, indent : int = 0, compact : bool = False) -> str:
 		indentation = spaces * (indent + 1)
 		string : List[str] = ['', spaces * indent + self.__class__.__name__ + separator + getattr(self, "name", "")]
-		for key, value in self.__iter__():
+		for key, value in self.__export__():
+			if key == 'name':
+				continue
 			if isinstance(value, STObject) and not compact:
 				string.append(indentation + key + separator + value.__pprint__(indent + 2))
 			else:
@@ -78,6 +81,11 @@ class STCollection(STObject, Generic[TList]):
 
 	def __iter__(self) -> Iterator[TList]:
 		return self._internal.__iter__()
+	
+	def __export__(self) -> Iterator[Tuple[str, Any]]:
+		for i, attr in enumerate(self.__iter__()):
+			yield str(i), attr
+			
 	def __len__(self) -> int:
 		return self._internal.__len__()
 	def __contains__(self, value : TList) -> bool:
