@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from functools import lru_cache
 import math
-from typing import Any, Callable, ClassVar, Dict, Final, Iterator, List, Optional, Tuple, Type, cast
+from typing import Any, Callable, ClassVar, Dict, Final, Iterable, Iterator, List, Optional, Self, Tuple, Type, cast
 import numpy as np
 import os.path
 from startrak.native.alias import NumberLike, ValueType, NDArray
@@ -11,7 +11,7 @@ from startrak.native.collections.position import Position, PositionArray, Positi
 from startrak.native.fits import _FITSBufferedReaderWrapper as FITSReader
 from startrak.native.fits import _bitsize
 from mypy_extensions import mypyc_attr
-from startrak.native.ext import STObject, spaces
+from startrak.native.ext import AttrDict, STObject, spaces
 
 #region File management
 _defaults : Final[Dict[str, Type[ValueType]]] = \
@@ -45,9 +45,8 @@ class Header(STObject):
 	def __iter__(self):
 		return self._items.__iter__()
 
-	def __export__(self) -> Iterator[Tuple[str, Any]]:
-		for key, val in self._items.items():
-			yield key, val
+	def __export__(self) -> AttrDict:
+		return self._items.copy()
 
 class HeaderArchetype(Header):
 	_entries : ClassVar[Dict[str, Type[ValueType]]] = {}
@@ -114,6 +113,9 @@ class FileInfo(STObject):
 				_raw = _zero + _scale * _raw
 		return _raw.reshape(_shape).astype(_dtype)
 	
+	@classmethod
+	def __import__(cls, attributes: AttrDict) -> Self:
+		return cls(attributes['path'])
 	def __setattr__(self, __name: str, __value) -> None:
 		raise AttributeError(name= __name)
 	def __eq__(self, __value):
@@ -121,6 +123,7 @@ class FileInfo(STObject):
 		return self.path == __value.path
 	def __hash__(self) -> int:
 		return hash(self.path)
+	
 #endregion
 
 
@@ -256,11 +259,11 @@ class TrackingSolution(STObject):
 	def rotation(self) -> float:
 		return np.degrees(self._da)
 	
-	def __export__(self) -> Iterator[Tuple[str, Any]]:
-		yield "translation", (self._dx, self._dy)
-		yield "rotation", self._da
-		yield "error", self.error
-		yield "lost_indices", self.lost
+	def __export__(self) -> AttrDict:
+		return {	'translation':(self._dx, self._dy), 
+					"rotation": self._da, 
+					"error": self.error, 
+					"lost_indices": self.lost} 
 	
 	def __pprint__(self, indent: int = 0, compact : bool = False) -> str:
 		if compact:

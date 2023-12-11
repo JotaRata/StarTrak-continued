@@ -1,6 +1,6 @@
 # compiled module
 from __future__ import __annotations__
-from typing import Any, Final, Generic, Iterable, Iterator, List, Self, Tuple, TypeVar, overload
+from typing import Any, Dict, Final, Generic, Iterable, Iterator, List, Self, TypeVar, overload
 import numpy as np
 from startrak.native.alias import MaskLike
 from mypy_extensions import mypyc_attr, trait
@@ -8,6 +8,7 @@ from mypy_extensions import mypyc_attr, trait
 spaces : Final[str] = '  '
 separator : Final[str] = ': '
 
+AttrDict = Dict[str, Any]
 
 def pprint(obj : Any, compact : bool = False):
 	string : str
@@ -24,18 +25,17 @@ def pprint(obj : Any, compact : bool = False):
 class STObject:
 	name : str
 
-	def __export__(self) -> Iterator[Tuple[str, Any]]:
-		for var in dir(self):
-			if not var.startswith(('__', '_')):
-				attr = getattr(self, var)
-				if callable(attr):
-					continue
-				yield var, attr
+	def __export__(self) -> AttrDict:
+		return {attr: getattr(self, attr) for attr in dir(self) if not attr.startswith(('_', '__')) and not callable(attr)}
+
+	@classmethod
+	def __import__(cls, attributes : AttrDict) -> Self:
+		return cls(**attributes)
 
 	def __pprint__(self, indent : int = 0, compact : bool = False) -> str:
 		indentation = spaces * (indent + 1)
 		string : List[str] = ['', spaces * indent + self.__class__.__name__ + separator + getattr(self, "name", "")]
-		for key, value in self.__export__():
+		for key, value in self.__export__().items():
 			if key == 'name':
 				continue
 			if isinstance(value, STObject) and not compact:
@@ -82,10 +82,18 @@ class STCollection(STObject, Generic[TList]):
 	def __iter__(self) -> Iterator[TList]:
 		return self._internal.__iter__()
 	
-	def __export__(self) -> Iterator[Tuple[str, Any]]:
-		for i, attr in enumerate(self.__iter__()):
-			yield str(i), attr
-			
+	def __export__(self) -> AttrDict:
+		return { str(index): value for index, value in enumerate(self.__iter__())}
+	@classmethod
+	def __import__(cls, attributes : AttrDict) -> Self:
+		obj = cls()
+		for attr, value in attributes.items():
+			if attr.isdigit():
+				obj._internal.append(value)
+			if attr == 'is_closed':
+				obj._closed = value
+		return obj
+
 	def __len__(self) -> int:
 		return self._internal.__len__()
 	def __contains__(self, value : TList) -> bool:

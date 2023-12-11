@@ -1,12 +1,12 @@
 # compiled module
-from typing import IO, List, Optional, Set, Tuple, final
+from typing import IO, List, Optional, Self, Set, Tuple, final
 from abc import ABC, abstractmethod
 
 from startrak.native.alias import ImageLike
 from startrak.native.classes import FileInfo, Header, HeaderArchetype, PhotometryResult, Star, TrackingSolution
 from startrak.native.collections.position import Position, PositionArray, PositionLike
 from startrak.native.collections.starlist import StarList
-from startrak.native.ext import STObject
+from startrak.native.ext import AttrDict, STObject
 
 from mypy_extensions import mypyc_attr
 
@@ -95,6 +95,13 @@ class Session(ABC, STObject):
 	def __item_removed__(self, removed : Set[FileInfo]): pass
 	@abstractmethod
 	def save(self, out : str): pass
+	
+	@classmethod
+	def __import__(cls, attributes: AttrDict) -> Self:
+		obj = cls(attributes['name'])
+		for attr, value in attributes.items():
+			setattr(obj, attr, value)
+		return obj
 
 #endregion
 
