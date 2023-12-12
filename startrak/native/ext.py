@@ -1,13 +1,13 @@
 # compiled module
-from __future__ import __annotations__
-from typing import Any, Dict, Final, Generic, Iterable, Iterator, List, Self, TypeVar, overload
+from __future__ import annotations
+from abc import ABC
+from typing import Any, Dict, Final, Generic, Iterable, Iterator, List, Self, Type, TypeVar, overload
 import numpy as np
 from startrak.native.alias import MaskLike
 from mypy_extensions import mypyc_attr, trait
 
 spaces : Final[str] = '  '
 separator : Final[str] = ': '
-
 AttrDict = Dict[str, Any]
 
 def pprint(obj : Any, compact : bool = False):
@@ -20,16 +20,30 @@ def pprint(obj : Any, compact : bool = False):
 		string = str(obj)
 	print(string)
 
+__STObject_subclasses__ : Final[AttrDict] = AttrDict()
+def get_stobject(name : str) -> Type[STObject]:
+	return __STObject_subclasses__.__getitem__(name)
+
 @mypyc_attr(allow_interpreted_subclasses=True)
 @trait
 class STObject:
 	name : str
+
+	def __init_subclass__(cls, **kwargs):
+		super().__init_subclass__(**kwargs)
+		if cls is STObject or cls is STCollection:
+			return
+		if cls.__base__ is ABC:
+			return
+		__STObject_subclasses__.__setitem__(cls.__name__, cls)
 
 	def __export__(self) -> AttrDict:
 		return {attr: getattr(self, attr) for attr in dir(self) if not attr.startswith(('_', '__')) and not callable(attr)}
 
 	@classmethod
 	def __import__(cls, attributes : AttrDict) -> Self:
+		if cls == STObject:
+			raise TypeError()
 		return cls(**attributes)
 
 	def __pprint__(self, indent : int = 0, compact : bool = False) -> str:
