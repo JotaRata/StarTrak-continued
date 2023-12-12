@@ -1,5 +1,5 @@
 
-from io import TextIOWrapper
+from typing import IO
 from startrak.native.abstract import STExporter
 from startrak.native.ext import STObject
 
@@ -13,12 +13,12 @@ class TextExporter(STExporter):
 		self._indent = indentation
 		self._sep = separator
 	
-	def __enter__(self):
+	def __enter__(self) -> IO:
 		self._file = open(self.path, 'w')
 		return self._file
 	
-	def __exit__(self) -> None:
-		self._file.__exit__()
+	def __exit__(self, *args) -> None:
+		self._file.__exit__(*args)
 
 	def write(self, obj: STObject):
 		newline = '\n'

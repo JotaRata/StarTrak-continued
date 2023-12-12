@@ -112,7 +112,7 @@ class STExporter(ABC):
 		raise NotImplementedError()
 	
 	@abstractmethod
-	def __exit__(self) -> None:
+	def __exit__(self, *args) -> None:
 		raise NotImplementedError()
 	
 	@abstractmethod
@@ -126,7 +126,7 @@ class STImporter(ABC):
 		raise NotImplementedError()
 	
 	@abstractmethod
-	def __exit__(self) -> None:
+	def __exit__(self, *args) -> None:
 		raise NotImplementedError()
 	
 	@abstractmethod

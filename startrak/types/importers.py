@@ -1,12 +1,11 @@
 
 from ast import literal_eval
-from importlib.resources import read_text
-from typing import IO, Any, List, Tuple
+from typing import IO, List, Tuple
 from startrak.native.abstract import STImporter
-from startrak.native.ext import AttrDict, STObject
+from startrak.native.ext import AttrDict, STObject, get_stobject
 
 
-class TextImporter(STImporter)
+class TextImporter(STImporter):
 	_indent : str
 	_sep : str
 
@@ -19,14 +18,14 @@ class TextImporter(STImporter)
 		self._file = open(self.path, 'r')
 		return self._file
 	
-	def __exit__(self) -> None:
-		return self._file.__exit__()
+	def __exit__(self, *args) -> None:
+		return self._file.__exit__(*args)
 
 	def get_indent(self, line : str) -> int:
 		return line.rstrip().count(self._indent)
 
 	def parse_block(self, lines : List[str], index : int, current_indent : int) -> Tuple[AttrDict, int]:
-		obj = AttrDict()
+		obj : AttrDict = AttrDict()
 
 		while index < len(lines):
 			line = lines[index].strip()
@@ -59,5 +58,8 @@ class TextImporter(STImporter)
 				if type(value) is dict:
 					sub_dict = attributes[attr]
 					attributes[attr] = process_(sub_dict)
-			return STObject.__import__(attributes)
+			
+			cls = get_stobject(main_type)
+			return cls.__import__(attributes)
+			
 		return process_(parsed_data)
