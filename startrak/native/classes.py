@@ -168,6 +168,11 @@ class Star(STObject):
 		if not self.photometry:
 			return 0
 		return self.photometry.flux
+	
+	@classmethod
+	def __import__(cls, attributes: AttrDict) -> Self:
+		attributes = {k: attributes[k] for k in ('name', 'position', 'aperture', 'photometry') if k in attributes}
+		return cls(**attributes)
 
 class ReferenceStar(Star):
 	magnitude : float = 0

@@ -42,9 +42,7 @@ class STObject:
 
 	@classmethod
 	def __import__(cls, attributes : AttrDict) -> Self:
-		if cls == STObject:
-			raise TypeError()
-		return cls(**attributes)
+		raise NotImplementedError()
 
 	def __pprint__(self, indent : int = 0, compact : bool = False) -> str:
 		indentation = spaces * (indent + 1)
