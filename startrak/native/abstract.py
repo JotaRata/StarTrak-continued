@@ -108,7 +108,7 @@ class Session(ABC, STObject):
 @mypyc_attr(allow_interpreted_subclasses=True)
 class STExporter(ABC):
 	@abstractmethod
-	def __enter__(self) -> IO:
+	def __enter__(self) -> Self:
 		raise NotImplementedError()
 	
 	@abstractmethod
@@ -122,7 +122,7 @@ class STExporter(ABC):
 @mypyc_attr(allow_interpreted_subclasses=True)
 class STImporter(ABC):
 	@abstractmethod
-	def __enter__(self) -> IO:
+	def __enter__(self) -> Self:
 		raise NotImplementedError()
 	
 	@abstractmethod
