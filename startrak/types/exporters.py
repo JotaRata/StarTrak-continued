@@ -1,5 +1,5 @@
 
-from typing import IO
+from typing import Any, List, Self
 from startrak.native.abstract import STExporter
 from startrak.native.ext import STObject
 
@@ -8,26 +8,35 @@ class TextExporter(STExporter):
 	_indent : str
 	_sep : str
 
-	def __init__(self, path : str, indentation = '  ', separator = ':') -> None:
+	def __init__(self, path : str, indentation = '  ', separator = ': ') -> None:
 		self.path = path
 		self._indent = indentation
 		self._sep = separator
 	
-	def __enter__(self) -> IO:
+	def __enter__(self) -> Self:
 		self._file = open(self.path, 'w')
-		return self._file
+		return self
 	
 	def __exit__(self, *args) -> None:
 		self._file.__exit__(*args)
 
-	def write(self, obj: STObject):
-		newline = '\n'
+	def write_block(self, obj : Any, indent = 0) -> str:
+		indentation = self._indent * indent
+		obj_type = type(obj)
 
-		self._file.write(type(obj).__name__ + self._sep )
-		self._file.write(newline)
+		lines : List[str] = ["", indentation + obj_type.__name__ + self._sep]
 		for key, value in obj.__export__().items():
-			if isinstance(value, STObject):
-				self._file.write(self._indent + key + self._sep + value.__pprint__(2))
+			if key in obj_type.__dict__ and  isinstance(obj_type.__dict__[key], property):
+				continue
+			if isinstance(value, STObject) or hasattr(value, '__export__'):
+				lines.append(indentation + self._indent + key + self._sep + self.write_block(value, indent + 2))
 			else:
-				self._file.write(self._indent + key + self._sep  + repr(value))
-			self._file.write(newline)
+				value_str = str(value)
+				if type(value) is str:
+					value_str = f"'{value_str}'"
+				lines.append(indentation + self._indent + key + self._sep  + value_str)
+		return '\n'.join(lines)
+
+	def write(self, obj: STObject):
+		block = self.write_block(obj)
+		self._file.write(block)
