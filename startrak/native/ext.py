@@ -38,7 +38,7 @@ class STObject:
 		__STObject_subclasses__.__setitem__(cls.__name__, cls)
 
 	def __export__(self) -> AttrDict:
-		return {attr: getattr(self, attr) for attr in dir(self) if not attr.startswith(('_', '__')) and not callable(attr)}
+		return {attr: getattr(self, attr, None) for attr in dir(self) if not attr.startswith(('_', '__')) and not callable(attr)}
 
 	@classmethod
 	def __import__(cls, attributes : AttrDict) -> Self:
@@ -55,7 +55,7 @@ class STObject:
 			if isinstance(value, STObject) and not compact:
 				string.append(indentation + key + separator + value.__pprint__(indent + 2))
 			else:
-				string.append(indentation + key + separator  + repr(value))
+				string.append(indentation + key + separator  + str(value))
 		return '\n'.join(string)
 	
 	def __str__(self) -> str:
