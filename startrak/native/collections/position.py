@@ -75,7 +75,7 @@ class Position(NamedTuple):
 		return Position(out_arr[0], out_arr[1])
 	
 	def __str__(self) -> str:
-		return f'[{self.x:.1f}, {self.y:.1f}]'
+		return f'({self.x:.1f}, {self.y:.1f})'
 	
 class PositionArray(STCollection[Position]):
 	_cached_y : List[float] | None
