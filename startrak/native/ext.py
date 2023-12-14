@@ -8,7 +8,7 @@ from mypy_extensions import mypyc_attr, trait
 
 spaces : Final[str] = '  '
 separator : Final[str] = ': '
-AttrDict = Dict[str, Any]
+AttrDict = dict[str, Any]
 
 def pprint(obj : Any, compact : bool = False):
 	string : str
@@ -31,7 +31,7 @@ class STObject:
 
 	def __init_subclass__(cls, **kwargs):
 		super().__init_subclass__(**kwargs)
-		if cls is STObject or cls is STCollection:
+		if cls.__name__ is "STObject" or cls.__name__ is "STCollection":
 			return
 		if cls.__base__ is ABC:
 			return
