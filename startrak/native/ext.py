@@ -1,7 +1,7 @@
 # compiled module
 from __future__ import annotations
 from abc import ABC
-from typing import Any, Dict, Final, Generic, Iterable, Iterator, List, Self, Type, TypeVar, overload
+from typing import Any, ClassVar, Dict, Final, Generic, Iterable, Iterator, List, Self, Type, TypeVar, final, overload
 import numpy as np
 from startrak.native.alias import MaskLike
 from mypy_extensions import mypyc_attr, trait
@@ -20,6 +20,13 @@ def pprint(obj : Any, compact : bool = False):
 		string = str(obj)
 	print(string)
 
+class ImmutableError(Exception):
+	def __init__(self, obj: Any, __atr : str):
+		self._type = type(obj)
+		self._atr = __atr
+	def __str__(self) -> str:
+		return f"attribute '{self._atr}' of '{self._type.__name__}' objects is not writable"	
+
 __STObject_subclasses__ : Final[AttrDict] = AttrDict()
 def get_stobject(name : str) -> Type[STObject]:
 	return __STObject_subclasses__.__getitem__(name)
@@ -28,6 +35,8 @@ def get_stobject(name : str) -> Type[STObject]:
 @trait
 class STObject:
 	name : str
+	__locked__ : bool
+	__private__ : ClassVar[List[str]] = []
 
 	def __init_subclass__(cls, **kwargs):
 		super().__init_subclass__(**kwargs)
@@ -36,6 +45,26 @@ class STObject:
 		if cls.__base__ is ABC:
 			return
 		__STObject_subclasses__.__setitem__(cls.__name__, cls)
+	
+	@final
+	@classmethod
+	def __set_locked__(cls, self : STObject, **kwargs : Any):
+		if not cls == STObject and not issubclass(type(self), STObject) or '__locked' not in kwargs:
+			raise TypeError('Invalid call')
+		object.__setattr__(self, '__locked__', kwargs['__locked'])
+
+	def __delattr__(self, __name: str) -> None:
+		raise ImmutableError(self, __name)
+
+	def __setattr__(self, __name: str, __value: Any) -> None:
+		try:
+			_locked = object.__getattribute__(self, '__locked__')
+		except:
+			_locked = False
+		if _locked == True:
+			if __name in type(self).__private__ or  __name.startswith('_'):
+				raise ImmutableError(self, __name)
+		return object.__setattr__(self, __name, __value)
 
 	def __export__(self) -> AttrDict:
 		return {attr: getattr(self, attr, None) for attr in dir(self) if not attr.startswith(('_', '__')) and not callable(attr)}

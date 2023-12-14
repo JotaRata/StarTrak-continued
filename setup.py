@@ -1,3 +1,4 @@
+#type:ignore
 import numpy
 from setuptools import setup
 # from Cython.Build import cythonize
@@ -19,6 +20,7 @@ paths = [path for _, path in scan_files()]
 
 setup(
 		name= 'startrak',
+		# packages= ['startrak', 'startrak.native'],
 		version="0.1",
 		ext_modules=mypycify(paths),
 		zip_safe=False,

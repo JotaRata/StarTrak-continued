@@ -15,7 +15,7 @@ class FileLoadingTest(unittest.TestCase):
 
     def test_load_single(self):
         info = load_file(folder + paths[0])
-        self.assertEqual(info.path, os.path.abspath(folder + paths[0]), "Paths don't match")
+        self.assertEqual(info.__path, os.path.abspath(folder + paths[0]), "Paths don't match")
         self.assertTrue(info.header is not None and isinstance(info.header, Header), 'Header is null/empty')
         self.assertTrue(info.header.contains_key("SIMPLE"), 'Invalid header')
         self.assertTrue(info.header.contains_key("BITPIX"), 'Invalid header')
@@ -26,7 +26,7 @@ class FileLoadingTest(unittest.TestCase):
         self.assertEqual(len(paths), len(infos) , "Returned list mismatch")
         for i, info in enumerate(infos):
             self.assertIsInstance(info, FileInfo, "Object is not FileInfo")
-            self.assertTrue(info.path is not None and len(info.path) > len(folder))
+            self.assertTrue(info.__path is not None and len(info.__path) > len(folder))
             self.assertTrue(info.header is not None and isinstance(info.header, Header), 'Header is null/empty')
     
     # todo: Closed until immutable FileInfo is fixed

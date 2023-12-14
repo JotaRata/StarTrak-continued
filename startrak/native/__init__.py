@@ -1,9 +1,16 @@
 
-from .collections import position
-from . import classes
-from .collections import starlist
-from . import abstract
-
+try:
+	__compiled__ = False
+	from .collections import position
+	from . import classes
+	from .collections import starlist
+	from . import abstract
+except:
+	__compiled__ = True
+	from startrak.native.collections import position
+	import startrak.native.classes as classes
+	from startrak.native.collections import starlist
+	import startrak.native.abstract as abstract
 
 
 Position = position.Position

@@ -80,33 +80,40 @@ class HeaderArchetype(Header):
 
 @dataclass #! Hotfix for __setattr__ until a proper mypyc fix is implemented
 class FileInfo(STObject):
-	path : Final[str]
-	size : Final[int]
+	__path : str
+	__size : int
 	__file : FITSReader
 	__header : Header | None
 
-# todo: improve immutability!!
 	def __init__(self, path : str):
 		assert path.lower().endswith(('.fit', '.fits')),\
 			'Input path is not a FITS file'
 		# self.closed = False
-		object.__setattr__(self, 'closed', False)
+		STObject.__set_locked__(self, __locked= False)
 		self.__file = FITSReader(path)
-		self.path = os.path.abspath(path)
-		self.name = os.path.basename(self.path)
-		self.size = os.path.getsize(path)
+		self.__path = os.path.abspath(path)
+		self.name = os.path.basename(self.__path)
+		self.__size = os.path.getsize(path)
 		self.__header = None
-		self.closed = True
-
+		STObject.__set_locked__(self, __locked= True)
+	
+	@property
+	def path(self) -> str:
+		return self.__path
+	@property
+	def size(self) -> int:
+		return self.__size
+	
 	@property
 	def header(self) -> Header:
+		STObject.__set_locked__(self, __locked= False)
 		if self.__header is None:
-			object.__setattr__(self, 'closed', False)
 			_dict = {key.rstrip() : value for key, value in self.__file._read_header()}
 			self.__header = Header(_dict)
 			self.__header.name = self.name
-			self.closed = True
-		return self.__header
+		retval = self.__header
+		STObject.__set_locked__(self, __locked= True)
+		return retval
 	
 	@lru_cache(maxsize=5)	# todo: Add parameter to config
 	def get_data(self, scale = True) -> np.ndarray[Any, np.dtype[NumberLike]]:
@@ -122,16 +129,15 @@ class FileInfo(STObject):
 	@classmethod
 	def __import__(cls, attributes: AttrDict) -> Self:
 		return cls(attributes['path'])
-	def __setattr__(self, __name: str, __value) -> None:
-		if self.closed:
-			raise AttributeError(__name)
-		return super().__setattr__(__name, __value)
 	
 	def __eq__(self, __value):
 		if not  isinstance(__value, type(self)): return False
-		return self.path == __value.path
+		return self.__path == __value.__path
 	def __hash__(self) -> int:
-		return hash(self.path)
+		return hash(self.__path)
+	
+	def __setattr__(self, __name: str, __value: Any) -> None:
+		return super().__setattr__(__name, __value)
 
 	def __repr__(self) -> str:
 		return super().__repr__()
