@@ -1,13 +1,14 @@
 # compiled module
-from __future__ import __annotations__
-from typing import Any, Final, Generic, Iterable, Iterator, List, Self, TypeVar, overload
+from __future__ import annotations
+from abc import ABC
+from typing import Any, Dict, Final, Generic, Iterable, Iterator, List, Self, Type, TypeVar, overload
 import numpy as np
 from startrak.native.alias import MaskLike
 from mypy_extensions import mypyc_attr, trait
 
 spaces : Final[str] = '  '
 separator : Final[str] = ': '
-
+AttrDict = dict[str, Any]
 
 def pprint(obj : Any, compact : bool = False):
 	string : str
@@ -19,26 +20,40 @@ def pprint(obj : Any, compact : bool = False):
 		string = str(obj)
 	print(string)
 
+__STObject_subclasses__ : Final[AttrDict] = AttrDict()
+def get_stobject(name : str) -> Type[STObject]:
+	return __STObject_subclasses__.__getitem__(name)
+
 @mypyc_attr(allow_interpreted_subclasses=True)
 @trait
 class STObject:
 	name : str
-	def __iter__(self):
-		for var in dir(self):
-			if not var.startswith(('__', '_')) and var != 'name':
-				attr = getattr(self, var)
-				if callable(attr):
-					continue
-				yield var, attr
+
+	def __init_subclass__(cls, **kwargs):
+		super().__init_subclass__(**kwargs)
+		if cls.__name__ is "STObject" or cls.__name__ is "STCollection":
+			return
+		if cls.__base__ is ABC:
+			return
+		__STObject_subclasses__.__setitem__(cls.__name__, cls)
+
+	def __export__(self) -> AttrDict:
+		return {attr: getattr(self, attr, None) for attr in dir(self) if not attr.startswith(('_', '__')) and not callable(attr)}
+
+	@classmethod
+	def __import__(cls, attributes : AttrDict) -> Self:
+		raise NotImplementedError()
 
 	def __pprint__(self, indent : int = 0, compact : bool = False) -> str:
 		indentation = spaces * (indent + 1)
 		string : List[str] = ['', spaces * indent + self.__class__.__name__ + separator + getattr(self, "name", "")]
-		for key, value in self.__iter__():
+		for key, value in self.__export__().items():
+			if key == 'name':
+				continue
 			if isinstance(value, STObject) and not compact:
 				string.append(indentation + key + separator + value.__pprint__(indent + 2))
 			else:
-				string.append(indentation + key + separator  + repr(value))
+				string.append(indentation + key + separator  + str(value))
 		return '\n'.join(string)
 	
 	def __str__(self) -> str:
@@ -78,6 +93,19 @@ class STCollection(STObject, Generic[TList]):
 
 	def __iter__(self) -> Iterator[TList]:
 		return self._internal.__iter__()
+	
+	def __export__(self) -> AttrDict:
+		return { str(index): value for index, value in enumerate(self.__iter__())}
+	@classmethod
+	def __import__(cls, attributes : AttrDict) -> Self:
+		obj = cls()
+		for attr, value in attributes.items():
+			if attr.isdigit():
+				obj._internal.append(value)
+			if attr == 'is_closed':
+				obj._closed = value
+		return obj
+
 	def __len__(self) -> int:
 		return self._internal.__len__()
 	def __contains__(self, value : TList) -> bool:

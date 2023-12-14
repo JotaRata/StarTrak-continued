@@ -1,28 +1,29 @@
 
-import startrak.native.alias as alias
-import startrak.native.collections.position
-import startrak.native.classes
-import startrak.native.collections.starlist
-import startrak.native.abstract
+from .collections import position
+from . import classes
+from .collections import starlist
+from . import abstract
 
-Position = startrak.native.collections.position.Position
-PositionLike = startrak.native.collections.position.PositionLike
-PositionArray = startrak.native.collections.position.PositionArray
 
-Star = startrak.native.classes.Star
-ReferenceStar = startrak.native.classes.ReferenceStar
-FileInfo = startrak.native.classes.FileInfo
-Header = startrak.native.classes.Header
-HeaderArchetype = startrak.native.classes.HeaderArchetype
-PhotometryResult = startrak.native.classes.PhotometryResult
-TrackingSolution = startrak.native.classes.TrackingSolution
-TrackingIdentity = startrak.native.classes.TrackingIdentity
 
-StarList = startrak.native.collections.starlist.StarList
+Position = position.Position
+PositionLike = position.PositionLike
+PositionArray = position.PositionArray
 
-Session = startrak.native.abstract.Session
-PhotometryBase = startrak.native.abstract.PhotometryBase
-Tracker = startrak.native.abstract.Tracker
-StarDetector = startrak.native.abstract.StarDetector
+Star = classes.Star
+ReferenceStar = classes.ReferenceStar
+FileInfo = classes.FileInfo
+Header = classes.Header
+HeaderArchetype = classes.HeaderArchetype
+PhotometryResult = classes.PhotometryResult
+TrackingSolution = classes.TrackingSolution
+TrackingIdentity = classes.TrackingIdentity
+
+StarList = starlist.StarList
+
+Session = abstract.Session
+PhotometryBase = abstract.PhotometryBase
+Tracker = abstract.Tracker
+StarDetector = abstract.StarDetector
 
 

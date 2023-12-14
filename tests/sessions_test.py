@@ -1,6 +1,7 @@
 # type: ignore
 __unittest = True
 
+
 import unittest
 from startrak.internals.exceptions import InstantiationError 
 from startrak import *

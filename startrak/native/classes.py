@@ -1,7 +1,8 @@
 # compiled module
+from dataclasses import dataclass
 from functools import lru_cache
 import math
-from typing import Any, Callable, ClassVar, Dict, Final, List, Optional, Tuple, Type, cast
+from typing import Any, Callable, ClassVar, Dict, Final, Iterable, Iterator, List, Optional, Self, Tuple, Type, cast
 import numpy as np
 import os.path
 from startrak.native.alias import NumberLike, ValueType, NDArray
@@ -10,7 +11,7 @@ from startrak.native.collections.position import Position, PositionArray, Positi
 from startrak.native.fits import _FITSBufferedReaderWrapper as FITSReader
 from startrak.native.fits import _bitsize
 from mypy_extensions import mypyc_attr
-from startrak.native.ext import STObject, spaces
+from startrak.native.ext import AttrDict, STObject, spaces
 
 #region File management
 _defaults : Final[Dict[str, Type[ValueType]]] = \
@@ -42,8 +43,10 @@ class Header(STObject):
 		return self._items[__name]
 	
 	def __iter__(self):
-		for key, val in self._items.items():
-			yield key, val
+		return self._items.__iter__()
+
+	def __export__(self) -> AttrDict:
+		return self._items.copy()
 
 class HeaderArchetype(Header):
 	_entries : ClassVar[Dict[str, Type[ValueType]]] = {}
@@ -75,27 +78,34 @@ class HeaderArchetype(Header):
 		assert all([ value in (int, bool, float, str) for value in user_keys.values()])
 		HeaderArchetype._entries = user_keys
 
+@dataclass #! Hotfix for __setattr__ until a proper mypyc fix is implemented
 class FileInfo(STObject):
 	path : Final[str]
 	size : Final[int]
 	__file : FITSReader
 	__header : Header | None
 
+# todo: improve immutability!!
 	def __init__(self, path : str):
 		assert path.lower().endswith(('.fit', '.fits')),\
 			'Input path is not a FITS file'
+		# self.closed = False
+		object.__setattr__(self, 'closed', False)
 		self.__file = FITSReader(path)
 		self.path = os.path.abspath(path)
 		self.name = os.path.basename(self.path)
 		self.size = os.path.getsize(path)
 		self.__header = None
+		self.closed = True
 
 	@property
 	def header(self) -> Header:
 		if self.__header is None:
+			object.__setattr__(self, 'closed', False)
 			_dict = {key.rstrip() : value for key, value in self.__file._read_header()}
 			self.__header = Header(_dict)
 			self.__header.name = self.name
+			self.closed = True
 		return self.__header
 	
 	@lru_cache(maxsize=5)	# todo: Add parameter to config
@@ -109,18 +119,31 @@ class FileInfo(STObject):
 				_raw = _zero + _scale * _raw
 		return _raw.reshape(_shape).astype(_dtype)
 	
+	@classmethod
+	def __import__(cls, attributes: AttrDict) -> Self:
+		return cls(attributes['path'])
 	def __setattr__(self, __name: str, __value) -> None:
-		raise AttributeError(name= __name)
+		if self.closed:
+			raise AttributeError(__name)
+		return super().__setattr__(__name, __value)
+	
 	def __eq__(self, __value):
 		if not  isinstance(__value, type(self)): return False
 		return self.path == __value.path
 	def __hash__(self) -> int:
 		return hash(self.path)
+
+	def __repr__(self) -> str:
+		return super().__repr__()
+	def __str__(self) -> str:
+		return super().__str__()
+	
 #endregion
 
 
 
 #region Photometry
+@dataclass #! Hotfix for __setattr__ until a proper mypyc fix is implemented
 class PhotometryResult(STObject):
 	flux : float
 	flux_raw : float
@@ -138,7 +161,9 @@ class PhotometryResult(STObject):
 
 	def __repr__(self) -> str:
 		return str(self.flux)
-
+	def __setattr__(self, __name: str, __value) -> None:
+			raise AttributeError(name= __name)
+	
 @mypyc_attr(allow_interpreted_subclasses=True)
 class Star(STObject):
 	position : Position
@@ -157,13 +182,18 @@ class Star(STObject):
 		if not self.photometry:
 			return 0
 		return self.photometry.flux
+	
+	@classmethod
+	def __import__(cls, attributes: AttrDict) -> Self:
+		attributes = {k: attributes[k] for k in ('name', 'position', 'aperture', 'photometry') if k in attributes}
+		return cls(**attributes)
 
 class ReferenceStar(Star):
 	magnitude : float = 0
 
 #endregion
 #region Tracking
-
+@dataclass #! Hotfix for __setattr__ until a proper mypyc fix is implemented
 class TrackingSolution(STObject):
 	_dx : float
 	_dy : float
@@ -248,12 +278,15 @@ class TrackingSolution(STObject):
 	def rotation(self) -> float:
 		return np.degrees(self._da)
 	
-	def __iter__(self):
-		yield from [(self._dx, self._dy), self.rotation, self.error, self.lost]
+	def __export__(self) -> AttrDict:
+		return {	'translation':(self._dx, self._dy), 
+					"rotation": self._da, 
+					"error": self.error, 
+					"lost_indices": self.lost} 
 	
 	def __pprint__(self, indent: int = 0, compact : bool = False) -> str:
 		if compact:
-			return type(self).__name__
+			return f'{type(self).__name__} ({self._dx:.1f} px, {self._dy:.1f} px, {self.rotation:.1f}°)'
 		indentation = spaces * (indent + 1)
 		return ( f'{spaces * indent}{type(self).__name__}: '
 					'\n' + indentation + f'translation: {self._dx:.1f} px, {self._dy:.1f} px'
