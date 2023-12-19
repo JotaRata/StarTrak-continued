@@ -170,6 +170,13 @@ class PhotometryResult(STObject):
 	def __setattr__(self, __name: str, __value) -> None:
 			raise AttributeError(name= __name)
 	
+	@classmethod
+	def __import__(cls, attributes: AttrDict) -> Self:
+		params = {'flux':'flux', 'flux_raw':'flux_raw', 'flux_iqr':'flux_range', 'backg':'background', 'backg_sigma':'background_sigma'}
+
+		attributes = {params[k]: attributes[k] for k in params if k in attributes}
+		return cls(**attributes)
+	
 @mypyc_attr(allow_interpreted_subclasses=True)
 class Star(STObject):
 	position : Position
@@ -191,7 +198,8 @@ class Star(STObject):
 	
 	@classmethod
 	def __import__(cls, attributes: AttrDict) -> Self:
-		attributes = {k: attributes[k] for k in ('name', 'position', 'aperture', 'photometry') if k in attributes}
+		params = ('name', 'position', 'aperture', 'photometry')
+		attributes = {k: attributes[k] for k in params if k in attributes}
 		return cls(**attributes)
 
 class ReferenceStar(Star):

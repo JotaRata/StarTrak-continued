@@ -71,7 +71,7 @@ class STObject:
 
 	@classmethod
 	def __import__(cls, attributes : AttrDict) -> Self:
-		raise NotImplementedError()
+		raise NotImplementedError(cls.__name__)
 
 	def __pprint__(self, indent : int = 0, compact : bool = False) -> str:
 		indentation = spaces * (indent + 1)
