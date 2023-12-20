@@ -53,18 +53,21 @@ class SimpleTracker(Tracker):
 			bkg = np.nanmean((np.nanmean(crop[-4:, :]), np.nanmean(crop[:, -4:]), np.nanmean(crop[:4, :]), np.nanmean(crop[:, :4])))
 			
 			try:
-				mask = crop - bkg > phot.background_sigma * 2
-				mask &= np.abs((crop - bkg) - phot.flux) <= phot.flux_sigma / 2
-				
+				mask = (crop - bkg) > phot.background_sigma * (1 + phot.snr * 2)
+				mask &= np.abs(((crop - bkg)) - phot.flux) <= phot.flux_sigma / 2
+				mask &= (-crop + phot.flux_max) < np.abs(phot.flux_max - max(np.nanmax(crop) - bkg, bkg) ) * (1 + self._factor*phot.flux)/2 
+				# mask &= (crop - bkg) <= phot.flux_max
+
+				print(i, mask.sum())
 				indices = np.transpose(np.nonzero(mask))
 				if len(indices) == 0: raise IndexError()
-				_w = np.clip(crop[indices[:, 1], indices[:, 0]] - bkg, 0, phot.flux)
+				_w = np.clip(crop[indices[:, 1], indices[:, 0]] - bkg, 0, phot.flux) / phot.flux
 				average = np.average(indices, weights= _w, axis= 0)[::-1]
-				variance = np.average((indices - average[::-1])**2 , weights=_w, axis= 0)
+				# variance = np.average((indices - average[::-1])**2 , weights=_w, axis= 0)
 			except:
 				not_found(i)
 				continue
-			print(i, 'psf', np.sqrt(variance))
+			# print(i, 'psf', np.sqrt(variance))
 			# median_rc = np.median(indices, axis= 0)[::-1]
 			current.append(average - (self._size,) * 2 + self._model_coords[i])
 		
