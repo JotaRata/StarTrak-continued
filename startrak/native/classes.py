@@ -149,23 +149,42 @@ class FileInfo(STObject):
 
 
 #region Photometry
-@dataclass(kw_only= True) #! Hotfix for __setattr__ until a proper mypyc fix is implemented
+@dataclass #! Hotfix for __setattr__ until a proper mypyc fix is implemented
 class PhotometryResult(STObject):
-	flux : float
-	flux_raw : float
-	flux_sigma : float
-	flux_max : float
-	background : float
-	background_sigma : float
-	method : str
 
-	aperture_radius: Optional[float] = None
-	annulus_width: Optional[float] = None
-	annulus_offset: Optional[float] = None
-	psf_parameters: Tuple[float, float, float]|None = None
-
-	def __post_init__(self):
+	__private__ :  ClassVar[Tuple[str, ...] | None]  = ('flux', 'flux_raw',
+													'flux_sigma', 'flux_max',
+													'background', 'background_sigma',
+													'method', 'aperture_radius',
+													'annulus_width', 'annulus_offset',
+													'psf_parameters')
+	def __init__(
+		self, *,
+		flux: float,
+		flux_raw: float,
+		flux_sigma: float,
+		flux_max: float,
+		background: float,
+		background_sigma: float,
+		method: str,
+		aperture_radius: Optional[float] = None,
+		annulus_width: Optional[float] = None,
+		annulus_offset: Optional[float] = None,
+		psf_parameters: Optional[Tuple[float, float, float]] = None,
+	):
+		self.flux = flux
+		self.flux_raw = flux_raw
+		self.flux_sigma = flux_sigma
+		self.flux_max = flux_max
+		self.background = background
+		self.background_sigma = background_sigma
+		self.method = method
+		self.aperture_radius = aperture_radius
+		self.annulus_width = annulus_width
+		self.annulus_offset = annulus_offset
+		self.psf_parameters = psf_parameters
 		STObject.__set_locked__(self, __locked= True)
+	
 	@property
 	def snr(self) -> float:
 		return self.flux / self.background
@@ -181,18 +200,11 @@ class PhotometryResult(STObject):
 	
 	@classmethod
 	def __import__(cls, attributes: AttrDict) -> Self:
-		params = ('flux',
-					'flux_raw',
-					'flux_sigma',
-					'flux_max',
-					'background',
-					'background_sigma',
-					'method',
-					'aperture_radius',
-					'annulus_width',
-					'annulus_offset',
-					'psf_parameters')
-
+		params = ('flux', 'flux_raw', 'flux_sigma',
+					'flux_max', 'background',
+					'background_sigma', 'method',
+					'aperture_radius', 'annulus_width',
+					'annulus_offset', 'psf_parameters')
 		attributes = {k: attributes[k] for k in params if k in attributes}
 		return cls(**attributes)
 	
@@ -233,6 +245,7 @@ class TrackingSolution(STObject):
 	_da : float
 	error : float
 	lost : List[int]
+	_dpos : PositionArray
 	
 	def __init__(self, *,delta_pos : PositionArray,
 								delta_angle : NDArray[np.float_],
@@ -296,9 +309,12 @@ class TrackingSolution(STObject):
 		s = math.sin(self._da)
 		a = self._dx + j - j * c + k * s
 		b = self._dy + k - k * c - j * s
+		self._dpos = delta_pos
+		self._dpos.close()
 		self._matrix = np.array([ [c, -s, a], 
 											[s,  c, b],
 											[0,  0, 1]])
+		STObject.__set_locked__(self, __locked= True)
 
 	@property
 	def matrix(self) -> np.ndarray:
@@ -310,6 +326,10 @@ class TrackingSolution(STObject):
 	@property	
 	def rotation(self) -> float:
 		return np.degrees(self._da)
+	
+	@property
+	def individual_positions(self) -> PositionArray:
+		return self._dpos
 	
 	def __export__(self) -> AttrDict:
 		return {	'translation':(self._dx, self._dy), 
@@ -326,8 +346,8 @@ class TrackingSolution(STObject):
 					'\n' + indentation + f'rotation:    {self.rotation:.2f}°'
 					'\n' + indentation + f'error:       {self.error:.3f} px')
 
-	def __setattr__(self, __name: str, __value) -> None:
-		raise AttributeError(name= __name)
+	def __setattr__(self, __name: str, __value: Any) -> None:
+		return super().__setattr__(__name, __value)
 
 class TrackingIdentity(TrackingSolution):
 	def __init__(self):
