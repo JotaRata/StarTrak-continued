@@ -149,32 +149,51 @@ class FileInfo(STObject):
 
 
 #region Photometry
-@dataclass #! Hotfix for __setattr__ until a proper mypyc fix is implemented
+@dataclass(kw_only= True) #! Hotfix for __setattr__ until a proper mypyc fix is implemented
 class PhotometryResult(STObject):
 	flux : float
 	flux_raw : float
-	flux_iqr : float
-	backg : float
-	backg_sigma : float
+	flux_sigma : float
+	flux_max : float
+	background : float
+	background_sigma : float
+	method : str
 
-	def __init__(self, *, flux : float, flux_raw : float,
-					flux_range : float, background : float, background_sigma : float) -> None:
-		self.flux = flux
-		self.flux_raw = flux_raw
-		self.flux_iqr = flux_range
-		self.backg = background
-		self.backg_sigma = background_sigma
+	aperture_radius: Optional[float] = None
+	annulus_width: Optional[float] = None
+	annulus_offset: Optional[float] = None
+	psf_parameters: Tuple[float, float, float]|None = None
+
+	def __post_init__(self):
+		STObject.__set_locked__(self, __locked= True)
+	@property
+	def snr(self) -> float:
+		return self.flux / self.background
+	@property
+	def error(self) -> float:
+		return math.sqrt(self.flux_sigma**2 + self.background_sigma**2)
 
 	def __repr__(self) -> str:
 		return str(self.flux)
-	def __setattr__(self, __name: str, __value) -> None:
-			raise AttributeError(name= __name)
+	
+	def __setattr__(self, __name: str, __value: Any) -> None:
+		return super().__setattr__(__name, __value)
 	
 	@classmethod
 	def __import__(cls, attributes: AttrDict) -> Self:
-		params = {'flux':'flux', 'flux_raw':'flux_raw', 'flux_iqr':'flux_range', 'backg':'background', 'backg_sigma':'background_sigma'}
+		params = ('flux',
+					'flux_raw',
+					'flux_sigma',
+					'flux_max',
+					'background',
+					'background_sigma',
+					'method',
+					'aperture_radius',
+					'annulus_width',
+					'annulus_offset',
+					'psf_parameters')
 
-		attributes = {params[k]: attributes[k] for k in params if k in attributes}
+		attributes = {k: attributes[k] for k in params if k in attributes}
 		return cls(**attributes)
 	
 @mypyc_attr(allow_interpreted_subclasses=True)

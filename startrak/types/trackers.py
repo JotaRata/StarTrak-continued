@@ -53,8 +53,8 @@ class SimpleTracker(Tracker):
 			bkg = np.nanmean((np.nanmean(crop[-4:, :]), np.nanmean(crop[:, -4:]), np.nanmean(crop[:4, :]), np.nanmean(crop[:, :4])))
 			
 			try:
-				mask = crop - bkg > phot.backg_sigma * 2
-				mask &= np.abs((crop - bkg) - phot.flux) <= phot.flux_iqr / 2
+				mask = crop - bkg > phot.background_sigma * 2
+				mask &= np.abs((crop - bkg) - phot.flux) <= phot.flux_sigma / 2
 				
 				indices = np.transpose(np.nonzero(mask))
 				if len(indices) == 0: raise IndexError()
