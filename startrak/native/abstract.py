@@ -23,7 +23,7 @@ class PhotometryBase(ABC):
 @mypyc_attr(allow_interpreted_subclasses=True)
 class Tracker(ABC):
 	@abstractmethod
-	def setup_model(self, stars : StarList):
+	def setup_model(self, stars : StarList, **kwargs):
 		pass
 	@abstractmethod
 	def track(self, image : ImageLike) -> TrackingSolution:

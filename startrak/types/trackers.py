@@ -12,16 +12,27 @@ from startrak.types import detection
 
 class SimpleTracker(Tracker):
 	_size : int
-	_factor : float
 
-	def __init__(self, tracking_size : int, sensitivity : float,
+	def __init__(self, tracking_size : int,
 						rejection_sigma= 3, rejection_iter= 3) -> None:
 		self._r_sigma = rejection_sigma
 		self._r_iter = rejection_iter
 		self._size = tracking_size
-		self._factor = sensitivity
 
-	def setup_model(self, stars: StarList):
+	def setup_model(self, stars: StarList, variability : float | List[float] = 1, weights : List[float] | None= None, **kwargs):
+		if isinstance(variability, float):
+			self._model_variability = [variability] * len(stars)
+		else:
+			if len(variability) != len(stars):
+				raise ValueError('Variabilities size must be equal to star list size')
+			self._model_variability = variability
+		
+		if weights and type(weights) is list:
+			if len(weights) != len(stars):
+				raise ValueError('Weights size must be equal to star list size')
+			self._model_weights = weights
+		else:
+			self._model_weights = [1] * len(stars)
 		coords = PositionArray()
 		phot = list[PhotometryResult]()
 		for star in stars:
@@ -32,16 +43,11 @@ class SimpleTracker(Tracker):
 		self._model_count = len(phot)
 		self._model_coords = coords
 		self._model_coords.close()
-		self._model_weights = np.array([p.flux for p in phot])
-		self._model_weights = self._model_weights / np.mean(self._model_weights)
 
 	def track(self, _image : ImageLike):
 		current= PositionArray()
 		lost= list[int]()
 
-		def not_found(i : int):
-			lost.append(i)
-			current.append([np.nan, np.nan])
 		
 		for i in range(self._model_count): 
 			crop = _get_cropped(_image, self._model_coords[i], 0, padding= self._size)
@@ -55,17 +61,20 @@ class SimpleTracker(Tracker):
 			try:
 				mask = (crop - bkg) > phot.background_sigma * (1 + phot.snr * 2)
 				mask &= np.abs(((crop - bkg)) - phot.flux) <= phot.flux_sigma / 2
-				mask &= (-crop + phot.flux_max) < np.abs(phot.flux_max - max(np.nanmax(crop) - bkg, bkg) ) * (1 + self._factor*phot.flux)/2 
+				mask &= (-crop + phot.flux_max) < np.abs(phot.flux_max - max(np.nanmax(crop) - bkg, bkg) ) * (1 + self._model_variability[i] *phot.flux)/2 
 				# mask &= (crop - bkg) <= phot.flux_max
+				mask &= ~np.isnan(crop)
 
-				print(i, mask.sum())
+
 				indices = np.transpose(np.nonzero(mask))
 				if len(indices) == 0: raise IndexError()
-				_w = np.clip(crop[indices[:, 1], indices[:, 0]] - bkg, 0, phot.flux) / phot.flux
+				_w = np.clip(crop[indices[:, 0], indices[:, 1]] - bkg, 0, phot.flux) / phot.flux
+				_w[np.isnan(_w)] = 0
 				average = np.average(indices, weights= _w, axis= 0)[::-1]
 				# variance = np.average((indices - average[::-1])**2 , weights=_w, axis= 0)
 			except:
-				not_found(i)
+				lost.append(i)
+				current.append([np.nan, np.nan])
 				continue
 			# print(i, 'psf', np.sqrt(variance))
 			# median_rc = np.median(indices, axis= 0)[::-1]
@@ -85,7 +94,7 @@ class SimpleTracker(Tracker):
 										delta_angle= da, 
 										image_size= _image.shape, 
 										lost_indices= lost,
-										weights= None,
+										weights= np.array(self._model_weights),
 										rejection_sigma= self._r_sigma,
 										rejection_iter= self._r_iter)
 
@@ -129,7 +138,7 @@ class GlobalAlignmentTracker(Tracker):
 		else:
 			raise ValueError(detection_method)
 
-	def setup_model(self, stars: StarList):
+	def setup_model(self, stars: StarList, **kwargs):
 		if len(stars) <= 3:
 			raise RuntimeError(f'Model of {type(self).__name__} requires more than 3 stars to set up')
 		
