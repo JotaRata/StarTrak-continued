@@ -1,7 +1,7 @@
 # compiled module
 from __future__ import annotations
 from abc import ABC
-from typing import Any, ClassVar, Dict, Final, Generic, Iterable, Iterator, List, Self, Type, TypeVar, final, overload
+from typing import Any, ClassVar, Dict, Final, Generic, Iterable, Iterator, List, Self, Tuple, Type, TypeVar, final, overload
 import numpy as np
 from startrak.native.alias import MaskLike
 from mypy_extensions import mypyc_attr, trait
@@ -36,7 +36,7 @@ def get_stobject(name : str) -> Type[STObject]:
 class STObject:
 	name : str
 	__locked__ : bool
-	__private__ : ClassVar[List[str]] = []
+	__private__ : ClassVar[Tuple[str, ...] | None] = None
 
 	def __init_subclass__(cls, **kwargs):
 		super().__init_subclass__(**kwargs)
@@ -62,7 +62,9 @@ class STObject:
 		except:
 			_locked = False
 		if _locked == True:
-			if __name in type(self).__private__ or  __name.startswith('_'):
+			privates = type(self).__private__
+		
+			if (privates is not None and __name in privates) or  __name.startswith('_'):
 				raise ImmutableError(self, __name)
 		return object.__setattr__(self, __name, __value)
 
