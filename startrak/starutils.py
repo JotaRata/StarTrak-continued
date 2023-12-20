@@ -1,3 +1,4 @@
+from math import isnan
 from typing import List, Literal, Tuple
 from startrak.native import PhotometryBase, Star, StarDetector, StarList
 from startrak.imageutils import sigma_stretch
@@ -46,6 +47,8 @@ def visualize_stars(image : ImageLike, stars : List[Star],
 	image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
 	image = sigma_stretch(image, sigma=sigma)
 	for star in stars:
+		if np.isnan(star.position[0]) or np.isnan(star.position[1]):
+			continue
 		pos = int(star.position[0] * _f), int(star.position[1] * _f)
 		rad = int(star.aperture * _f)
 		image = cv2.putText(image, star.name, (pos[0], pos[1] - rad-4), cv2.FONT_HERSHEY_PLAIN, 0.5, color, 1)
