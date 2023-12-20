@@ -1,7 +1,8 @@
 from typing import List, Literal, Tuple
-from startrak.native import Star, StarDetector, StarList
+from startrak.native import PhotometryBase, Star, StarDetector, StarList
 from startrak.imageutils import sigma_stretch
 from startrak.types import detection
+from startrak.types import phot
 import numpy as np
 import cv2
 
@@ -11,7 +12,7 @@ __all__ = ['detect_stars', ]
 _Method = Literal['hough', 'hough_adaptive', 'hough_threshold']
 
 def detect_stars(image : ImageLike, 
-					  method : _Method | StarDetector = 'hough', **detector_args) -> StarList:
+					  method : _Method | StarDetector = 'hough', photometry : Literal['aperture']|PhotometryBase|None = 'aperture', **detector_args) -> StarList:
 	_detector : StarDetector
 	# todo: replace with dict based mapping
 	if method == 'hough':
@@ -25,7 +26,16 @@ def detect_stars(image : ImageLike,
 	else:
 		raise ValueError(method)
 	
-	return _detector.detect(image)
+	stars = _detector.detect(image)
+	if photometry:
+		phot_method : PhotometryBase
+		if photometry == 'aperture':
+			phot_method = phot.AperturePhot(4, 1, 0)
+		else:
+			phot_method = photometry
+		for star in stars:
+			star.photometry = phot_method.evaluate_star(image, star)
+	return stars
 
 def visualize_stars(image : ImageLike, stars : List[Star],
 					vsize : int= 720, sigma : int = 4, color : Tuple[int, int, int] = (200, 0, 0)):
