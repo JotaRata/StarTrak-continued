@@ -38,27 +38,35 @@ class SimpleTracker(Tracker):
 	def track(self, _image : ImageLike):
 		current= PositionArray()
 		lost= list[int]()
-		img = cv2.resize(_image, None, fx=1, fy=1, interpolation=cv2.INTER_CUBIC)
-		img = cv2.medianBlur(img, 3)
+
+		def not_found(i : int):
+			lost.append(i)
+			current.append([np.nan, np.nan])
 		
 		for i in range(self._model_count): 
-			crop = _get_cropped(img, self._model_coords[i], 0, padding= self._size)
+			crop = _get_cropped(_image, self._model_coords[i], 0, padding= self._size)
 			
 			# background sigma clipping
 			# image minus the background should equal the integrated flux
 			# the candidate shouldn't be brighter than the current star
 			phot = self._model_phot[i]
-			mask = np.abs(crop - phot.backg) > 2* phot.backg_sigma
-			mask &= (crop - phot.backg) >=  phot.flux
-			mask &= np.abs(crop - phot.flux) <  ( phot.flux_iqr * phot.flux / self._factor)
+			bkg = np.nanmean((np.nanmean(crop[-4:, :]), np.nanmean(crop[:, -4:]), np.nanmean(crop[:4, :]), np.nanmean(crop[:, :4])))
 			
-			indices = np.transpose(np.nonzero(mask))
-			if len(indices) == 0:
-				lost.append(i)
-				current.append([np.nan, np.nan])
+			try:
+				mask = crop - bkg > phot.backg_sigma * 2
+				mask &= np.abs((crop - bkg) - phot.flux) <= phot.flux_iqr / 2
+				
+				indices = np.transpose(np.nonzero(mask))
+				if len(indices) == 0: raise IndexError()
+				_w = np.clip(crop[indices[:, 1], indices[:, 0]] - bkg, 0, phot.flux)
+				average = np.average(indices, weights= _w, axis= 0)[::-1]
+				variance = np.average((indices - average[::-1])**2 , weights=_w, axis= 0)
+			except:
+				not_found(i)
 				continue
-			median_rc = np.median(indices, axis= 0)[::-1]
-			current.append(median_rc - (self._size,) * 2 + self._model_coords[i])
+			print(i, 'psf', np.sqrt(variance))
+			# median_rc = np.median(indices, axis= 0)[::-1]
+			current.append(average - (self._size,) * 2 + self._model_coords[i])
 		
 		delta_pos = current - self._model_coords
 		
@@ -74,7 +82,7 @@ class SimpleTracker(Tracker):
 										delta_angle= da, 
 										image_size= _image.shape, 
 										lost_indices= lost,
-										weights= self._model_weights,
+										weights= None,
 										rejection_sigma= self._r_sigma,
 										rejection_iter= self._r_iter)
 
