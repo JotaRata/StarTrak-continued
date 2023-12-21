@@ -151,13 +151,8 @@ class FileInfo(STObject):
 #region Photometry
 @dataclass #! Hotfix for __setattr__ until a proper mypyc fix is implemented
 class PhotometryResult(STObject):
+	__private__ :  ClassVar[Tuple[str, ...] | None]  = ('all',)
 
-	__private__ :  ClassVar[Tuple[str, ...] | None]  = ('flux', 'flux_raw',
-													'flux_sigma', 'flux_max',
-													'background', 'background_sigma',
-													'method', 'aperture_radius',
-													'annulus_width', 'annulus_offset',
-													'psf_parameters')
 	def __init__(
 		self, *,
 		flux: float,
@@ -250,7 +245,7 @@ class TrackingSolution(STObject):
 	def __init__(self, *,delta_pos : PositionArray,
 								delta_angle : NDArray[np.float_],
 								image_size : Tuple[int, ...],
-								weights : NDArray[np.float_]|None = None,
+								weights : Tuple[float, ...] | None = None,
 								lost_indices : List[int] = [],
 								rejection_sigma : int = 3,
 								rejection_iter = 1):
@@ -287,14 +282,20 @@ class TrackingSolution(STObject):
 			if rej_count > 0:
 				print(f'{rej_count} stars deviated from the solution with average error: {np.sqrt(rej_error/rej_count):.2f}px (iter {_+1})')
 
-		if weights is not None:
-			weights = weights[mask]
-			if np.sum(weights) == 0:
-				weights = None
 		if len(mask) > 0:
-			self._dx, self._dy = np.average(delta_pos[mask], axis= 0, weights= weights).tolist()
-			self._da = np.average(delta_angle[mask], weights= weights)
-
+			if weights is not None:
+				weights = tuple(weights[i] for i in mask)
+				sum_w = sum(weights)
+				
+				if sum_w > 0:
+					self._dx = sum([pos.x * w for pos, w in zip(delta_pos[mask], weights)]) / sum_w
+					self._dy = sum([pos.y * w for pos, w in zip(delta_pos[mask], weights)]) / sum_w
+					self._da = sum([ang * w for ang, w in zip(delta_angle[mask], weights)]) / sum_w
+				else:
+					self._dx = sum([pos.x * w for pos, w in zip(delta_pos[mask], weights)]) / len(mask)
+					self._dy = sum([pos.y * w for pos, w in zip(delta_pos[mask], weights)]) / len(mask)
+					self._da = sum([ang * w for ang, w in zip(delta_angle[mask], weights)]) / len(mask)
+			
 			ex, ey = np.nanstd(delta_pos[mask], axis= 0)
 			self.error = (ex**2 + ey**2) ** 0.5
 			self.lost = lost_indices

@@ -19,20 +19,20 @@ class SimpleTracker(Tracker):
 		self._r_iter = rejection_iter
 		self._size = tracking_size
 
-	def setup_model(self, stars: StarList, variability : float | List[float] = 1, weights : List[float] | None= None, **kwargs):
+	def setup_model(self, stars: StarList, variability : float | Tuple[float, ...] = 1, weights : Tuple[float, ...] | None= None, **kwargs):
 		if isinstance(variability, float):
-			self._model_variability = [variability] * len(stars)
+			self._model_variability = (variability, ) * len(stars)
 		else:
 			if len(variability) != len(stars):
 				raise ValueError('Variabilities size must be equal to star list size')
 			self._model_variability = variability
 		
-		if weights and type(weights) is list:
+		if weights and type(weights) is tuple:
 			if len(weights) != len(stars):
 				raise ValueError('Weights size must be equal to star list size')
 			self._model_weights = weights
 		else:
-			self._model_weights = [1] * len(stars)
+			self._model_weights = (1, ) * len(stars)
 		coords = PositionArray()
 		phot = list[PhotometryResult]()
 		for star in stars:
@@ -94,7 +94,7 @@ class SimpleTracker(Tracker):
 										delta_angle= da, 
 										image_size= _image.shape, 
 										lost_indices= lost,
-										weights= np.array(self._model_weights),
+										weights= self._model_weights,
 										rejection_sigma= self._r_sigma,
 										rejection_iter= self._r_iter)
 
@@ -201,7 +201,7 @@ class GlobalAlignmentTracker(Tracker):
 		delta_rot = np.arctan2(cross,  dot)
 
 		if self._use_w:
-			weight_array = np.repeat(_areas, 3)
+			weight_array = tuple(np.repeat(_areas, 3).tolist())
 		else:
 			weight_array = None
 
