@@ -1,8 +1,10 @@
 # compiled module
+from __future__ import annotations
+from mypy_extensions import mypyc_attr, i16, u8
 from dataclasses import dataclass
 from functools import lru_cache
 import math
-from typing import Any, Callable, ClassVar, Dict, Final, Iterable, Iterator, List, Optional, Self, Tuple, Type, cast
+from typing import Any, Callable, ClassVar, Dict, Final, List, Optional, Self, Tuple, Type, cast
 import numpy as np
 import os.path
 from startrak.native.alias import NumberLike, ValueType, NDArray
@@ -10,7 +12,6 @@ from startrak.native.collections.position import Position, PositionArray, Positi
 
 from startrak.native.fits import _FITSBufferedReaderWrapper as FITSReader
 from startrak.native.fits import _bitsize
-from mypy_extensions import mypyc_attr
 from startrak.native.ext import AttrDict, STObject, spaces
 
 #region File management
@@ -235,34 +236,50 @@ class ReferenceStar(Star):
 #region Tracking
 @dataclass #! Hotfix for __setattr__ until a proper mypyc fix is implemented
 class TrackingSolution(STObject):
-	_dx : float
-	_dy : float
-	_da : float
-	error : float
-	lost : List[int]
-	_dpos : PositionArray
+	# Transform matrix is defined as
+	# | a -b  c |
+	# | b -a  d |
+	# | 0  0  1 |
+	_a : float							# a value of the transform matrix (cos(angle))
+	_b : float							# b value of the transform matrix (sin(angle))
+	_c : float							# c value of the transform matrix (dx)
+	_d : float							# d value of the transform matrix (dy)
+	_r : float							# rotation angle in radians
 	
-	def __init__(self, *,delta_pos : PositionArray,
+	def __init__(self, a : float, b : float,  c : float, d : float, e : 
+									float, r : Optional[float] = None,  l : Optional[List[u8]] = None):
+		self._a = a
+		self._b = b
+		self._c = c
+		self._d = d
+		self._err = e
+		if l:
+			self._lost = l
+		if r:
+			self._r = r
+		else:
+			self._r = math.atan2(a, b)
+
+	def new(self, *,delta_pos : PositionArray,
 								delta_angle : NDArray[np.float_],
 								image_size : Tuple[int, ...],
 								weights : Tuple[float, ...] | None = None,
-								lost_indices : List[int] = [],
+								lost_indices : List[u8] = [],
 								rejection_sigma : int = 3,
-								rejection_iter = 1):
-		assert len(delta_pos) > 1
-		NAN = np.nan
-		j, k = image_size[0]/2, image_size[1]/2
+								rejection_iter : u8 = 1) -> TrackingSolution:
 
 		mask = list(range(len(delta_pos)))
 		pos_residuals = delta_pos - np.nanmean(delta_pos, axis= 0)
 		ang_residuals = delta_angle - np.nanmean(delta_angle, axis= 0)
+		
 		for _ in range(rejection_iter):
 			if len(mask) == 0:
 				break
 			pos_std : float =  np.nanmean(np.power(pos_residuals[mask], 2))
 			ang_std : float =  np.nanmean(np.power(ang_residuals[mask], 2))
 			rej_count, rej_error = 0, 0.0
-			exx: float; eyy: float; eaa : float
+			exx: float; eyy: float; eaa : float; i: u8
+			# Translation error
 			for i, (exx, eyy) in enumerate(pos_residuals):
 				isnan = math.isnan(exx + eyy)
 				if ((err:= exx**2 + eyy**2) > max(rejection_sigma * pos_std, 1)) or isnan:
@@ -271,6 +288,7 @@ class TrackingSolution(STObject):
 						lost_indices.append(i)
 						if not isnan:
 							rej_error += err; rej_count += 1
+			# Rotation Error
 			for i, eaa in enumerate(ang_residuals):
 				isnan = math.isnan(eaa)
 				if (eaa**2 > max(rejection_sigma * ang_std, 1)) or isnan:
@@ -279,8 +297,15 @@ class TrackingSolution(STObject):
 						lost_indices.append(i)
 						if not isnan:
 							rej_error += eaa * image_size[0]/2; rej_count += 1
+			
 			if rej_count > 0:
 				print(f'{rej_count} stars deviated from the solution with average error: {np.sqrt(rej_error/rej_count):.2f}px (iter {_+1})')
+		
+		# Initilize the matrix as the identity
+		dx, dy = 0.0, 0.0
+		r = 0.0
+		e = 0.0
+		l = list(range(len(delta_pos)))
 
 		if len(mask) > 0:
 			if weights is not None:
@@ -288,64 +313,68 @@ class TrackingSolution(STObject):
 				sum_w = sum(weights)
 				
 				if sum_w > 0:
-					self._dx = sum([pos.x * w for pos, w in zip(delta_pos[mask], weights)]) / sum_w
-					self._dy = sum([pos.y * w for pos, w in zip(delta_pos[mask], weights)]) / sum_w
-					self._da = sum([ang * w for ang, w in zip(delta_angle[mask], weights)]) / sum_w
+					dx = sum([pos.x * w for pos, w in zip(delta_pos[mask], weights)]) / sum_w
+					dy = sum([pos.y * w for pos, w in zip(delta_pos[mask], weights)]) / sum_w
+					r = sum([ang * w for ang, w in zip(delta_angle[mask], weights)]) / sum_w
 				else:
-					self._dx = sum([pos.x * w for pos, w in zip(delta_pos[mask], weights)]) / len(mask)
-					self._dy = sum([pos.y * w for pos, w in zip(delta_pos[mask], weights)]) / len(mask)
-					self._da = sum([ang * w for ang, w in zip(delta_angle[mask], weights)]) / len(mask)
+					dx = sum([pos.x * w for pos, w in zip(delta_pos[mask], weights)]) / len(mask)
+					dy = sum([pos.y * w for pos, w in zip(delta_pos[mask], weights)]) / len(mask)
+					r = sum([ang * w for ang, w in zip(delta_angle[mask], weights)]) / len(mask)
 			
 			ex, ey = np.nanstd(delta_pos[mask], axis= 0)
-			self.error = (ex**2 + ey**2) ** 0.5
-			self.lost = lost_indices
-		# If all values were masked out, then return the identity
-		else:
-			self._dx, self._dy = 0.0, 0.0
-			self._da = 0.0
-			self.error = 0.0
-			self.lost = list(range(len(delta_pos)))
+			e = (ex**2 + ey**2) ** 0.5
+			l = lost_indices
 
-		c = math.cos(self._da)
-		s = math.sin(self._da)
-		a = self._dx + j - j * c + k * s
-		b = self._dy + k - k * c - j * s
-		self._dpos = delta_pos
-		self._dpos.close()
-		self._matrix = np.array([ [c, -s, a], 
-											[s,  c, b],
-											[0,  0, 1]])
-		STObject.__set_locked__(self, __locked= True)
+		j, k = image_size[0]/2, image_size[1]/2
+		a = math.cos(r)
+		b = math.sin(r)
+		
+		c = dx + j - j * a + k * b
+		d = dy + k - k * a - j * b
+
+		return TrackingSolution(a, b, c, d, e, r, l)
 
 	@property
-	def matrix(self) -> np.ndarray:
-		return self._matrix
+	def matrix(self) -> NDArray[np.float_]:
+		return np.array([ [self._a, -self._b, self._c], 
+								[self._b,  self._a, self._d],
+								[0,           0,          1]])
 	@property
-	def translation(self) -> np.ndarray:
-		return np.array((self._dx, self._dy))
+	def translation(self) ->Position:
+		return Position(self._c, self._d)
 	
 	@property	
 	def rotation(self) -> float:
-		return np.degrees(self._da)
-	
-	@property
-	def individual_positions(self) -> PositionArray:
-		return self._dpos
+		return math.degrees(self._r)
 	
 	def __export__(self) -> AttrDict:
-		return {	'translation':(self._dx, self._dy), 
-					"rotation": self._da, 
-					"error": self.error, 
-					"lost_indices": self.lost} 
+		return { 'rot' : self._r,
+					'error' : self._err,
+					'param_0' : self._a,
+					'param_1' : self._b,
+					'param_2' : self._c,
+					'param_3' : self._d,
+					'indices' : self._lost} 
+	@classmethod
+	def __import__(cls, attributes: AttrDict) -> Self:
+		params = {'rot' : 'r',
+					'error' : 'e',
+					'param_0' : 'a',
+					'param_1' : 'b',
+					'param_2' : 'c',
+					'param_3' : 'd',
+					'indices' : 'l'}
+		kwargs = {params[k]: attributes[k] for k in params}
+		return cls(**kwargs)
 	
 	def __pprint__(self, indent: int = 0, compact : bool = False) -> str:
 		if compact:
-			return f'{type(self).__name__} ({self._dx:.1f} px, {self._dy:.1f} px, {self.rotation:.1f}°)'
+			return f'{type(self).__name__} ({self._c:.1f} px, {self._d:.1f} px, {self.rotation:.1f}°)'
 		indentation = spaces * (indent + 1)
 		return ( f'{spaces * indent}{type(self).__name__}: '
-					'\n' + indentation + f'translation: {self._dx:.1f} px, {self._dy:.1f} px'
+					'\n' + indentation + f'translation: {self._c:.1f} px, {self._d:.1f} px'
 					'\n' + indentation + f'rotation:    {self.rotation:.2f}°'
-					'\n' + indentation + f'error:       {self.error:.3f} px')
+					'\n' + indentation + f'error:       {self._err:.3f} px')
 
 	def __setattr__(self, __name: str, __value: Any) -> None:
 		return super().__setattr__(__name, __value)
