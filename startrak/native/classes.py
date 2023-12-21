@@ -246,12 +246,14 @@ class TrackingSolution(STObject):
 	_d : float							# d value of the transform matrix (dy)
 	_r : float							# rotation angle in radians
 	
-	def __init__(self, a : float, b : float,  c : float, d : float, e : 
-					float, r : Optional[float] = None,  l : Optional[List[int]] = None):
+	def __init__(self, a : float, b : float,  c : float, d : float, e : float, j : float, k : float,
+					r : Optional[float] = None,  l : Optional[List[int]] = None):
 		self._a = a
 		self._b = b
 		self._c = c
 		self._d = d
+		self._j = j
+		self._k = k
 		self._err = e
 		if l:
 			self._lost = l
@@ -269,6 +271,7 @@ class TrackingSolution(STObject):
 						rejection_sigma : int = 3,
 						rejection_iter : int = 1) -> Self:
 
+		j, k = image_size[0]/2, image_size[1]/2
 		mask = list(range(len(delta_pos)))
 		pos_residuals = delta_pos - np.nanmean(delta_pos, axis= 0)
 		ang_residuals = delta_angle - np.nanmean(delta_angle, axis= 0)
@@ -297,7 +300,7 @@ class TrackingSolution(STObject):
 						mask.remove(i)
 						lost_indices.append(i)
 						if not isnan:
-							rej_error += eaa * image_size[0]/2; rej_count += 1
+							rej_error += math.cos(eaa) * j +  math.sin(eaa) * k; rej_count += 1
 			
 			if rej_count > 0:
 				print(f'{rej_count} stars deviated from the solution with average error: {np.sqrt(rej_error/rej_count):.2f}px (iter {_+1})')
@@ -318,22 +321,21 @@ class TrackingSolution(STObject):
 					dy = sum([pos.y * w for pos, w in zip(delta_pos[mask], weights)]) / sum_w
 					r = sum([ang * w for ang, w in zip(delta_angle[mask], weights)]) / sum_w
 				else:
-					dx = sum([pos.x * w for pos, w in zip(delta_pos[mask], weights)]) / len(mask)
-					dy = sum([pos.y * w for pos, w in zip(delta_pos[mask], weights)]) / len(mask)
-					r = sum([ang * w for ang, w in zip(delta_angle[mask], weights)]) / len(mask)
+					dx = sum([pos.x for pos in delta_pos[mask]]) / len(mask)
+					dy = sum([pos.y for pos in delta_pos[mask]]) / len(mask)
+					r = sum([ang for ang in delta_angle[mask]]) / len(mask)
 			
 			ex, ey = np.nanstd(delta_pos[mask], axis= 0)
 			e = (ex**2 + ey**2) ** 0.5
 			l = lost_indices
 
-		j, k = image_size[0]/2, image_size[1]/2
 		a = math.cos(r)
 		b = math.sin(r)
 		
 		c = dx + j - j * a + k * b
 		d = dy + k - k * a - j * b
 
-		return cls(a, b, c, d, e, r, l)
+		return cls(a, b, c, d, e, j, k, r, l)
 
 	@property
 	def matrix(self) -> NDArray[np.float_]:
@@ -341,12 +343,22 @@ class TrackingSolution(STObject):
 								[self._b,  self._a, self._d],
 								[0,           0,          1]])
 	@property
-	def translation(self) ->Position:
-		return Position(self._c, self._d)
+	def translation(self) -> Tuple[float, float]:
+		dx = self._c - self._j + self._a * self._j - self._b * self._k
+		dy = self._d + self._b * self._j - self._k + self._a * self._k
+		return (dx, dy)
 	
 	@property	
 	def rotation(self) -> float:
 		return math.degrees(self._r)
+	
+	@property
+	def error(self) -> float:
+		return self._err
+	
+	@property
+	def lost_indices(self) -> List[int]:
+		return self._lost
 	
 	def __export__(self) -> AttrDict:
 		return { 'rot' : self._r,
@@ -355,6 +367,8 @@ class TrackingSolution(STObject):
 					'param_1' : self._b,
 					'param_2' : self._c,
 					'param_3' : self._d,
+					'param_4' : self._j,
+					'param_5' : self._k,
 					'indices' : self._lost} 
 	@classmethod
 	def __import__(cls, attributes: AttrDict) -> Self:
@@ -364,21 +378,24 @@ class TrackingSolution(STObject):
 					'param_1' : 'b',
 					'param_2' : 'c',
 					'param_3' : 'd',
+					'param_4' : 'j',
+					'param_5' : 'k',
 					'indices' : 'l'}
 		kwargs = {params[k]: attributes[k] for k in params}
 		return cls(**kwargs)
+	
+	def __repr__(self) -> str:
+		return type(self).__name__ + f' ({self._c:.1f} px, {self._d:.1f} px, {self.rotation:.2f}°)'
 	
 	def __pprint__(self, indent: int = 0, compact : bool = False) -> str:
 		if compact:
 			return f'{type(self).__name__} ({self._c:.1f} px, {self._d:.1f} px, {self.rotation:.1f}°)'
 		indentation = spaces * (indent + 1)
+		t = self.translation
 		return ( f'{spaces * indent}{type(self).__name__}: '
-					'\n' + indentation + f'translation: {self._c:.1f} px, {self._d:.1f} px'
+					'\n' + indentation + f'translation: {t[0]:.1f} px, {t[1]:.1f} px'
 					'\n' + indentation + f'rotation:    {self.rotation:.2f}°'
 					'\n' + indentation + f'error:       {self._err:.3f} px')
-
-	def __setattr__(self, __name: str, __value: Any) -> None:
-		return super().__setattr__(__name, __value)
 
 class TrackingIdentity(TrackingSolution):
 	def __init__(self):

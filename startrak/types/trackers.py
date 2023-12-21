@@ -68,9 +68,9 @@ class SimpleTracker(Tracker):
 
 				indices = np.transpose(np.nonzero(mask))
 				if len(indices) == 0: raise IndexError()
-				_w = np.clip(crop[indices[:, 0], indices[:, 1]] - bkg, 0, phot.flux) / phot.flux
+				_w = np.clip(crop[indices[:, 0], indices[:, 1]] - bkg, 0, phot.flux_max) / phot.flux
 				_w[np.isnan(_w)] = 0
-				average = np.average(indices, weights= _w, axis= 0)[::-1]
+				average = np.average(indices, weights= _w ** 2, axis= 0)[::-1]
 				# variance = np.average((indices - average[::-1])**2 , weights=_w, axis= 0)
 			except:
 				lost.append(i)
