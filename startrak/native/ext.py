@@ -62,9 +62,9 @@ class STObject:
 		except:
 			_locked = False
 		if _locked == True:
-			privates = type(self).__private__
+			priv = type(self).__private__
 		
-			if (privates is not None and __name in privates) or  __name.startswith('_'):
+			if (priv is not None and (__name in priv or 'all' in priv)) or  __name.startswith('_'):
 				raise ImmutableError(self, __name)
 		return object.__setattr__(self, __name, __value)
 
