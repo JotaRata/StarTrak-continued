@@ -1,6 +1,6 @@
 # compiled module
 from __future__ import annotations
-from mypy_extensions import mypyc_attr, i16, u8
+from mypy_extensions import mypyc_attr
 from dataclasses import dataclass
 from functools import lru_cache
 import math
@@ -247,7 +247,7 @@ class TrackingSolution(STObject):
 	_r : float							# rotation angle in radians
 	
 	def __init__(self, a : float, b : float,  c : float, d : float, e : 
-									float, r : Optional[float] = None,  l : Optional[List[u8]] = None):
+					float, r : Optional[float] = None,  l : Optional[List[int]] = None):
 		self._a = a
 		self._b = b
 		self._c = c
@@ -259,14 +259,15 @@ class TrackingSolution(STObject):
 			self._r = r
 		else:
 			self._r = math.atan2(a, b)
-
-	def new(self, *,delta_pos : PositionArray,
-								delta_angle : NDArray[np.float_],
-								image_size : Tuple[int, ...],
-								weights : Tuple[float, ...] | None = None,
-								lost_indices : List[u8] = [],
-								rejection_sigma : int = 3,
-								rejection_iter : u8 = 1) -> TrackingSolution:
+	
+	@classmethod
+	def new(cls, *,delta_pos : PositionArray,
+						delta_angle : NDArray[np.float_],
+						image_size : Tuple[int, ...],
+						weights : Tuple[float, ...] | None = None,
+						lost_indices : List[int] = [],
+						rejection_sigma : int = 3,
+						rejection_iter : int = 1) -> Self:
 
 		mask = list(range(len(delta_pos)))
 		pos_residuals = delta_pos - np.nanmean(delta_pos, axis= 0)
@@ -278,7 +279,7 @@ class TrackingSolution(STObject):
 			pos_std : float =  np.nanmean(np.power(pos_residuals[mask], 2))
 			ang_std : float =  np.nanmean(np.power(ang_residuals[mask], 2))
 			rej_count, rej_error = 0, 0.0
-			exx: float; eyy: float; eaa : float; i: u8
+			exx: float; eyy: float; eaa : float; i: int
 			# Translation error
 			for i, (exx, eyy) in enumerate(pos_residuals):
 				isnan = math.isnan(exx + eyy)
@@ -332,7 +333,7 @@ class TrackingSolution(STObject):
 		c = dx + j - j * a + k * b
 		d = dy + k - k * a - j * b
 
-		return TrackingSolution(a, b, c, d, e, r, l)
+		return cls(a, b, c, d, e, r, l)
 
 	@property
 	def matrix(self) -> NDArray[np.float_]:
