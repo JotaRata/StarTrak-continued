@@ -1,13 +1,12 @@
 # compiled module
 from __future__ import annotations
 import math
-from typing import Collection, Iterable, List, Literal, Self, Sized, Tuple, TypeVar, cast, overload
+from typing import Collection, overload
 
 import numpy as np
 from startrak.native import Position
-from startrak.native.alias import MaskLike
 from startrak.native.ext import STCollection
-from numpy.typing import NDArray, ArrayLike
+from numpy.typing import NDArray
 
 
 class Array(STCollection[float]):
