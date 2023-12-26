@@ -3,7 +3,7 @@ import numpy as np
 
 __all__ = ['sigma_stretch']
 
-def sigma_stretch(image : ImageLike, sigma=1.0) -> NDArray[np.uint8]:
+def sigma_stretch(image : ImageLike, sigma=1.0) -> NDArray:
 	'''
 		Sigma clipping linear stretch algorithm
 
@@ -18,7 +18,7 @@ def sigma_stretch(image : ImageLike, sigma=1.0) -> NDArray[np.uint8]:
 	image = np.clip((image - smin) * (255 / (smax - smin)), 0, 255)
 	return image.astype(np.uint8)
 
-def linear_stretch(image : ImageLike, smin : RealDType, smax: RealDType) -> NDArray[np.uint8]:
+def linear_stretch(image : ImageLike, smin : RealDType, smax: RealDType) -> NDArray:
 	'''
 		Linear clipping stretch algorithm
 
