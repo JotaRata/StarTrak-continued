@@ -3,8 +3,7 @@
 from __future__ import annotations
 import numpy as np
 from numpy.typing import NDArray
-from typing import Any, Iterable, List, Literal, NamedTuple, Tuple, Union, overload
-
+from typing import Any, Iterable, List, Literal, NamedTuple, Sequence, Tuple, Union, overload
 from startrak.native.alias import MaskLike
 from startrak.native.ext import STCollection
 
@@ -12,7 +11,6 @@ PositionLike = Union[Tuple[float|Any, ...], Tuple[float|Any, float|Any], List[fl
 _MatrixLike3x3 = NDArray[np.floating] | List[List | Tuple | NDArray] | Tuple[List | Tuple | NDArray, ...]
 _LiteralAxis = Literal['x', 0, 'y', 1]
 
-	
 
 class Position(NamedTuple):
 	x : float
@@ -60,13 +58,35 @@ class Position(NamedTuple):
 		result[1] = matrix[1][0] * vector[0] + matrix[1][1] * vector[1] + matrix[1][2] * vector[2]
 		return Position(*result)
 	
-	def __add__(self, other : Position | PositionLike,/) -> Position:
-		if len(other) != 2: raise ValueError(other)
+	def __add__(self, other : Position | PositionLike | Any,/) -> Position:
+		if other == 0:
+			return self
+		assert isinstance(other, Sequence), 'Not a sequence'
+		assert len(other) == 2, 'Cannot coherce 2D Position with Sequence of length different than 2'
 		return Position(self[0] + other[0], self[1] + other[1])
 	
-	def __sub__(self, other : Position | PositionLike, /) -> Position:
-		if len(other) != 2: raise ValueError(other)
+	def __sub__(self, other : Position | PositionLike | Any, /) -> Position:
+		assert isinstance(other, Sequence), 'Not a sequence'
+		assert len(other) == 2, 'Cannot coherce 2D Position with Sequence of length different than 2'
 		return Position(self.x - other[0], self.y - other[1])
+	
+	def __radd__(self, other : Position | PositionLike | Any,/) -> Position:
+		return self.__add__(other)
+	
+	def __mul__(self, other : Position | PositionLike | Any, /) -> Position:
+		if isinstance(other, float | int):
+			return Position(self.x * other, self.y * other)
+		assert isinstance(other, Sequence), 'Not a sequence'
+		assert len(other) == 2, 'Cannot coherce 2D Position with Sequence of length different than 2'
+		return Position(self.x * other[0], self.y * other[1])
+	
+	def __truediv__(self, other : Position | PositionLike | Any, /) -> Position:
+		if isinstance(other, float | int):
+			return Position(self.x / other, self.y / other)
+		assert isinstance(other, Sequence), 'Not a sequence'
+		assert len(other) == 2, 'Cannot coherce 2D Position with Sequence of length different than 2'
+		return Position(self.x / other[0], self.y / other[1])
+
 	
 	def __array__(self, dtype=None) -> NDArray[np.float_]:
 		return np.array(self[:])
