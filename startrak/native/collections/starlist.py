@@ -15,7 +15,7 @@ class StarList(STCollection[Star]):
 	
 	@property
 	def positions(self) -> PositionArray:
-		return PositionArray((s.position for s in self._internal))
+		return PositionArray( *(s.position for s in self._internal))
 	
 	def to_dict(self) -> Dict[str, Star]:
 		return {s.name : s for s in self._internal}

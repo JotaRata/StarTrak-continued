@@ -7,19 +7,21 @@ import math
 from typing import Any, Callable, ClassVar, Dict, Final, List, Optional, Self, Tuple, Type, cast
 import numpy as np
 import os.path
-from startrak.native.alias import NumberLike, ValueType, NDArray
+from startrak.native.alias import RealDType, ValueType, NDArray, ArrayLike
+from startrak.native.collections.native_array import Array
 from startrak.native.collections.position import Position, PositionArray, PositionLike
 
 from startrak.native.fits import _FITSBufferedReaderWrapper as FITSReader
 from startrak.native.fits import _bitsize
 from startrak.native.ext import AttrDict, STObject, spaces
+from startrak.native.numeric import average
 
 #region File management
 _defaults : Final[Dict[str, Type[ValueType]]] = \
 		{'SIMPLE' : int, 'BITPIX' : int, 'NAXIS' : int, 'EXPTIME' : float, 'BSCALE' : float, 'BZERO' : float}
 class Header(STObject):
 	_items : Dict[str, ValueType]
-	bitsize : np.dtype[NumberLike]
+	bitsize : np.dtype[RealDType]
 	shape : Tuple[int, int]
 	bscale : np.uint
 	bzero : np.uint
@@ -117,7 +119,7 @@ class FileInfo(STObject):
 		return retval
 	
 	@lru_cache(maxsize=5)	# todo: Add parameter to config
-	def get_data(self, scale = True) -> np.ndarray[Any, np.dtype[NumberLike]]:
+	def get_data(self, scale = True) -> np.ndarray[Any, np.dtype[RealDType]]:
 		_dtype = self.header.bitsize
 		_shape = self.header.shape
 		_raw = self.__file._read_data(_dtype.newbyteorder('>'), _shape[0] * _shape[1])
@@ -263,18 +265,27 @@ class TrackingSolution(STObject):
 			self._r = math.atan2(a, b)
 	
 	@classmethod
-	def new(cls, *,delta_pos : PositionArray,
-						delta_angle : NDArray[np.float_],
+	def new(cls, *,delta_pos : ArrayLike | PositionArray,
+						delta_angle : ArrayLike | Array,
 						image_size : Tuple[int, ...],
 						weights : Tuple[float, ...] | None = None,
 						lost_indices : List[int] = [],
 						rejection_sigma : int = 3,
 						rejection_iter : int = 1) -> Self:
 
+		if type(delta_pos) is PositionArray: dpos_arr = delta_pos
+		else: dpos_arr = PositionArray( *delta_pos)
+		if type(delta_angle) is Array: dang_arr = delta_angle
+		else: dang_arr = Array( *delta_angle)
+
+
 		j, k = image_size[0]/2, image_size[1]/2
-		mask = list(range(len(delta_pos)))
-		pos_residuals = delta_pos - np.nanmean(delta_pos, axis= 0)
-		ang_residuals = delta_angle - np.nanmean(delta_angle, axis= 0)
+		mask = list(range(len(dpos_arr)))
+		pos_residuals = dpos_arr - average(dpos_arr)
+		ang_residuals = dang_arr -  average(dang_arr)
+
+		# pos_residuals = delta_pos - np.nanmean(delta_pos, axis= 0)
+		# ang_residuals = delta_angle - np.nanmean(delta_angle, axis= 0)
 		
 		for _ in range(rejection_iter):
 			if len(mask) == 0:
@@ -309,7 +320,7 @@ class TrackingSolution(STObject):
 		dx, dy = 0.0, 0.0
 		r = 0.0
 		e = 0.0
-		l = list(range(len(delta_pos)))
+		l = list(range(len(dpos_arr)))
 
 		if len(mask) > 0:
 			if weights is not None:
@@ -317,15 +328,15 @@ class TrackingSolution(STObject):
 				sum_w = sum(weights)
 				
 				if sum_w > 0:
-					dx = sum([pos.x * w for pos, w in zip(delta_pos[mask], weights)]) / sum_w
-					dy = sum([pos.y * w for pos, w in zip(delta_pos[mask], weights)]) / sum_w
-					r = sum([ang * w for ang, w in zip(delta_angle[mask], weights)]) / sum_w
+					dx = sum([pos.x * w for pos, w in zip(dpos_arr[mask], weights)]) / sum_w
+					dy = sum([pos.y * w for pos, w in zip(dpos_arr[mask], weights)]) / sum_w
+					r = sum([ang * w for ang, w in zip(dang_arr[mask], weights)]) / sum_w
 				else:
-					dx = sum([pos.x for pos in delta_pos[mask]]) / len(mask)
-					dy = sum([pos.y for pos in delta_pos[mask]]) / len(mask)
-					r = sum([ang for ang in delta_angle[mask]]) / len(mask)
+					dx = sum([pos.x for pos in dpos_arr[mask]]) / len(mask)
+					dy = sum([pos.y for pos in dpos_arr[mask]]) / len(mask)
+					r = sum([ang for ang in dang_arr[mask]]) / len(mask)
 			
-			ex, ey = np.nanstd(delta_pos[mask], axis= 0)
+			ex, ey = np.nanstd(dpos_arr[mask], axis= 0)
 			e = (ex**2 + ey**2) ** 0.5
 			l = lost_indices
 
@@ -338,7 +349,7 @@ class TrackingSolution(STObject):
 		return cls(a, b, c, d, e, j, k, r, l)
 
 	@property
-	def matrix(self) -> NDArray[np.float_]:
+	def matrix(self) -> NDArray:
 		return np.array([ [self._a, -self._b, self._c], 
 								[self._b,  self._a, self._d],
 								[0,           0,          1]])

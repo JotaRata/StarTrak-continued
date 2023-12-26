@@ -42,7 +42,7 @@ class StarDetector(ABC):
 		if len(positions) == 0:
 			print('No stars were detected, try adjusting the parameters')
 			return StarList()
-		return StarList([Star(self.star_name + str(i), positions[i], int(apertures[i])) 
+		return StarList( *[Star(self.star_name + str(i), positions[i], int(apertures[i])) 
 					for i in range(len(positions))])
 
 

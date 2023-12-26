@@ -2,13 +2,13 @@
 from __future__ import annotations
 import math
 from typing import Collection, overload
-from startrak.native import Array, Position
+from startrak.native.collections.position import Position
 
 @overload
-def average(values : Collection[float] | Array, weights : Collection[float] | None) -> float: ...
+def average(values : Collection[float], weights : Collection[float] | None = None) -> float: ...
 @overload
-def average(values : Collection[Position], weights : Collection[float] | None) -> Position: ...
-def average(values : Collection[float | Position] | Array, weights : Collection[float] | None = None) -> float | Position:
+def average(values : Collection[Position], weights : Collection[float] | None = None) -> Position: ...
+def average(values : Collection[float | Position], weights : Collection[float] | None = None) -> float | Position:
 	if weights is not None and (s := sum(weights)) != 0:
 		assert len(values) == len(weights)
 		return sum([n * w for n, w in zip(values, weights)]) / s
@@ -16,7 +16,7 @@ def average(values : Collection[float | Position] | Array, weights : Collection[
 		return sum(values) / len(values)
 
 
-def variance(values : Collection[float] | Array, weights : Collection[float] | None = None) -> float:
+def variance(values : Collection[float], weights : Collection[float] | None = None) -> float:
 	avg = average(values, weights)
 	if weights is not None and (s := sum(weights)) != 0:
 		assert len(values) == len(weights)
@@ -24,5 +24,5 @@ def variance(values : Collection[float] | Array, weights : Collection[float] | N
 	else:
 		return sum((n -  avg) * (n -  avg) for n in values) / len(values)
 
-def stdev(values : Collection[float] | Array, weights : Collection[float] | None = None) -> float:
+def stdev(values : Collection[float], weights : Collection[float] | None = None) -> float:
 	return math.sqrt(variance(values, weights))

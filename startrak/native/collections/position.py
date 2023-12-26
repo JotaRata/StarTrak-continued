@@ -105,14 +105,12 @@ class PositionArray(STCollection[Position]):
 	_cached_y : List[float] | None
 	_cached_x : List[float] | None
 
-	def __init__(self, positions: Iterable[Position] | Iterable[PositionLike] | None = None):
+	def __init__(self, *positions: Position | PositionLike):
 		self._closed = False
 		self._cached_y = None
 		self._cached_x = None
-		if positions is None:
-			self._internal = list[Position]()
-		else:
-			self._internal = [Position.new(pos) for pos in positions]
+		
+		self._internal = [Position.new(pos) for pos in positions]
 	@property
 	def is_closed(self) -> bool:
 		return super().is_closed
@@ -167,17 +165,17 @@ class PositionArray(STCollection[Position]):
 
 	def __add__(self, other : PositionArray | Position | PositionLike):
 		if type(other) is PositionArray:
-			return PositionArray([ a + b for a,b in zip(self._internal, other._internal)])
+			return PositionArray( *[a + b for a,b in zip(self._internal, other._internal)] )
 		elif isinstance(other, Position) or isinstance(other, tuple|list|np.ndarray):
-			return PositionArray( [a + other for a in self._internal] )
+			return PositionArray( *[a + other for a in self._internal] )
 		else:
 			raise ValueError(type(other))
 	
 	def __sub__(self, other : PositionArray | Position | PositionLike):
 		if type(other) is PositionArray:
-			return PositionArray([ a - b for a,b in zip(self._internal, other._internal)])
+			return PositionArray( *[ a - b for a,b in zip(self._internal, other._internal)])
 		elif isinstance(other, Position) or isinstance(other, tuple|list|np.ndarray):
-			return PositionArray( [a - other for a in self._internal] )
+			return PositionArray( *[a - other for a in self._internal] )
 		else:
 			raise ValueError(type(other))
 
