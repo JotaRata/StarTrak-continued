@@ -1,6 +1,6 @@
 from mmap import ACCESS_READ, ALLOCATIONGRANULARITY, mmap
 from typing import Any, Final, Iterator, TypeVar, Tuple, overload
-from startrak.native.alias import ValueType, NumberLike
+from startrak.native.alias import ValueType, RealDType
 from numpy.typing import NDArray
 import numpy as np
 _BitDepth =  TypeVar('_BitDepth', bound= np.dtype)
@@ -64,7 +64,7 @@ def _validate_byteline(line : bytes):
 		raise IOError('Invalid header syntax', line)
 	return True
 
-def _bitsize(depth : int) -> np.dtype[NumberLike]:
+def _bitsize(depth : int) -> np.dtype[RealDType]:
 	if depth == 8: return np.dtype(np.uint8)
 	elif depth == 16: return np.dtype(np.uint16)
 	elif depth == 32: return np.dtype(np.uint32)

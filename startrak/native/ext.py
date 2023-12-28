@@ -1,7 +1,7 @@
 # compiled module
 from __future__ import annotations
 from abc import ABC
-from typing import Any, ClassVar, Dict, Final, Generic, Iterable, Iterator, List, Self, Tuple, Type, TypeVar, final, overload
+from typing import Any, ClassVar, Collection, Dict, Final, Generic, Iterable, Iterator, List, Self, Tuple, Type, TypeVar, final, overload
 import numpy as np
 from startrak.native.alias import MaskLike
 from mypy_extensions import mypyc_attr, trait
@@ -96,16 +96,13 @@ class STObject:
 		return self.__class__.__name__ + separator + name
 
 TList = TypeVar('TList')
-class STCollection(STObject, Generic[TList]):
+class STCollection(STObject, Collection[TList]):
 	_internal : List[TList]
 	_closed : bool
 
-	def __init__(self, values : Iterable[TList] | None = None ):
+	def __init__(self, *values : TList):
 		self._closed = False
-		if values is None:
-			self._internal = list[TList]()
-		else:
-			self._internal = list[TList](values)
+		self._internal = list[TList](values)
 		self.__post_init__()
 
 	def __post_init__(self):
@@ -139,7 +136,7 @@ class STCollection(STObject, Generic[TList]):
 
 	def __len__(self) -> int:
 		return self._internal.__len__()
-	def __contains__(self, value : TList) -> bool:
+	def __contains__(self, value : object) -> bool:
 		return self._internal.__contains__(value)
 	
 	def __add__(self, other : Self | TList) -> Self:
@@ -160,7 +157,7 @@ class STCollection(STObject, Generic[TList]):
 			return self._internal[index]
 		
 		elif type(index) is slice:
-			return cls(self._internal[index])
+			return cls(*self._internal[index])
 		
 		# case: index list or boolean mask
 		elif type(index) is list:
@@ -168,9 +165,9 @@ class STCollection(STObject, Generic[TList]):
 				return cls()
 			if type(index[0]) is bool:
 				if (l1:=len(index)) != (l2:=len(self)): raise IndexError(f"Sizes don't match, got {l1}, expected{l2}")
-				return cls([pos for i, pos in enumerate(self._internal) if index[i] ])
+				return cls( *[pos for i, pos in enumerate(self._internal) if index[i] ])
 			elif type(index[0]) is int:
-				return cls([self._internal[i] for i in index ])
+				return cls( *[self._internal[i] for i in index ])
 			else:
 				raise ValueError(type(index[0]))
 		
@@ -179,9 +176,9 @@ class STCollection(STObject, Generic[TList]):
 				return cls()
 			if isinstance(index[0], np.bool_):
 				if (l1:=len(index)) != (l2:=len(self)): raise IndexError(f"Sizes don't match, got {l1}, expected{l2}")
-				return cls([pos for i, pos in enumerate(self._internal) if index[i] ])
+				return cls( *[pos for i, pos in enumerate(self._internal) if index[i] ])
 			elif isinstance(index[0], np.integer):
-				return cls([self._internal[int(i)] for i in index ])
+				return cls( *[self._internal[int(i)] for i in index ])
 			else:
 				raise ValueError(type(index[0]))
 		else:
@@ -219,7 +216,7 @@ class STCollection(STObject, Generic[TList]):
 		self.__on_change__()
 		self._internal.reverse()
 	def copy(self) -> Self:
-		return type(self)(self._internal.copy())
+		return type(self)(*self._internal.copy())
 	
 	def __pprint__(self, indent : int = 0, compact : bool = False) -> str:
 		indentation = spaces * (indent + 1)

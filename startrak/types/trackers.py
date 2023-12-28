@@ -68,9 +68,9 @@ class SimpleTracker(Tracker):
 
 				indices = np.transpose(np.nonzero(mask))
 				if len(indices) == 0: raise IndexError()
-				_w = np.clip(crop[indices[:, 0], indices[:, 1]] - bkg, 0, phot.flux) / phot.flux
+				_w = np.clip(crop[indices[:, 0], indices[:, 1]] - bkg, 0, phot.flux_max) / phot.flux
 				_w[np.isnan(_w)] = 0
-				average = np.average(indices, weights= _w, axis= 0)[::-1]
+				average = np.average(indices, weights= _w ** 2, axis= 0)[::-1]
 				# variance = np.average((indices - average[::-1])**2 , weights=_w, axis= 0)
 			except:
 				lost.append(i)
@@ -90,13 +90,13 @@ class SimpleTracker(Tracker):
 		cross = np.cross(c_previous, c_current)
 		da = np.arctan2(cross,  dot)
 
-		return TrackingSolution(delta_pos= delta_pos, 
-										delta_angle= da, 
-										image_size= _image.shape, 
-										lost_indices= lost,
-										weights= self._model_weights,
-										rejection_sigma= self._r_sigma,
-										rejection_iter= self._r_iter)
+		return TrackingSolution.new(delta_pos= delta_pos, 
+											delta_angle= da, 
+											image_size= _image.shape, 
+											lost_indices= lost,
+											weights= self._model_weights,
+											rejection_sigma= self._r_sigma,
+											rejection_iter= self._r_iter)
 
 # todo: move elsewhere
 _Method = Literal['hough', 'hough_adaptive', 'hough_threshold']
@@ -206,9 +206,9 @@ class GlobalAlignmentTracker(Tracker):
 			weight_array = None
 
 		print(f'Matched {len(matched)} of {len(triangles)} triangles')
-		return TrackingSolution(delta_pos= delta_pos,
-										delta_angle= delta_rot,
-										image_size= image.shape,
-										weights= weight_array,
-										rejection_iter= self.iterations,
-										rejection_sigma= self.sigma)
+		return TrackingSolution.new(delta_pos= delta_pos,
+											delta_angle= delta_rot,
+											image_size= image.shape,
+											weights= weight_array,
+											rejection_iter= self.iterations,
+											rejection_sigma= self.sigma)

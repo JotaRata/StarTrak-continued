@@ -44,7 +44,7 @@ class HoughCircles(StarDetector):
 
 		circles = cv2.HoughCircles(img, cv2.HOUGH_GRADIENT, 1,
 										minDist= self._min_dst, param1= self._p1, param2= self._p2, minRadius= self._min_size, maxRadius= self._max_size)
-		return PositionArray(circles[0][:, :2]), circles[0][:, 2].tolist()
+		return PositionArray(*circles[0][:, :2]), circles[0][:, 2].tolist()
 	
 class AdaptiveHoughCircles(HoughCircles):
 	_block_size : int
@@ -65,7 +65,7 @@ class AdaptiveHoughCircles(HoughCircles):
 											255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, blockSize= self._block_size, C= self._threshold)
 		circles = cv2.HoughCircles(img, cv2.HOUGH_GRADIENT, 1,
 										minDist= self._min_dst, param1= self._p1, param2= self._p2, minRadius= self._min_size, maxRadius= self._max_size)
-		return PositionArray(circles[0][:, :2]), circles[0][:, 2].tolist()
+		return PositionArray(*circles[0][:, :2]), circles[0][:, 2].tolist()
 
 class ThresholdHoughCircles(HoughCircles):
 	_threshold : int
@@ -82,5 +82,5 @@ class ThresholdHoughCircles(HoughCircles):
 		_, img = cv2.threshold(img, self._threshold, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
 		circles = cv2.HoughCircles(img, cv2.HOUGH_GRADIENT, 1,
 										minDist= self._min_dst, param1= self._p1, param2= self._p2, minRadius= self._min_size, maxRadius= self._max_size)
-		return PositionArray(circles[0][:, :2]), circles[0][:, 2].tolist()
+		return PositionArray(*circles[0][:, :2]), circles[0][:, 2].tolist()
 	
