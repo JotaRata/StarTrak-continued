@@ -25,6 +25,9 @@ class Array(STCollection[float]):
 			return Array( *[ a * b for a,b in zip(self._internal, other._internal)])
 		else:
 			return Array( *[a * other for a in self._internal] )
+		
+	def __pow__(self, other : float | int) -> Array:
+		return Array( *[a ** other for a in self._internal] )
 	
 	def __truediv__(self, other: Array | float | int) -> Array:
 		if isinstance(other, Array):
