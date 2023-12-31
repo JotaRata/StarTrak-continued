@@ -1,7 +1,7 @@
 # compiled module
 from __future__ import annotations
-from abc import ABC
-from typing import Any, ClassVar, Collection, Dict, Final, Generic, Iterable, Iterator, List, Self, Tuple, Type, TypeVar, final, overload
+from abc import ABC, abstractmethod
+from typing import Any, ClassVar, Collection, Dict, Final, Generic, Iterable, Iterator, List, Self, Tuple, Type, TypeVar, cast, final, overload
 import numpy as np
 from startrak.native.alias import MaskLike
 from mypy_extensions import mypyc_attr, trait
@@ -27,7 +27,7 @@ class ImmutableError(Exception):
 	def __str__(self) -> str:
 		return f"attribute '{self._atr}' of '{self._type.__name__}' objects is not writable"	
 
-__STObject_subclasses__ : Final[AttrDict] = AttrDict()
+__STObject_subclasses__ : Final[AttrDict] = dict[str, Any]()
 def get_stobject(name : str) -> Type[STObject]:
 	return __STObject_subclasses__.__getitem__(name)
 
@@ -38,9 +38,9 @@ class STObject:
 	__locked__ : bool
 	__private__ : ClassVar[Tuple[str, ...] | None] = None
 
-	def __init_subclass__(cls, **kwargs):
-		super().__init_subclass__(**kwargs)
-		if cls.__name__ is "STObject" or cls.__name__ is "STCollection":
+	def __init_subclass__(cls, *args, **kwargs):
+		super().__init_subclass__(*args, **kwargs)
+		if cls.__name__ == "STObject" or cls.__name__ == "STCollection":
 			return
 		if cls.__base__ is ABC:
 			return
@@ -95,6 +95,7 @@ class STObject:
 			return self.__class__.__name__
 		return self.__class__.__name__ + separator + name
 
+__STCollection__subclasses__ : Final[Dict[str, Type[Any]]] = dict[str, Type[Any]]()
 TList = TypeVar('TList')
 class STCollection(STObject, Collection[TList]):
 	_internal : List[TList]
@@ -102,11 +103,25 @@ class STCollection(STObject, Collection[TList]):
 
 	def __init__(self, *values : TList):
 		self._closed = False
-		self._internal = list[TList](values)
+		self._internal = [value for value in values if self.__rt_check(value) ]
 		self.__post_init__()
 
 	def __post_init__(self):
 		pass
+
+	def __init_subclass__(cls, *args, **kwargs):
+		if cls is STCollection:
+			return
+		orig_bases = getattr(cls, '__orig_bases__', None)
+		if orig_bases:
+			__STCollection__subclasses__.__setitem__(cls.__name__, orig_bases[0].__args__[0])
+
+	@classmethod
+	def __rt_check(cls, value : TList) -> bool:
+		_type = __STCollection__subclasses__.get(cls.__name__, NotImplemented)
+		if not isinstance(value, _type):
+			raise TypeError(f'Object "{str(value)}" is not of type "{_type.__name__}"')
+		return True
 	
 	@property
 	def is_closed(self) -> bool:
@@ -185,18 +200,22 @@ class STCollection(STObject, Collection[TList]):
 			raise ValueError(type(index))
 
 	def __setitem__(self, index : int, value : TList):
+		self.__rt_check(value)
 		self.__on_change__()
 		return self._internal.__setitem__(index, value)
 	
 	def append(self, value: TList): 
+		self.__rt_check(value)
 		self.__on_change__()
 		self._internal.append(value)
 	
 	def extend(self, values: Self | Iterable[TList]): 
+		'''Currently it does not support runtime checking'''
 		self.__on_change__()
 		return self._internal.extend(values)
 	
 	def insert(self, index: int, value: TList): 
+		self.__rt_check(value)
 		self.__on_change__()
 		self._internal.insert(index, value)
 	
