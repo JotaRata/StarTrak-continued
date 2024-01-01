@@ -290,14 +290,18 @@ class TrackingSolution(STObject):
 		for _ in range(rejection_iter):
 			if len(mask) == 0:
 				break
-			pos_std : float =  np.nanmean(np.power(pos_residuals[mask], 2))
-			ang_std : float =  np.nanmean(np.power(ang_residuals[mask], 2))
+
+			masked_pos = pos_residuals[mask]
+			masked_ang = ang_residuals[mask]
+
+			pos_var = average(Array( *[pos.sq_length for pos in masked_pos]))
+			ang_var = average(masked_ang ** 2)
 			rej_count, rej_error = 0, 0.0
 			exx: float; eyy: float; eaa : float; i: int
 			# Translation error
 			for i, (exx, eyy) in enumerate(pos_residuals):
 				isnan = math.isnan(exx + eyy)
-				if ((err:= exx**2 + eyy**2) > max(rejection_sigma * pos_std, 1)) or isnan:
+				if ((err:= exx**2 + eyy**2) > max(rejection_sigma * pos_var, 1)) or isnan:
 					if i in mask:
 						mask.remove(i)
 						lost_indices.append(i)
@@ -306,15 +310,15 @@ class TrackingSolution(STObject):
 			# Rotation Error
 			for i, eaa in enumerate(ang_residuals):
 				isnan = math.isnan(eaa)
-				if (eaa**2 > max(rejection_sigma * ang_std, 1)) or isnan:
+				if (eaa**2 > max(rejection_sigma * ang_var, 1)) or isnan:
 					if i in mask:
 						mask.remove(i)
 						lost_indices.append(i)
 						if not isnan:
-							rej_error += math.cos(eaa) * j +  math.sin(eaa) * k; rej_count += 1
+							rej_error += math.cos(eaa)**2 * j +  math.sin(eaa)**2 * k; rej_count += 1
 			
 			if rej_count > 0:
-				print(f'{rej_count} stars deviated from the solution with average error: {np.sqrt(rej_error/rej_count):.2f}px (iter {_+1})')
+				print(f'{rej_count} stars deviated from the solution with average error: {math.sqrt(rej_error/rej_count):.2f}px (iter {_+1})')
 		
 		# Initilize the matrix as the identity
 		dx, dy = 0.0, 0.0
@@ -322,21 +326,14 @@ class TrackingSolution(STObject):
 		e = 0.0
 		l = list(range(len(dpos_arr)))
 
+		dpos_masked = dpos_arr[mask]
+		dang_masked = dang_arr[mask]
 		if len(mask) > 0:
-			if weights is not None:
-				weights = tuple(weights[i] for i in mask)
-				sum_w = sum(weights)
-				
-				if sum_w > 0:
-					dx = sum([pos.x * w for pos, w in zip(dpos_arr[mask], weights)]) / sum_w
-					dy = sum([pos.y * w for pos, w in zip(dpos_arr[mask], weights)]) / sum_w
-					r = sum([ang * w for ang, w in zip(dang_arr[mask], weights)]) / sum_w
-				else:
-					dx = sum([pos.x for pos in dpos_arr[mask]]) / len(mask)
-					dy = sum([pos.y for pos in dpos_arr[mask]]) / len(mask)
-					r = sum([ang for ang in dang_arr[mask]]) / len(mask)
+			dx = average(dpos_masked.x, weights)
+			dy = average(dpos_masked.y, weights)
+			r = average(dang_masked, weights)
 			
-			ex, ey = np.nanstd(dpos_arr[mask], axis= 0)
+			ex, ey = np.nanstd(dpos_masked, axis= 0)
 			e = (ex**2 + ey**2) ** 0.5
 			l = lost_indices
 
