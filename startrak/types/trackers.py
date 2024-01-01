@@ -19,7 +19,7 @@ class SimpleTracker(Tracker):
 		self._r_iter = rejection_iter
 		self._size = tracking_size
 
-	def setup_model(self, stars: StarList, variability : float | Tuple[float, ...] = 1, weights : Tuple[float, ...] | None= None, **kwargs):
+	def setup_model(self, stars: StarList, variability : float | Tuple[float, ...] = 1., weights : Tuple[float, ...] | None= None, **kwargs):
 		if isinstance(variability, float):
 			self._model_variability = (variability, ) * len(stars)
 		else:

@@ -110,8 +110,10 @@ class STCollection(STObject, Collection[TList]):
 		pass
 
 	def __init_subclass__(cls, *args, **kwargs):
-		if cls is STCollection:
+		if cls.__base__ is ABC:
 			return
+		__STObject_subclasses__.__setitem__(cls.__name__, cls)
+		
 		orig_bases = getattr(cls, '__orig_bases__', None)
 		if orig_bases:
 			__STCollection__subclasses__.__setitem__(cls.__name__, orig_bases[0].__args__[0])
@@ -242,7 +244,7 @@ class STCollection(STObject, Collection[TList]):
 		closed = '*' if self.is_closed else ''
 		string : List[str] = ['', spaces *  indent + self.__class__.__name__ + closed + separator + f'({self.__len__()} entries)']
 		for i, value in enumerate(self.__iter__()):
-			index = f'{i}.'
+			index = indentation + f'{i}:'
 			if isinstance(value, STObject) and not compact:
 				string.append(index + indentation + value.__pprint__(indent + 2))
 			else:
