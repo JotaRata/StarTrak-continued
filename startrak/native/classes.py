@@ -14,7 +14,7 @@ from startrak.native.collections.position import Position, PositionArray, Positi
 from startrak.native.fits import _FITSBufferedReaderWrapper as FITSReader
 from startrak.native.fits import _bitsize
 from startrak.native.ext import AttrDict, STObject, spaces
-from startrak.native.numeric import average
+from startrak.native.numeric import average, stdev
 
 #region File management
 _defaults : Final[Dict[str, Type[ValueType]]] = \
@@ -325,15 +325,17 @@ class TrackingSolution(STObject):
 		r = 0.0
 		e = 0.0
 		l = list(range(len(dpos_arr)))
-
+		if weights is not None:
+				weights = tuple(weights[i] for i in mask)
 		dpos_masked = dpos_arr[mask]
 		dang_masked = dang_arr[mask]
+		
 		if len(mask) > 0:
 			dx = average(dpos_masked.x, weights)
 			dy = average(dpos_masked.y, weights)
 			r = average(dang_masked, weights)
 			
-			ex, ey = np.nanstd(dpos_masked, axis= 0)
+			ex, ey = stdev(dpos_masked.x), stdev(dpos_masked.y)
 			e = (ex**2 + ey**2) ** 0.5
 			l = lost_indices
 
@@ -345,6 +347,10 @@ class TrackingSolution(STObject):
 
 		return cls(a, b, c, d, e, j, k, r, l)
 
+	@classmethod
+	def identity(cls):
+		return cls(1, 0, 0, 0, 0, 0, 0, 0)
+	
 	@property
 	def matrix(self) -> NDArray:
 		return np.array([ [self._a, -self._b, self._c], 
@@ -367,6 +373,15 @@ class TrackingSolution(STObject):
 	@property
 	def lost_indices(self) -> List[int]:
 		return self._lost
+	
+	def transform(self, pos : Position) -> Position:
+		matrix = self.matrix
+		vector = (*pos, 1)
+		result = [0, 0]
+		# Perform the matrix-vector multiplication
+		result[0] = matrix[0][0] * vector[0] + matrix[0][1] * vector[1] + matrix[0][2] * vector[2]
+		result[1] = matrix[1][0] * vector[0] + matrix[1][1] * vector[1] + matrix[1][2] * vector[2]
+		return Position(*result)
 	
 	def __export__(self) -> AttrDict:
 		return { 'rot' : self._r,
@@ -405,15 +420,6 @@ class TrackingSolution(STObject):
 					'\n' + indentation + f'rotation:    {self.rotation:.2f}°'
 					'\n' + indentation + f'error:       {self._err:.3f} px')
 
-class TrackingIdentity(TrackingSolution):
-	def __init__(self):
-		self._dx, self._dy = 0., 0.
-		self._da = 0.
-		self.error = 0.
-		self.lost = []
-		self._matrix =np.array([[1, 0, 0], 
-										[0, 1, 0],
-										[0, 0, 1]])
 
 
 

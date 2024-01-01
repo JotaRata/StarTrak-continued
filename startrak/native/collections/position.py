@@ -10,7 +10,6 @@ from startrak.native.alias import MaskLike
 from startrak.native.ext import STCollection
 
 PositionLike = Union[Tuple[float|Any, ...], Tuple[float|Any, float|Any], List[float|Any], NDArray[np.float_]]
-_MatrixLike3x3 = NDArray[np.floating] | List[List | Tuple | NDArray] | Tuple[List | Tuple | NDArray, ...]
 _LiteralAxis = Literal['x', 0, 'y', 1]
 
 
@@ -56,17 +55,6 @@ class Position(NamedTuple):
 	def length(self) -> float:
 		return math.sqrt(self.x ** 2 + self.y ** 2)
 	
-	# todo: Move this to Tracking SOlution or elsewhere
-	def transform(self, matrix : _MatrixLike3x3) -> Position:
-		assert len(matrix) == 3, f'Transformation matrix must have 3 rows (got {len(matrix)}).'
-		assert len(matrix[0]) == 3, f'Transformation matrix must have 3 columns (got {len(matrix[0])}).'
-
-		vector = (*self, 1)
-		result = [0, 0]
-		# Perform the matrix-vector multiplication
-		result[0] = matrix[0][0] * vector[0] + matrix[0][1] * vector[1] + matrix[0][2] * vector[2]
-		result[1] = matrix[1][0] * vector[0] + matrix[1][1] * vector[1] + matrix[1][2] * vector[2]
-		return Position(*result)
 	
 	def __add__(self, other : Position | PositionLike | Any,/) -> Position:
 		if other == 0:
