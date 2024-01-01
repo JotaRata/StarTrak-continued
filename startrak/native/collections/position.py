@@ -1,9 +1,11 @@
 # compiled
 
 from __future__ import annotations
+import math
 import numpy as np
 from numpy.typing import NDArray
 from typing import Any, Iterable, List, Literal, NamedTuple, Sequence, Tuple, Union, overload
+from startrak.native.collections.native_array import Array
 from startrak.native.alias import MaskLike
 from startrak.native.ext import STCollection
 
@@ -47,6 +49,14 @@ class Position(NamedTuple):
 		dt = np.dtype([('x', 'float'), ('y', 'float')])
 		return np.array(self[:], dtype= dt)
 	
+	@property
+	def sq_length(self) -> float:
+		return self.x ** 2 + self.y ** 2
+	@property
+	def length(self) -> float:
+		return math.sqrt(self.x ** 2 + self.y ** 2)
+	
+	# todo: Move this to Tracking SOlution or elsewhere
 	def transform(self, matrix : _MatrixLike3x3) -> Position:
 		assert len(matrix) == 3, f'Transformation matrix must have 3 rows (got {len(matrix)}).'
 		assert len(matrix[0]) == 3, f'Transformation matrix must have 3 columns (got {len(matrix[0])}).'
@@ -102,8 +112,8 @@ class Position(NamedTuple):
 		return f'({self.x:.1f}, {self.y:.1f})'
 	
 class PositionArray(STCollection[Position]):
-	_cached_y : List[float] | None
-	_cached_x : List[float] | None
+	_cached_y : Array | None
+	_cached_x : Array | None
 
 	def __init__(self, *positions: Position | PositionLike):
 		self._closed = False
@@ -116,14 +126,14 @@ class PositionArray(STCollection[Position]):
 		return super().is_closed
 
 	@property
-	def x(self) -> List[float]:
+	def x(self) -> Array:
 		if self._cached_x is None:
-			self._cached_x = [pos.x for pos in self._internal]
+			self._cached_x = Array( *[pos.x for pos in self._internal])
 		return self._cached_x
 	@property
-	def y(self) -> List[float]:
+	def y(self) -> Array:
 		if self._cached_y is None:
-			self._cached_y =  [pos.y for pos in self._internal]
+			self._cached_y =  Array( *[pos.y for pos in self._internal])
 		return self._cached_y
 	
 	def __array__(self, dtype=None) -> NDArray[np.float_]:
@@ -136,9 +146,9 @@ class PositionArray(STCollection[Position]):
 	@overload
 	def __getitem__(self, index : Tuple[int, Literal['x', 'y', 0, 1]]) ->  float: ...
 	@overload
-	def __getitem__(self, index : Tuple[slice, Literal['x', 'y', 0, 1]]) ->  List[float]: ...
+	def __getitem__(self, index : Tuple[slice, Literal['x', 'y', 0, 1]]) ->  Array: ...
 
-	def __getitem__(self, index : int | slice | MaskLike | Tuple[int|slice, _LiteralAxis]) -> Position | PositionArray | List[float] | float:
+	def __getitem__(self, index : int | slice | MaskLike | Tuple[int|slice, _LiteralAxis]) -> Position | PositionArray | Array | float:
 		if type(index) is tuple:
 			assert len(index) == 2
 			idx, axis = index
@@ -178,6 +188,7 @@ class PositionArray(STCollection[Position]):
 			return PositionArray( *[a - other for a in self._internal] )
 		else:
 			raise ValueError(type(other))
+		
 
 	def append(self, value: PositionLike | Position):
 		if type(value) is not Position:
