@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 
 from startrak.native.utils.geomutils import *
-from startrak.native import PhotometryResult, StarDetector, StarList, Tracker, TrackingIdentity, TrackingSolution
+from startrak.native import PhotometryResult, StarDetector, StarList, Tracker, TrackingSolution
 from startrak.native.alias import ImageLike, NDArray
 from startrak.native import PositionArray
 from startrak.types.phot import _get_cropped
@@ -162,7 +162,7 @@ class GlobalAlignmentTracker(Tracker):
 		detected_stars = self._detector.detect(image)
 		if len(detected_stars) <= 3:
 			print('Less than 3 stars were detected for this image')
-			return TrackingIdentity()
+			return TrackingSolution.identity()
 		
 		coords = detected_stars.positions
 		indices = k_neighbors(coords, 2)
@@ -177,7 +177,7 @@ class GlobalAlignmentTracker(Tracker):
 					break
 		if len(matched) == 0:
 			print('No triangles were matched for this image')
-			return TrackingIdentity()
+			return TrackingSolution.identity()
 		
 		reference = PositionArray()
 		current = PositionArray()

@@ -29,7 +29,6 @@ Header = classes.Header
 HeaderArchetype = classes.HeaderArchetype
 PhotometryResult = classes.PhotometryResult
 TrackingSolution = classes.TrackingSolution
-TrackingIdentity = classes.TrackingIdentity
 
 StarList = starlist.StarList
 
