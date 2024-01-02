@@ -1,4 +1,5 @@
 # compiled module
+from __future__ import annotations
 from typing import IO, List, Optional, Self, Set, Tuple, final
 from abc import ABC, ABCMeta, abstractmethod
 
@@ -53,7 +54,7 @@ class Session(STObject, metaclass= ABCMeta):
 	included_items : Set[FileInfo]
 	
 	def __init__(self, name : str):
-		if type(self):
+		if type(self) is Session:
 			raise NotImplementedError('Cannot create object of abtsract type "Session"')
 		self.name = name
 		self.archetype : HeaderArchetype = None
