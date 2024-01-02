@@ -1,6 +1,6 @@
 # compiled module
 from __future__ import annotations
-from abc import ABC, abstractmethod
+from abc import ABC, ABCMeta, abstractmethod
 from typing import Any, ClassVar, Collection, Dict, Final, Generic, Iterable, Iterator, List, Self, Tuple, Type, TypeVar, cast, final, overload
 import numpy as np
 from startrak.native.alias import MaskLike
@@ -9,6 +9,11 @@ from mypy_extensions import mypyc_attr, trait
 spaces : Final[str] = '  '
 separator : Final[str] = ': '
 AttrDict = dict[str, Any]
+
+__STObject_subclasses__ : Final[AttrDict] = dict[str, Any]()
+__STCollection__subclasses__ : Final[Dict[str, Type[Any]]] = dict[str, Type[Any]]()
+def get_stobject(name : str) -> Type[STObject]:
+	return __STObject_subclasses__.__getitem__(name)
 
 def pprint(obj : Any, compact : bool = False):
 	string : str
@@ -19,6 +24,7 @@ def pprint(obj : Any, compact : bool = False):
 	else:
 		string = str(obj)
 	print(string)
+	
 
 class ImmutableError(Exception):
 	def __init__(self, obj: Any, __atr : str):
@@ -27,14 +33,9 @@ class ImmutableError(Exception):
 	def __str__(self) -> str:
 		return f"attribute '{self._atr}' of '{self._type.__name__}' objects is not writable"	
 
-__STObject_subclasses__ : Final[AttrDict] = dict[str, Any]()
-__STCollection__subclasses__ : Final[Dict[str, Type[Any]]] = dict[str, Type[Any]]()
-def get_stobject(name : str) -> Type[STObject]:
-	return __STObject_subclasses__.__getitem__(name)
-
 @mypyc_attr(allow_interpreted_subclasses=True)
 @trait
-class STObject:
+class STObject(ABC):
 	name : str
 
 	def __init_subclass__(cls, *args, **kwargs):
@@ -45,6 +46,11 @@ class STObject:
 			return
 		__STObject_subclasses__.__setitem__(cls.__name__, cls)
 	
+	@classmethod
+	def __subclasshook__(cls, C):
+		return all([getattr(C, name, None) for name in ['__export__', '__import__', '__pprint__']])
+	
+	@abstractmethod
 	def __export__(self) -> AttrDict:
 		return {attr: getattr(self, attr, None) for attr in dir(self) if not attr.startswith(('_', '__')) and not callable(attr)}
 
@@ -71,6 +77,7 @@ class STObject:
 		if name is None:
 			return self.__class__.__name__
 		return self.__class__.__name__ + separator + name
+	
 
 TList = TypeVar('TList')
 class STCollection(STObject, Collection[TList]):
