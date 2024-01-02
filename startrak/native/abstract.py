@@ -1,6 +1,6 @@
 # compiled module
 from typing import IO, List, Optional, Self, Set, Tuple, final
-from abc import ABC, abstractmethod
+from abc import ABC, ABCMeta, abstractmethod
 
 from startrak.native.alias import ImageLike
 from startrak.native.classes import FileInfo, Header, HeaderArchetype, PhotometryResult, Star, TrackingSolution
@@ -48,11 +48,13 @@ class StarDetector(ABC):
 
 #region Sessions
 @mypyc_attr(allow_interpreted_subclasses=True)
-class Session(ABC, STObject):
+class Session(STObject, metaclass= ABCMeta):
 	archetype : Optional[HeaderArchetype]
 	included_items : Set[FileInfo]
 	
 	def __init__(self, name : str):
+		if type(self):
+			raise NotImplementedError('Cannot create object of abtsract type "Session"')
 		self.name = name
 		self.archetype : HeaderArchetype = None
 		self.included_items : set[FileInfo] = set()
@@ -90,11 +92,14 @@ class Session(ABC, STObject):
 		self.archetype = HeaderArchetype(header)
 
 	@abstractmethod
-	def __item_added__(self, added : Set[FileInfo]): pass
+	def __item_added__(self, added : Set[FileInfo]): 
+		raise NotImplementedError()
 	@abstractmethod
-	def __item_removed__(self, removed : Set[FileInfo]): pass
+	def __item_removed__(self, removed : Set[FileInfo]): 
+		raise NotImplementedError()
 	@abstractmethod
-	def save(self, out : str): pass
+	def save(self, out : str): 
+		raise NotImplementedError()
 	
 	@classmethod
 	def __import__(cls, attributes: AttrDict) -> Self:
