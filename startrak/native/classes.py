@@ -81,7 +81,6 @@ class HeaderArchetype(Header):
 		assert all([ value in (int, bool, float, str) for value in user_keys.values()])
 		HeaderArchetype._entries = user_keys
 
-@dataclass #! Hotfix for __setattr__ until a proper mypyc fix is implemented
 class FileInfo(STObject):
 	__path : str
 	__size : int
@@ -92,13 +91,11 @@ class FileInfo(STObject):
 		assert path.lower().endswith(('.fit', '.fits')),\
 			'Input path is not a FITS file'
 		# self.closed = False
-		STObject.__set_locked__(self, __locked= False)
 		self.__file = FITSReader(path)
 		self.__path = os.path.abspath(path)
 		self.name = os.path.basename(self.__path)
 		self.__size = os.path.getsize(path)
 		self.__header = None
-		STObject.__set_locked__(self, __locked= True)
 	
 	@property
 	def path(self) -> str:
@@ -109,13 +106,11 @@ class FileInfo(STObject):
 	
 	@property
 	def header(self) -> Header:
-		STObject.__set_locked__(self, __locked= False)
 		if self.__header is None:
 			_dict = {key.rstrip() : value for key, value in self.__file._read_header()}
 			self.__header = Header(_dict)
 			self.__header.name = self.name
 		retval = self.__header
-		STObject.__set_locked__(self, __locked= True)
 		return retval
 	
 	@lru_cache(maxsize=5)	# todo: Add parameter to config
@@ -181,7 +176,6 @@ class PhotometryResult(STObject):
 		self.annulus_width = annulus_width
 		self.annulus_offset = annulus_offset
 		self.psf_parameters = psf_parameters
-		STObject.__set_locked__(self, __locked= True)
 	
 	@property
 	def snr(self) -> float:
@@ -236,7 +230,6 @@ class ReferenceStar(Star):
 
 #endregion
 #region Tracking
-@dataclass #! Hotfix for __setattr__ until a proper mypyc fix is implemented
 class TrackingSolution(STObject):
 	# Transform matrix is defined as
 	# | a -b  c |

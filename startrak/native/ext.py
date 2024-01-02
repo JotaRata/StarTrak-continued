@@ -28,6 +28,7 @@ class ImmutableError(Exception):
 		return f"attribute '{self._atr}' of '{self._type.__name__}' objects is not writable"	
 
 __STObject_subclasses__ : Final[AttrDict] = dict[str, Any]()
+__STCollection__subclasses__ : Final[Dict[str, Type[Any]]] = dict[str, Type[Any]]()
 def get_stobject(name : str) -> Type[STObject]:
 	return __STObject_subclasses__.__getitem__(name)
 
@@ -35,8 +36,6 @@ def get_stobject(name : str) -> Type[STObject]:
 @trait
 class STObject:
 	name : str
-	__locked__ : bool
-	__private__ : ClassVar[Tuple[str, ...] | None] = None
 
 	def __init_subclass__(cls, *args, **kwargs):
 		super().__init_subclass__(*args, **kwargs)
@@ -46,28 +45,6 @@ class STObject:
 			return
 		__STObject_subclasses__.__setitem__(cls.__name__, cls)
 	
-	@final
-	@classmethod
-	def __set_locked__(cls, self : STObject, **kwargs : Any):
-		if not cls == STObject and not issubclass(type(self), STObject) or '__locked' not in kwargs:
-			raise TypeError('Invalid call')
-		object.__setattr__(self, '__locked__', kwargs['__locked'])
-
-	def __delattr__(self, __name: str) -> None:
-		raise ImmutableError(self, __name)
-
-	def __setattr__(self, __name: str, __value: Any) -> None:
-		try:
-			_locked = object.__getattribute__(self, '__locked__')
-		except:
-			_locked = False
-		if _locked == True:
-			priv = type(self).__private__
-		
-			if (priv is not None and (__name in priv or 'all' in priv)) or  __name.startswith('_'):
-				raise ImmutableError(self, __name)
-		return object.__setattr__(self, __name, __value)
-
 	def __export__(self) -> AttrDict:
 		return {attr: getattr(self, attr, None) for attr in dir(self) if not attr.startswith(('_', '__')) and not callable(attr)}
 
@@ -95,7 +72,6 @@ class STObject:
 			return self.__class__.__name__
 		return self.__class__.__name__ + separator + name
 
-__STCollection__subclasses__ : Final[Dict[str, Type[Any]]] = dict[str, Type[Any]]()
 TList = TypeVar('TList')
 class STCollection(STObject, Collection[TList]):
 	_internal : List[TList]
