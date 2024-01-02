@@ -4,7 +4,7 @@ from mypy_extensions import mypyc_attr
 from dataclasses import dataclass
 from functools import lru_cache
 import math
-from typing import Any, Callable, ClassVar, Dict, Final, List, Optional, Self, Tuple, Type, cast
+from typing import Any, Callable, ClassVar, Dict, Final, List, NamedTuple, Optional, Self, Tuple, Type, cast
 import numpy as np
 import os.path
 from startrak.native.alias import RealDType, ValueType, NDArray, ArrayLike
@@ -13,7 +13,7 @@ from startrak.native.collections.position import Position, PositionArray, Positi
 
 from startrak.native.fits import _FITSBufferedReaderWrapper as FITSReader
 from startrak.native.fits import _bitsize
-from startrak.native.ext import AttrDict, STObject, spaces
+from startrak.native.ext import AttrDict, STObject, spaces, __STObject_subclasses__
 from startrak.native.numeric import average, stdev
 
 #region File management
@@ -93,9 +93,9 @@ class FileInfo(STObject):
 		# self.closed = False
 		self.__file = FITSReader(path)
 		self.__path = os.path.abspath(path)
-		self.name = os.path.basename(self.__path)
 		self.__size = os.path.getsize(path)
 		self.__header = None
+		self.name = os.path.basename(self.__path)
 	
 	@property
 	def path(self) -> str:
@@ -147,10 +147,7 @@ class FileInfo(STObject):
 
 
 #region Photometry
-@dataclass #! Hotfix for __setattr__ until a proper mypyc fix is implemented
 class PhotometryResult(STObject):
-	__private__ :  ClassVar[Tuple[str, ...] | None]  = ('all',)
-
 	def __init__(
 		self, *,
 		flux: float,
@@ -187,8 +184,8 @@ class PhotometryResult(STObject):
 	def __repr__(self) -> str:
 		return str(self.flux)
 	
-	def __setattr__(self, __name: str, __value: Any) -> None:
-		return super().__setattr__(__name, __value)
+	def __export__(self) -> AttrDict:
+		return super().__export__()
 	
 	@classmethod
 	def __import__(cls, attributes: AttrDict) -> Self:
@@ -219,6 +216,9 @@ class Star(STObject):
 			return 0
 		return self.photometry.flux
 	
+	def __export__(self) -> AttrDict:
+		return super().__export__()
+	
 	@classmethod
 	def __import__(cls, attributes: AttrDict) -> Self:
 		params = ('name', 'position', 'aperture', 'photometry')
@@ -230,35 +230,21 @@ class ReferenceStar(Star):
 
 #endregion
 #region Tracking
-class TrackingSolution(STObject):
+
+_Radians = float
+class TrackingSolution(NamedTuple, STObject):	#type: ignore[misc]
 	# Transform matrix is defined as
 	# | a -b  c |
 	# | b -a  d |
 	# | 0  0  1 |
-	_a : float							# a value of the transform matrix (cos(angle))
-	_b : float							# b value of the transform matrix (sin(angle))
-	_c : float							# c value of the transform matrix (dx)
-	_d : float							# d value of the transform matrix (dy)
-	_r : float							# rotation angle in radians
-	
-	def __init__(self, a : float, b : float,  c : float, d : float, e : float, j : float, k : float,
-					r : Optional[float] = None,  l : Optional[List[int]] = None):
-		self._a = a
-		self._b = b
-		self._c = c
-		self._d = d
-		self._j = j
-		self._k = k
-		self._err = e
-		if l:
-			self._lost = l
-		if r:
-			self._r = r
-		else:
-			self._r = math.atan2(a, b)
-	
+	#                a      b      c      d      r  
+	params : Tuple[float, float, float, float, float]
+	dim : Tuple[float, float]
+	error : float
+	lost : Optional[List[int]]
+
 	@classmethod
-	def new(cls, *,delta_pos : ArrayLike | PositionArray,
+	def from_stars(cls, *,delta_pos : ArrayLike | PositionArray,
 						delta_angle : ArrayLike | Array,
 						image_size : Tuple[int, ...],
 						weights : Tuple[float, ...] | None = None,
@@ -338,34 +324,43 @@ class TrackingSolution(STObject):
 		c = dx + j - j * a + k * b
 		d = dy + k - k * a - j * b
 
-		return cls(a, b, c, d, e, j, k, r, l)
+		return cls((a, b, c, d, r), (j, k), e, l)
+
+	@classmethod
+	def from_transform(cls, *,
+							translation : Position, rotation : _Radians, image_size : Tuple[float, float],
+							error : float, lost_indices : Optional[List[int]] = None) -> Self:
+		dx, dy = translation
+		j, k = image_size
+		a = math.cos(rotation)
+		b = math.sin(rotation)
+		
+		c = dx + j - j * a + k * b
+		d = dy + k - k * a - j * b
+
+		return cls((a, b, c, d, rotation), (j, k), error, lost_indices)
 
 	@classmethod
 	def identity(cls):
-		return cls(1, 0, 0, 0, 0, 0, 0, 0)
+		return cls((1, 0, 0, 0, 0), (0, 0), 0, None)
 	
 	@property
 	def matrix(self) -> NDArray:
-		return np.array([ [self._a, -self._b, self._c], 
-								[self._b,  self._a, self._d],
+		a,b,c,d = self.params[:4]
+		return np.array([ [a, -b, c], 
+								[b,  a, d],
 								[0,           0,          1]])
 	@property
 	def translation(self) -> Tuple[float, float]:
-		dx = self._c - self._j + self._a * self._j - self._b * self._k
-		dy = self._d + self._b * self._j - self._k + self._a * self._k
+		a,b,c,d = self.params[:4]
+		j,k = self.dim
+		dx = c - j + a * j - b * k
+		dy = d + b * j - k + a * k
 		return (dx, dy)
 	
 	@property	
 	def rotation(self) -> float:
-		return math.degrees(self._r)
-	
-	@property
-	def error(self) -> float:
-		return self._err
-	
-	@property
-	def lost_indices(self) -> List[int]:
-		return self._lost
+		return math.degrees(self.params[4])
 	
 	def transform(self, pos : Position) -> Position:
 		matrix = self.matrix
@@ -377,44 +372,42 @@ class TrackingSolution(STObject):
 		return Position(*result)
 	
 	def __export__(self) -> AttrDict:
-		return { 'rot' : self._r,
-					'error' : self._err,
-					'param_0' : self._a,
-					'param_1' : self._b,
-					'param_2' : self._c,
-					'param_3' : self._d,
-					'param_4' : self._j,
-					'param_5' : self._k,
-					'indices' : self._lost} 
+		return {
+			'translation': self.translation,
+			'rotation' : self.rotation,
+			'size' : self.dim,
+			'error' : self.error,
+			'lost_indices' : self.lost
+		}
 	@classmethod
-	def __import__(cls, attributes: AttrDict) -> Self:
-		params = {'rot' : 'r',
-					'error' : 'e',
-					'param_0' : 'a',
-					'param_1' : 'b',
-					'param_2' : 'c',
-					'param_3' : 'd',
-					'param_4' : 'j',
-					'param_5' : 'k',
-					'indices' : 'l'}
+	def __import__(cls, attributes: AttrDict) -> TrackingSolution:
+		params = {
+			'translation' : 'translation',
+			'rotation' : 'rotation',
+			'size' : 'image_size',
+			'error' : 'error',
+			'lost_indices' : 'lost_indices'
+			}
 		kwargs = {params[k]: attributes[k] for k in params}
-		return cls(**kwargs)
+		return TrackingSolution.from_transform(**kwargs)
 	
+	def __str__(self) -> str:
+		return self.__pprint__()
 	def __repr__(self) -> str:
-		return type(self).__name__ + f' ({self._c:.1f} px, {self._d:.1f} px, {self.rotation:.2f}°)'
+		t = self.translation
+		return type(self).__name__ + f' ({t[0]:.1f} px, {t[1]:.1f} px, {self.rotation:.2f}°)'
 	
 	def __pprint__(self, indent: int = 0, compact : bool = False) -> str:
 		if compact:
-			return f'{type(self).__name__} ({self._c:.1f} px, {self._d:.1f} px, {self.rotation:.1f}°)'
+			return self.__repr__()
 		indentation = spaces * (indent + 1)
 		t = self.translation
 		return ( f'{spaces * indent}{type(self).__name__}: '
 					'\n' + indentation + f'translation: {t[0]:.1f} px, {t[1]:.1f} px'
 					'\n' + indentation + f'rotation:    {self.rotation:.2f}°'
-					'\n' + indentation + f'error:       {self._err:.3f} px')
-
-
-
+					'\n' + indentation + f'error:       {self.error:.3f} px')
 
 #endregion
+
+__STObject_subclasses__['TrackingSolution'] = TrackingSolution
 
