@@ -60,15 +60,15 @@ class SimpleTracker(Tracker):
 			
 			try:
 				mask = (crop - bkg) > phot.background.sigma * (1 + phot.snr * 2)
-				mask &= np.abs(((crop - bkg)) - phot.flux) <= phot.flux.sigma / 2
-				mask &= (-crop + phot.flux.max) < np.abs(phot.flux.max - max(np.nanmax(crop) - bkg, bkg) ) * (1 + self._model_variability[i] *phot.flux)/2 
+				mask &= np.abs(((crop - bkg)) - phot.flux.value) <= phot.flux.sigma / 2
+				mask &= (-crop + phot.flux.max) < np.abs(phot.flux.max - max(np.nanmax(crop) - bkg, bkg) ) * (1 + self._model_variability[i] * phot.flux) / 2 
 				# mask &= (crop - bkg) <= phot.flux_max
 				mask &= ~np.isnan(crop)
 
 
 				indices = np.transpose(np.nonzero(mask))
 				if len(indices) == 0: raise IndexError()
-				_w = np.clip(crop[indices[:, 0], indices[:, 1]] - bkg, 0, phot.flux.max) / phot.flux
+				_w = np.clip(crop[indices[:, 0], indices[:, 1]] - bkg, 0, phot.flux.max) / phot.flux.value
 				_w[np.isnan(_w)] = 0
 				average = np.average(indices, weights= _w ** 2, axis= 0)[::-1]
 				# variance = np.average((indices - average[::-1])**2 , weights=_w, axis= 0)

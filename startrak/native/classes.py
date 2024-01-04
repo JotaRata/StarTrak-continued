@@ -258,6 +258,8 @@ class PhotometryResult(NamedTuple, STObject):	#type: ignore[misc]
 		apert = ApertureInfo(*attributes['aperture_params'])
 		return cls(attributes['phot_method'], flux, backg, apert, attributes.get('psf_params', None))
 	
+	def __array__(self):
+		return self.flux.value
 	def __str__(self) -> str:
 		return self.__pprint__()
 	def __repr__(self) -> str:
@@ -267,7 +269,7 @@ class PhotometryResult(NamedTuple, STObject):	#type: ignore[misc]
 		if compact:
 			return self.__repr__()
 		indentation = spaces * (indent + 1)
-		return ( f'{spaces * indent}{type(self).__name__}: '
+		return ( f'\n{spaces * indent}{type(self).__name__}: '
 					'\n' + indentation + f'method: {self.method}'
 					'\n' + indentation + f'flux: {self.flux.value:.2f} ± {self.flux.sigma:.2f}'
 					'\n' + indentation + f'background: {self.background.value:.2f} ± {self.background.sigma:.2f}'
@@ -478,7 +480,7 @@ class TrackingSolution(NamedTuple, STObject):	#type: ignore[misc]
 			return self.__repr__()
 		indentation = spaces * (indent + 1)
 		t = self.translation
-		return ( f'{spaces * indent}{type(self).__name__}: '
+		return ( f'\n{spaces * indent}{type(self).__name__}: '
 					'\n' + indentation + f'translation: {t[0]:.1f} px, {t[1]:.1f} px'
 					'\n' + indentation + f'rotation:    {self.rotation:.2f}°'
 					'\n' + indentation + f'error:       {self.error:.3f} px')

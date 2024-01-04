@@ -47,8 +47,8 @@ class STObject(ABC):
 		__STObject_subclasses__.__setitem__(cls.__name__, cls)
 	
 	@classmethod
-	def __subclasshook__(cls, C):
-		return all([getattr(C, name, None) for name in ['__export__', '__import__', '__pprint__']])
+	def __subclasshook__(cls, subclass : Type[Any]):
+		return all([getattr(subclass, name, None) for name in ['__export__', '__import__', '__pprint__']])
 	
 	@abstractmethod
 	def __export__(self) -> AttrDict:
@@ -64,7 +64,7 @@ class STObject(ABC):
 		for key, value in self.__export__().items():
 			if key == 'name':
 				continue
-			if isinstance(value, STObject) and not compact:
+			if (isinstance(value, STObject) or STObject.__subclasshook__(type(value))) and not compact:
 				string.append(indentation + key + separator + value.__pprint__(indent + 2))
 			else:
 				string.append(indentation + key + separator  + str(value))
