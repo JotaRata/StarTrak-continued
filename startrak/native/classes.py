@@ -4,7 +4,7 @@ from mypy_extensions import mypyc_attr
 from dataclasses import dataclass
 from functools import lru_cache
 import math
-from typing import Any, Callable, ClassVar, Dict, Final, List, NamedTuple, Optional, Self, Tuple, Type, cast
+from typing import Any, Callable, ClassVar, Dict, Final, List, NamedTuple, Never, Optional, Self, Tuple, Type, cast, overload
 import numpy as np
 import os.path
 from startrak.native.alias import RealDType, ValueType, NDArray, ArrayLike
@@ -145,57 +145,133 @@ class FileInfo(STObject):
 #endregion
 
 
-
 #region Photometry
-class PhotometryResult(STObject):
-	def __init__(
-		self, *,
+	
+	
+class FluxInfo(NamedTuple):
+	value: float
+	raw: float
+	sigma: float
+	max: float
+
+	def __repr__(self) -> str:
+		return str(self.value)
+	def __add__(self, other : tuple | float | int) -> float: # type: ignore[override]
+		if isinstance(other, tuple):	raise NotImplementedError()
+		return self.value + other
+	def __sub__(self, other :  float | int) -> float:
+		return self.value - other
+	def __mul__(self, other :  float | int | Any) -> float: # type: ignore[override]
+		if not isinstance(other, (int, float)): raise NotImplementedError()
+		return self.value * other
+	def __truediv__(self, other :  float | int) -> float:
+		return self.value / other
+	def __radd__(self, other :  float | int):
+		return self.__add__(other)
+	def __rsub__(self, other :  float | int) -> float:
+		return self.__sub__(other)
+	def __rmul__(self, other :  float | int) -> float: # type: ignore[override]
+		return self.__mul__(other)
+
+class BkgInfo(NamedTuple):
+	value: float
+	sigma: float
+
+	def __repr__(self) -> str:
+		return str(self.value)
+	def __add__(self, other : tuple | float | int) -> float: # type: ignore[override]
+		if isinstance(other, tuple):	raise NotImplementedError()
+		return self.value + other
+	def __sub__(self, other :  float | int) -> float:
+		return self.value - other
+	def __mul__(self, other :  float | int | Any) -> float: # type: ignore[override]
+		if not isinstance(other, (int, float)): raise NotImplementedError()
+		return self.value * other
+	def __truediv__(self, other :  float | int) -> float:
+		return self.value / other
+	def __radd__(self, other :  float | int):
+		return self.__add__(other)
+	def __rsub__(self, other :  float | int) -> float:
+		return self.__sub__(other)
+	def __rmul__(self, other :  float | int) -> float: # type: ignore[override]
+		return self.__mul__(other)
+	
+class ApertureInfo(NamedTuple):
+	radius: float
+	width: float
+	offset: float
+
+class PhotometryResult(NamedTuple, STObject):	#type: ignore[misc]
+	method: str
+	flux : FluxInfo
+	background : BkgInfo
+	aperture_info : ApertureInfo
+	psf_parameters: Optional[Tuple[float, float, float]] = None
+
+	@classmethod
+	def new(cls, *,
+		method: str,
 		flux: float,
-		flux_raw: float,
 		flux_sigma: float,
+		flux_raw: float,
 		flux_max: float,
 		background: float,
 		background_sigma: float,
-		method: str,
-		aperture_radius: Optional[float] = None,
-		annulus_width: Optional[float] = None,
-		annulus_offset: Optional[float] = None,
+		aperture_radius: float,
+		annulus_width: float,
+		annulus_offset: float,
 		psf_parameters: Optional[Tuple[float, float, float]] = None,
 	):
-		self.flux = flux
-		self.flux_raw = flux_raw
-		self.flux_sigma = flux_sigma
-		self.flux_max = flux_max
-		self.background = background
-		self.background_sigma = background_sigma
-		self.method = method
-		self.aperture_radius = aperture_radius
-		self.annulus_width = annulus_width
-		self.annulus_offset = annulus_offset
-		self.psf_parameters = psf_parameters
+		return cls(method, FluxInfo(flux, flux_sigma, flux_raw, flux_max),
+						BkgInfo(background, background_sigma), ApertureInfo(aperture_radius, annulus_width, annulus_offset), psf_parameters)
+	@classmethod
+	def zero(cls):
+		return cls('None', FluxInfo(0, 0, 0, 0), BkgInfo(0, 0), ApertureInfo(0, 0, 0))
 	
+
 	@property
 	def snr(self) -> float:
-		return self.flux / self.background
+		return self.flux.value / self.background.value
 	@property
 	def error(self) -> float:
-		return math.sqrt(self.flux_sigma**2 + self.background_sigma**2)
-
-	def __repr__(self) -> str:
-		return str(self.flux)
+		return math.sqrt(self.flux.sigma**2 + self.background.sigma**2)
 	
 	def __export__(self) -> AttrDict:
-		return super().__export__()
+		attrs = {
+			'flux' : self.flux.value,
+			'flux_sigma' : self.flux.sigma,
+			'flux_raw' : self.flux.raw,
+			'flux_max' : self.flux.max,
+			'background' : self.background.value,
+			'background_sigma' : self.background.sigma,
+			'phot_method' : self.method,
+			'aperture_params' : tuple(self.aperture_info)
+		}
+		if self.psf_parameters:
+			attrs['psf_params'] = self.psf_parameters
+		return attrs
 	
 	@classmethod
 	def __import__(cls, attributes: AttrDict) -> Self:
-		params = ('flux', 'flux_raw', 'flux_sigma',
-					'flux_max', 'background',
-					'background_sigma', 'method',
-					'aperture_radius', 'annulus_width',
-					'annulus_offset', 'psf_parameters')
-		attributes = {k: attributes[k] for k in params if k in attributes}
-		return cls(**attributes)
+		flux = FluxInfo(attributes['flux'], attributes['flux_raw'], attributes['flux_sigma'], attributes['flux_max'])
+		backg = BkgInfo(attributes['background'], attributes['background_sigma'])
+		apert = ApertureInfo(*attributes['aperture_params'])
+		return cls(attributes['phot_method'], flux, backg, apert, attributes.get('psf_params', None))
+	
+	def __str__(self) -> str:
+		return self.__pprint__()
+	def __repr__(self) -> str:
+		return type(self).__name__ + f': {self.flux.value:.2f} ± {self.flux.sigma:.2f}'
+	
+	def __pprint__(self, indent: int = 0, compact : bool = False) -> str:
+		if compact:
+			return self.__repr__()
+		indentation = spaces * (indent + 1)
+		return ( f'{spaces * indent}{type(self).__name__}: '
+					'\n' + indentation + f'method: {self.method}'
+					'\n' + indentation + f'flux: {self.flux.value:.2f} ± {self.flux.sigma:.2f}'
+					'\n' + indentation + f'background: {self.background.value:.2f} ± {self.background.sigma:.2f}'
+					'\n' + indentation + f'error:       {self.error:.3f}')
 	
 @mypyc_attr(allow_interpreted_subclasses=True)
 class Star(STObject):
@@ -214,7 +290,7 @@ class Star(STObject):
 	def flux(self) -> float:
 		if not self.photometry:
 			return 0
-		return self.photometry.flux
+		return self.photometry.flux.value
 	
 	def __export__(self) -> AttrDict:
 		return super().__export__()
@@ -244,7 +320,7 @@ class TrackingSolution(NamedTuple, STObject):	#type: ignore[misc]
 	lost : Optional[List[int]]
 
 	@classmethod
-	def from_stars(cls, *,delta_pos : ArrayLike | PositionArray,
+	def create(cls, *,delta_pos : ArrayLike | PositionArray,
 						delta_angle : ArrayLike | Array,
 						image_size : Tuple[int, ...],
 						weights : Tuple[float, ...] | None = None,
@@ -327,7 +403,7 @@ class TrackingSolution(NamedTuple, STObject):	#type: ignore[misc]
 		return cls((a, b, c, d, r), (j, k), e, l)
 
 	@classmethod
-	def from_transform(cls, *,
+	def new(cls, *,
 							translation : Position, rotation : _Radians, image_size : Tuple[float, float],
 							error : float, lost_indices : Optional[List[int]] = None) -> Self:
 		dx, dy = translation
@@ -389,7 +465,7 @@ class TrackingSolution(NamedTuple, STObject):	#type: ignore[misc]
 			'lost_indices' : 'lost_indices'
 			}
 		kwargs = {params[k]: attributes[k] for k in params}
-		return TrackingSolution.from_transform(**kwargs)
+		return TrackingSolution.new(**kwargs)
 	
 	def __str__(self) -> str:
 		return self.__pprint__()
