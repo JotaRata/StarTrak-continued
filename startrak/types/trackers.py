@@ -1,18 +1,14 @@
-import math
-from typing import Callable, List, Literal, Tuple
-import cv2
+from typing import List, Literal, Tuple
 import numpy as np
 
 from startrak.native.utils.geomutils import *
 from startrak.native import PhotometryResult, StarDetector, StarList, Tracker, TrackingSolution
-from startrak.native.alias import ImageLike, NDArray
+from startrak.native.alias import ImageLike
 from startrak.native import PositionArray
 from startrak.types.phot import _get_cropped
 from startrak.types import detection
 
-class SimpleTracker(Tracker):
-	_size : int
-
+class PhotometryTracker(Tracker):
 	def __init__(self, tracking_size : int,
 						rejection_sigma= 3, rejection_iter= 3) -> None:
 		self._r_sigma = rejection_sigma
@@ -65,13 +61,10 @@ class SimpleTracker(Tracker):
 				_w = np.clip(crop[indices[:, 0], indices[:, 1]] - bkg, 0, phot.flux.max) / phot.flux
 				_w[np.isnan(_w)] = 0
 				average = np.average(indices, weights= _w ** 2, axis= 0)[::-1]
-				# variance = np.average((indices - average[::-1])**2 , weights=_w, axis= 0)
 			except:	#raises ZeroDivisionError and IndexError
 				lost.append(i)
 				current.append([np.nan, np.nan])
 				continue
-			# print(i, 'psf', np.sqrt(variance))
-			# median_rc = np.median(indices, axis= 0)[::-1]
 			current.append(average - (self._size,) * 2 + self._model_coords[i])
 		
 		delta_pos = current - self._model_coords
