@@ -172,7 +172,10 @@ class FluxInfo(NamedTuple):
 		return self.__sub__(other)
 	def __rmul__(self, other :  float | int) -> float: # type: ignore[override]
 		return self.__mul__(other)
+	def __array__(self):
+		return np.array(self.value)
 
+# todo: Combine FluxInfo and BkgInfo together
 class BkgInfo(NamedTuple):
 	value: float
 	sigma: float
@@ -195,6 +198,8 @@ class BkgInfo(NamedTuple):
 		return self.__sub__(other)
 	def __rmul__(self, other :  float | int) -> float: # type: ignore[override]
 		return self.__mul__(other)
+	def __array__(self):
+		return np.array(self.value)
 	
 class ApertureInfo(NamedTuple):
 	radius: float
@@ -258,8 +263,6 @@ class PhotometryResult(NamedTuple, STObject):	#type: ignore[misc]
 		apert = ApertureInfo(*attributes['aperture_params'])
 		return cls(attributes['phot_method'], flux, backg, apert, attributes.get('psf_params', None))
 	
-	def __array__(self):
-		return self.flux.value
 	def __str__(self) -> str:
 		return self.__pprint__()
 	def __repr__(self) -> str:
@@ -441,13 +444,11 @@ class TrackingSolution(NamedTuple, STObject):	#type: ignore[misc]
 		return math.degrees(self.params[4])
 	
 	def transform(self, pos : Position) -> Position:
-		matrix = self.matrix
-		vector = (*pos, 1)
-		result = [0, 0]
-		# Perform the matrix-vector multiplication
-		result[0] = matrix[0][0] * vector[0] + matrix[0][1] * vector[1] + matrix[0][2] * vector[2]
-		result[1] = matrix[1][0] * vector[0] + matrix[1][1] * vector[1] + matrix[1][2] * vector[2]
-		return Position(*result)
+		a,b,c,d = self.params[:4]
+		vx, vy = pos
+		x = a * vx + -b * vy + c
+		y = b * vx + a * vy + d
+		return Position(x, y)
 	
 	def __export__(self) -> AttrDict:
 		return {
@@ -488,4 +489,5 @@ class TrackingSolution(NamedTuple, STObject):	#type: ignore[misc]
 #endregion
 
 __STObject_subclasses__['TrackingSolution'] = TrackingSolution
+__STObject_subclasses__['PhotometryResult'] = PhotometryResult
 
