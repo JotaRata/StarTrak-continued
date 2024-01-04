@@ -150,9 +150,9 @@ class FileInfo(STObject):
 	
 class FluxInfo(NamedTuple):
 	value: float
-	raw: float
 	sigma: float
-	max: float
+	raw: float = 0
+	max: float = 0
 
 	def __repr__(self) -> str:
 		return str(self.value)
@@ -175,32 +175,6 @@ class FluxInfo(NamedTuple):
 	def __array__(self):
 		return np.array(self.value)
 
-# todo: Combine FluxInfo and BkgInfo together
-class BkgInfo(NamedTuple):
-	value: float
-	sigma: float
-
-	def __repr__(self) -> str:
-		return str(self.value)
-	def __add__(self, other : tuple | float | int) -> float: # type: ignore[override]
-		if isinstance(other, tuple):	raise NotImplementedError()
-		return self.value + other
-	def __sub__(self, other :  float | int) -> float:
-		return self.value - other
-	def __mul__(self, other :  float | int | Any) -> float: # type: ignore[override]
-		if not isinstance(other, (int, float)): raise NotImplementedError()
-		return self.value * other
-	def __truediv__(self, other :  float | int) -> float:
-		return self.value / other
-	def __radd__(self, other :  float | int):
-		return self.__add__(other)
-	def __rsub__(self, other :  float | int) -> float:
-		return self.__sub__(other)
-	def __rmul__(self, other :  float | int) -> float: # type: ignore[override]
-		return self.__mul__(other)
-	def __array__(self):
-		return np.array(self.value)
-	
 class ApertureInfo(NamedTuple):
 	radius: float
 	width: float
@@ -209,7 +183,7 @@ class ApertureInfo(NamedTuple):
 class PhotometryResult(NamedTuple, STObject):	#type: ignore[misc]
 	method: str
 	flux : FluxInfo
-	background : BkgInfo
+	background : FluxInfo
 	aperture_info : ApertureInfo
 	psf_parameters: Optional[Tuple[float, float, float]] = None
 
@@ -222,16 +196,17 @@ class PhotometryResult(NamedTuple, STObject):	#type: ignore[misc]
 		flux_max: float,
 		background: float,
 		background_sigma: float,
+		background_max: float,
 		aperture_radius: float,
 		annulus_width: float,
 		annulus_offset: float,
 		psf_parameters: Optional[Tuple[float, float, float]] = None,
 	):
 		return cls(method, FluxInfo(flux, flux_sigma, flux_raw, flux_max),
-						BkgInfo(background, background_sigma), ApertureInfo(aperture_radius, annulus_width, annulus_offset), psf_parameters)
+						FluxInfo(background, background_sigma, background_max), ApertureInfo(aperture_radius, annulus_width, annulus_offset), psf_parameters)
 	@classmethod
 	def zero(cls):
-		return cls('None', FluxInfo(0, 0, 0, 0), BkgInfo(0, 0), ApertureInfo(0, 0, 0))
+		return cls('None', FluxInfo(0, 0, 0, 0), FluxInfo(0, 0), ApertureInfo(0, 0, 0))
 	
 
 	@property
@@ -249,6 +224,7 @@ class PhotometryResult(NamedTuple, STObject):	#type: ignore[misc]
 			'flux_max' : self.flux.max,
 			'background' : self.background.value,
 			'background_sigma' : self.background.sigma,
+			'background_max' : self.background.max,
 			'phot_method' : self.method,
 			'aperture_params' : tuple(self.aperture_info)
 		}
@@ -259,7 +235,7 @@ class PhotometryResult(NamedTuple, STObject):	#type: ignore[misc]
 	@classmethod
 	def __import__(cls, attributes: AttrDict) -> Self:
 		flux = FluxInfo(attributes['flux'], attributes['flux_raw'], attributes['flux_sigma'], attributes['flux_max'])
-		backg = BkgInfo(attributes['background'], attributes['background_sigma'])
+		backg = FluxInfo(attributes['background'], attributes['background_sigma'], attributes['background_max'])
 		apert = ApertureInfo(*attributes['aperture_params'])
 		return cls(attributes['phot_method'], flux, backg, apert, attributes.get('psf_params', None))
 	
