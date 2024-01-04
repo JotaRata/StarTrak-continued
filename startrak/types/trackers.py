@@ -59,16 +59,16 @@ class SimpleTracker(Tracker):
 			bkg = np.nanmean((np.nanmean(crop[-4:, :]), np.nanmean(crop[:, -4:]), np.nanmean(crop[:4, :]), np.nanmean(crop[:, :4])))
 			
 			try:
-				mask = (crop - bkg) > phot.background_sigma * (1 + phot.snr * 2)
-				mask &= np.abs(((crop - bkg)) - phot.flux) <= phot.flux_sigma / 2
-				mask &= (-crop + phot.flux_max) < np.abs(phot.flux_max - max(np.nanmax(crop) - bkg, bkg) ) * (1 + self._model_variability[i] *phot.flux)/2 
+				mask = (crop - bkg) > phot.background.sigma * (1 + phot.snr * 2)
+				mask &= np.abs(((crop - bkg)) - phot.flux) <= phot.flux.sigma / 2
+				mask &= (-crop + phot.flux.max) < np.abs(phot.flux.max - max(np.nanmax(crop) - bkg, bkg) ) * (1 + self._model_variability[i] *phot.flux)/2 
 				# mask &= (crop - bkg) <= phot.flux_max
 				mask &= ~np.isnan(crop)
 
 
 				indices = np.transpose(np.nonzero(mask))
 				if len(indices) == 0: raise IndexError()
-				_w = np.clip(crop[indices[:, 0], indices[:, 1]] - bkg, 0, phot.flux_max) / phot.flux
+				_w = np.clip(crop[indices[:, 0], indices[:, 1]] - bkg, 0, phot.flux.max) / phot.flux
 				_w[np.isnan(_w)] = 0
 				average = np.average(indices, weights= _w ** 2, axis= 0)[::-1]
 				# variance = np.average((indices - average[::-1])**2 , weights=_w, axis= 0)
@@ -90,7 +90,7 @@ class SimpleTracker(Tracker):
 		cross = np.cross(c_previous, c_current)
 		da = np.arctan2(cross,  dot)
 
-		return TrackingSolution.new(delta_pos= delta_pos, 
+		return TrackingSolution.create(delta_pos= delta_pos, 
 											delta_angle= da, 
 											image_size= _image.shape, 
 											lost_indices= lost,
@@ -206,7 +206,7 @@ class GlobalAlignmentTracker(Tracker):
 			weight_array = None
 
 		print(f'Matched {len(matched)} of {len(triangles)} triangles')
-		return TrackingSolution.new(delta_pos= delta_pos,
+		return TrackingSolution.create(delta_pos= delta_pos,
 											delta_angle= delta_rot,
 											image_size= image.shape,
 											weights= weight_array,

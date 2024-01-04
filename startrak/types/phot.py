@@ -44,7 +44,7 @@ class AperturePhot(PhotometryBase):
 			sigma_mask = np.abs(bg_flux - np.nanmean(bg_flux)) < np.nanstd(bg_flux) * self.sigma
 			bg_flux = bg_flux[sigma_mask]
 		
-		return PhotometryResult(flux= float(np.nanmean(flux_raw) - np.nanmean(bg_flux)),
+		return PhotometryResult.new(flux= float(np.nanmean(flux_raw) - np.nanmean(bg_flux)),
 										flux_raw= float(np.nanmean(flux_raw)),
 										flux_sigma= float(np.nanstd(flux_raw)),
 										flux_max= float(np.max(flux_raw)),
