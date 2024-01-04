@@ -51,10 +51,6 @@ class SimpleTracker(Tracker):
 		
 		for i in range(self._model_count): 
 			crop = _get_cropped(_image, self._model_coords[i], 0, padding= self._size)
-			
-			# background sigma clipping
-			# image minus the background should equal the integrated flux
-			# the candidate shouldn't be brighter than the current star
 			phot = self._model_phot[i]
 			bkg = np.nanmean((np.nanmean(crop[-4:, :]), np.nanmean(crop[:, -4:]), np.nanmean(crop[:4, :]), np.nanmean(crop[:, :4])))
 			
@@ -62,9 +58,7 @@ class SimpleTracker(Tracker):
 				mask = (crop - bkg) > phot.background.sigma * (1 + phot.snr * 2)
 				mask &= np.abs(((crop - bkg)) - phot.flux) <= phot.flux.sigma / 2
 				mask &= (-crop + phot.flux.max) < np.abs(phot.flux.max - max(np.nanmax(crop) - bkg, bkg) ) * (1 + self._model_variability[i] * phot.flux) / 2 
-				# mask &= (crop - bkg) <= phot.flux_max
 				mask &= ~np.isnan(crop)
-
 
 				indices = np.transpose(np.nonzero(mask))
 				if len(indices) == 0: raise IndexError()
