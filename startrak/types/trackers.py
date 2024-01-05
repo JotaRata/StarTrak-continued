@@ -58,8 +58,8 @@ class PhotometryTracker(Tracker):
 			
 			try:
 				mask = (crop - bkg) > phot.background.sigma * (1 + phot.snr * 2)
-				mask &= np.abs(((crop - bkg)) - phot.flux) <= phot.flux.sigma / 2
-				mask &= (-crop + phot.flux.max) < np.abs(phot.flux.max - max(np.nanmax(crop) - bkg, bkg) ) * (1 + variabilities[i] * phot.flux) / 2 
+				mask &= (crop - bkg) > phot.flux.sigma * (1 + phot.snr) / 2
+				mask &= ((crop - bkg) - phot.flux.max) <  phot.flux.sigma * variabilities[i] 
 				mask &= ~np.isnan(crop)
 
 				indices = np.transpose(np.nonzero(mask))
@@ -87,7 +87,7 @@ class PhotometryTracker(Tracker):
 			current_dp, lost = self._track(image, current, _size, _vars)
 			avg = average(current_dp, self._model_weights)
 			
-			if avg.length < 1 or avg.length > last_dp:
+			if avg.length < 1 or avg.length > last_dp or avg.length > _size:
 				break
 			_size = int(_size * self._sizemul)
 			_vars = _vars * self._varmul
