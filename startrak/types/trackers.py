@@ -1,27 +1,32 @@
 from typing import List, Literal, Tuple
 import numpy as np
+from startrak.native.classes import TrackingSolution
+from startrak.native.numeric import average
 
 from startrak.native.utils.geomutils import *
-from startrak.native import PhotometryResult, StarDetector, StarList, Tracker, TrackingSolution
+from startrak.native import Array, PhotometryResult, StarDetector, StarList, Tracker, TrackingSolution
 from startrak.native.alias import ImageLike
 from startrak.native import PositionArray
 from startrak.types.phot import _get_cropped
 from startrak.types import detection
 
 class PhotometryTracker(Tracker):
-	def __init__(self, tracking_size : int,
+	def __init__(self, tracking_size : int, tracking_steps : int = 1, var_mul : float = 0.75, size_mul : float = 0.75,
 						rejection_sigma= 3, rejection_iter= 3) -> None:
+		self._steps = tracking_steps
+		self._varmul = var_mul
+		self._sizemul = size_mul
 		self._r_sigma = rejection_sigma
 		self._r_iter = rejection_iter
 		self._size = tracking_size
 
-	def setup_model(self, stars: StarList, variability : float | Tuple[float, ...] = 1., weights : Tuple[float, ...] | None= None, **kwargs):
+	def setup_model(self, stars: StarList, variability : float | List[float] = 1., weights : Tuple[float, ...] | None= None, **kwargs):
 		if isinstance(variability, float):
-			self._model_variability = (variability, ) * len(stars)
+			self._model_variability = [variability, ] * len(stars)
 		else:
 			if len(variability) != len(stars):
 				raise ValueError('Variabilities size must be equal to star list size')
-			self._model_variability = variability
+			self._model_variability = [float(v) for v in variability]
 		
 		if weights and type(weights) is tuple:
 			if len(weights) != len(stars):
@@ -40,46 +45,73 @@ class PhotometryTracker(Tracker):
 		self._model_coords = coords
 		self._model_coords.close()
 
-	def track(self, _image : ImageLike):
-		current= PositionArray()
-		lost= list[int]()
-
-		
+	def _track(self, _image : ImageLike, start_coords : PositionArray,
+					crop_size : int , variabilities : Array):
+		current = PositionArray()
+		lost = list[int]()
 		for i in range(self._model_count): 
-			crop = _get_cropped(_image, self._model_coords[i], 0, padding= self._size)
+			if i in lost:
+				pass
+			crop = _get_cropped(_image, start_coords[i], 0, padding= crop_size)
 			phot = self._model_phot[i]
 			bkg = np.nanmean((np.nanmean(crop[-4:, :]), np.nanmean(crop[:, -4:]), np.nanmean(crop[:4, :]), np.nanmean(crop[:, :4])))
 			
 			try:
 				mask = (crop - bkg) > phot.background.sigma * (1 + phot.snr * 2)
 				mask &= np.abs(((crop - bkg)) - phot.flux) <= phot.flux.sigma / 2
-				mask &= (-crop + phot.flux.max) < np.abs(phot.flux.max - max(np.nanmax(crop) - bkg, bkg) ) * (1 + self._model_variability[i] * phot.flux) / 2 
+				mask &= (-crop + phot.flux.max) < np.abs(phot.flux.max - max(np.nanmax(crop) - bkg, bkg) ) * (1 + variabilities[i] * phot.flux) / 2 
 				mask &= ~np.isnan(crop)
 
 				indices = np.transpose(np.nonzero(mask))
 				if len(indices) == 0: raise IndexError()
 				_w = np.clip(crop[indices[:, 0], indices[:, 1]] - bkg, 0, phot.flux.max) / phot.flux
 				_w[np.isnan(_w)] = 0
-				average = np.average(indices, weights= _w ** 2, axis= 0)[::-1]
+				avg = np.average(indices, weights= _w ** 2, axis= 0)[::-1]
 			except:	#raises ZeroDivisionError and IndexError
 				lost.append(i)
-				current.append([np.nan, np.nan])
+				current.append([0, 0])
 				continue
-			current.append(average - (self._size,) * 2 + self._model_coords[i])
+			current.append(avg - (crop_size,) * 2 + start_coords[i])
 		
+		delta_pos = current - start_coords
+		return delta_pos, lost
+	
+	def track(self, image: ImageLike) -> TrackingSolution:
+		current = self._model_coords.copy()
+		lost = list[int]()
+		_vars = Array(*self._model_variability)
+		_size = self._size
+
+		last_dp = image.shape[0]
+		for i in range(self._steps):
+			current_dp, lost = self._track(image, current, _size, _vars)
+			avg = average(current_dp, self._model_weights)
+			
+			if avg.length < 1 or avg.length > last_dp:
+				break
+			_size = int(_size * self._sizemul)
+			_vars = _vars * self._varmul
+			res = current_dp - avg
+			var = average( [r.sq_length for r in res])
+			
+			for j, dp in enumerate(res):
+				if j in lost or dp.sq_length > max(var * self._r_sigma, 1):
+					current_dp[j] = avg
+			current += current_dp
+			last_dp = avg.length
+
 		delta_pos = current - self._model_coords
-		
-		center = _image.shape[1]/2, _image.shape[0]/2
+		center = image.shape[1]/2, image.shape[0]/2
 		c_previous = self._model_coords - center
 		c_current = current - center
 
 		dot = np.nansum(np.multiply(c_previous, c_current), axis= 1)
 		cross = np.cross(c_previous, c_current)
-		da = np.arctan2(cross,  dot)
+		delta_angle = np.arctan2(cross,  dot)
 
 		return TrackingSolution.create(delta_pos= delta_pos, 
-											delta_angle= da, 
-											image_size= _image.shape, 
+											delta_angle= delta_angle, 
+											image_size= image.shape, 
 											lost_indices= lost,
 											weights= self._model_weights,
 											rejection_sigma= self._r_sigma,
