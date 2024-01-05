@@ -11,22 +11,15 @@ from startrak.types.phot import _get_cropped
 from startrak.types import detection
 
 class PhotometryTracker(Tracker):
-	def __init__(self, tracking_size : int, tracking_steps : int = 1, var_mul : float = 0.75, size_mul : float = 0.75,
+	def __init__(self, tracking_size : int, tracking_steps : int = 1, size_mul : float = 0.5,
 						rejection_sigma= 3, rejection_iter= 3) -> None:
 		self._steps = tracking_steps
-		self._varmul = var_mul
 		self._sizemul = size_mul
 		self._r_sigma = rejection_sigma
 		self._r_iter = rejection_iter
 		self._size = tracking_size
 
-	def setup_model(self, stars: StarList, variability : float | List[float] = 1., weights : Tuple[float, ...] | None= None, **kwargs):
-		if isinstance(variability, float):
-			self._model_variability = [variability, ] * len(stars)
-		else:
-			if len(variability) != len(stars):
-				raise ValueError('Variabilities size must be equal to star list size')
-			self._model_variability = [float(v) for v in variability]
+	def setup_model(self, stars: StarList, weights : Tuple[float, ...] | None= None, **kwargs):
 		
 		if weights and type(weights) is tuple:
 			if len(weights) != len(stars):
@@ -46,7 +39,7 @@ class PhotometryTracker(Tracker):
 		self._model_coords.close()
 
 	def _track(self, _image : ImageLike, start_coords : PositionArray,
-					crop_size : int , variabilities : Array):
+					crop_size : int ):
 		current = PositionArray()
 		lost = list[int]()
 		for i in range(self._model_count): 
@@ -56,10 +49,10 @@ class PhotometryTracker(Tracker):
 			phot = self._model_phot[i]
 			bkg = np.nanmean((np.nanmean(crop[-4:, :]), np.nanmean(crop[:, -4:]), np.nanmean(crop[:4, :]), np.nanmean(crop[:, :4])))
 			
-			try:
+			try:	
 				mask = (crop - bkg) > phot.background.sigma * (1 + phot.snr * 2)
 				mask &= (crop - bkg) > phot.flux.sigma * (1 + phot.snr) / 2
-				mask &= ((crop - bkg) - phot.flux.max) <  phot.flux.sigma * variabilities[i] 
+				mask &= ((crop - bkg) - phot.flux.max) <  phot.flux.sigma
 				mask &= ~np.isnan(crop)
 
 				indices = np.transpose(np.nonzero(mask))
@@ -79,18 +72,16 @@ class PhotometryTracker(Tracker):
 	def track(self, image: ImageLike) -> TrackingSolution:
 		current = self._model_coords.copy()
 		lost = list[int]()
-		_vars = Array(*self._model_variability)
 		_size = self._size
 
 		last_dp = image.shape[0]
 		for i in range(self._steps):
-			current_dp, lost = self._track(image, current, _size, _vars)
+			current_dp, lost = self._track(image, current, _size)
 			avg = average(current_dp, self._model_weights)
 			
 			if avg.length < 1 or avg.length > last_dp or avg.length > _size:
 				break
 			_size = int(_size * self._sizemul)
-			_vars = _vars * self._varmul
 			res = current_dp - avg
 			var = average( [r.sq_length for r in res])
 			
