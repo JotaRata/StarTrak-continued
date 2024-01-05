@@ -14,15 +14,16 @@ from startrak.types import detection
 class PhotometryTracker(Tracker):
 	def __init__(self, tracking_size : int, tracking_steps : int = 1, size_mul : float = 0.5,
 							stochasticity : float | None = None, rejection_sigma= 3, rejection_iter= 3) -> None:
-		self._steps = tracking_steps
-		self._sizemul = size_mul
-		self._randsize = stochasticity if stochasticity else 0
-		self._r_sigma = rejection_sigma
-		self._r_iter = rejection_iter
-		self._size = tracking_size
+		self.tracking_steps = tracking_steps
+		self.size_mult = size_mul
+		self.random_size = stochasticity if stochasticity else 0
+		self.rej_sigma = rejection_sigma
+		self.rej_iter = rejection_iter
+		self.crop_size = tracking_size
 
+	# todo: Weights should be inside the Star object, not the tracker
+	# todo: Trackers models should contain references to stars
 	def setup_model(self, stars: StarList, weights : Sequence[float] | None= None, **kwargs : Any):
-		
 		if weights:
 			if len(weights) != len(stars):
 				raise ValueError('Weights size must be equal to star list size')
@@ -40,67 +41,60 @@ class PhotometryTracker(Tracker):
 		self._model_coords = coords
 		self._model_coords.close()
 
-	def _track(self, _image : ImageLike, start_coords : PositionArray,
-					crop_size : int ):
-		current = PositionArray()
-		lost = list[int]()
-		for i in range(self._model_count): 
-			if i in lost:
-				pass
-			rand_size = int(crop_size * self._randsize)
-			rand_offset = randint(-rand_size, rand_size), randint(-rand_size, rand_size)
-
-			crop = _get_cropped(_image, start_coords[i] + rand_offset, 0, padding= crop_size)
-			phot = self._model_phot[i]
-			bkg = np.nanmean((np.nanmean(crop[-4:, :]), np.nanmean(crop[:, -4:]), np.nanmean(crop[:4, :]), np.nanmean(crop[:, :4])))
-			
-			try:	
-				mask = (crop - bkg) > phot.background.sigma * (1 + phot.snr * 2)
-				mask &= (crop - bkg) > phot.flux.sigma * (1 + phot.snr) / 2
-				mask &= ((crop - bkg) - phot.flux.max) <  phot.flux.sigma
-				mask &= ~np.isnan(crop)
-
-				indices = np.transpose(np.nonzero(mask))
-				if len(indices) < 4: raise IndexError()
-				_w = np.clip(crop[indices[:, 0], indices[:, 1]] - bkg, 0, phot.flux.max) / phot.flux
-				_w[np.isnan(_w)] = 0
-				avg = np.average(indices, weights= _w ** 2, axis= 0)[::-1]
-			except:	#raises ZeroDivisionError and IndexError
-				lost.append(i)
-				current.append([0, 0])
-				continue
-			current.append(avg - (crop_size,) * 2 + start_coords[i])
-		
-		delta_pos = current - start_coords
-		return delta_pos, lost
-	
 	def track(self, image: ImageLike) -> TrackingSolution:
-		current = self._model_coords.copy()
+		start_coords = self._model_coords.copy()
 		lost = list[int]()
-		_size = self._size
-
 		last_dp = image.shape[0]
-		for i in range(self._steps):
-			current_dp, lost = self._track(image, current, _size)
+		crop_size = self.crop_size
+
+		def track_single():
+			current = PositionArray()
+			for i in range(self._model_count): 
+				rand_size = int(crop_size * self.random_size)
+				rand_offset = randint(-rand_size, rand_size), randint(-rand_size, rand_size)
+
+				crop = _get_cropped(image, start_coords[i] + rand_offset, 0, padding= crop_size)
+				phot = self._model_phot[i]
+				bkg = np.nanmean((np.nanmean(crop[-4:, :]), np.nanmean(crop[:, -4:]), np.nanmean(crop[:4, :]), np.nanmean(crop[:, :4])))
+				try:	
+					mask = (crop - bkg) > phot.background.sigma * (1 + phot.snr * 2)
+					mask &= (crop - bkg) > phot.flux.sigma * (1 + phot.snr) / 2
+					mask &= ((crop - bkg) - phot.flux.max) <  phot.flux.sigma
+					mask &= ~np.isnan(crop)
+
+					indices = np.transpose(np.nonzero(mask))
+					if len(indices) < 4: raise IndexError()
+					_w = np.clip(crop[indices[:, 0], indices[:, 1]] - bkg, 0, phot.flux.max) / phot.flux
+					_w[np.isnan(_w)] = 0
+					avg = np.average(indices, weights= _w ** 2, axis= 0)[::-1]
+				except:	#raises ZeroDivisionError and IndexError
+					lost.append(i)
+					current.append([0, 0])
+					continue
+				current.append(avg - (crop_size,) * 2 + start_coords[i])
+			return current - start_coords, lost
+
+		for i in range(self.tracking_steps):
+			current_dp, lost = track_single()
 			avg = average(current_dp, [w if n not in lost else 0 for n, w in enumerate(self._model_weights)])
 			
-			if avg.length < 1.5 or avg.length > last_dp * 1.5 or avg.length > _size:
+			if avg.length < 1.5 or avg.length > last_dp * 1.5 or avg.length > crop_size:
 				if len(lost) < self._model_count:
 					break
-			_size = int(_size * self._sizemul)
+			crop_size = int(crop_size * self.size_mult)
 			res = current_dp - avg
 			var = average( [r.sq_length for r in res])
 			
 			for j, dp in enumerate(res):
-				if j in lost or dp.sq_length > max(var * self._r_sigma, 1):
+				if j in lost or dp.sq_length > max(var * self.rej_sigma, 1):
 					current_dp[j] = avg
-			current += current_dp
+			start_coords += current_dp
 			last_dp = avg.length
 
-		delta_pos = current - self._model_coords
+		delta_pos = start_coords - self._model_coords
 		center = image.shape[1]/2, image.shape[0]/2
 		c_previous = self._model_coords - center
-		c_current = current - center
+		c_current = start_coords - center
 
 		dot = np.nansum(np.multiply(c_previous, c_current), axis= 1)
 		cross = np.cross(c_previous, c_current)
@@ -111,8 +105,8 @@ class PhotometryTracker(Tracker):
 											image_size= image.shape, 
 											lost_indices= lost,
 											weights= tuple(self._model_weights),
-											rejection_sigma= self._r_sigma,
-											rejection_iter= self._r_iter)
+											rejection_sigma= self.rej_sigma,
+											rejection_iter= self.rej_iter)
 
 # todo: move elsewhere
 _Method = Literal['hough', 'hough_adaptive', 'hough_threshold']
