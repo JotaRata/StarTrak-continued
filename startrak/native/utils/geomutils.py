@@ -33,40 +33,31 @@ def congruence_aaa(trig1: PositionArray, trig2: PositionArray, tolerance: float 
 	angle2_1 = angle(b2, c2, a2)
 	angle2_2 = angle(c2, a2, b2)
 
-	diff_0 = abs(angle1_0 - angle2_0)
-	diff_1 = abs(angle1_1 - angle2_1)
-	diff_2 = abs(angle1_2 - angle2_2)
-	return all(diff < tolerance for diff in [diff_0, diff_1, diff_2])
+	diff_0 = abs(angle1_0 / angle2_0)
+	diff_1 = abs(angle1_1 / angle2_1)
+	diff_2 = abs(angle1_2 / angle2_2)
+	return all((1 - tolerance) < diff < (1 + tolerance) for diff in [diff_0, diff_1, diff_2])
 
 def congruence_sss(trig1: PositionArray, trig2: PositionArray, tolerance: float = 0.05) -> bool:
 	a1, b1, c1 = distance(trig1[0], trig1[1]), distance(trig1[0], trig1[2]), distance(trig1[1], trig1[2])
 	a2, b2, c2 = distance(trig2[0], trig2[1]), distance(trig2[0], trig2[2]), distance(trig2[1], trig2[2])
 
-	diff_a = abs(a1 - a2)
-	diff_b = abs(b1 - b2)
-	diff_c = abs(c1 - c2)
-	return all(diff < tolerance for diff in [diff_a, diff_b, diff_c])
+	diff_a = abs(a1 / a2)
+	diff_b = abs(b1 / b2)
+	diff_c = abs(c1 / c2)
+	return all((1 - tolerance) < diff < (1 + tolerance) for diff in [diff_a, diff_b, diff_c])
 
 def congruence_sas(trig1: PositionArray, trig2: PositionArray, tolerance: float = 0.05) -> bool:
 	a1, b1, c1 = distance(trig1[0], trig1[1]), distance(trig1[0], trig1[2]), distance(trig1[1], trig1[2])
 	a2, b2, c2 = distance(trig2[0], trig2[1]), distance(trig2[0], trig2[2]), distance(trig2[1], trig2[2])
 
 	angle1_0 = angle(a1, b1, c1)
-	angle1_1 = angle(b1, c1, a1)
-	angle1_2 = angle(c1, a1, b1)
-
 	angle2_0 = angle(a2, b2, c2)
-	angle2_1 = angle(b2, c2, a2)
-	angle2_2 = angle(c2, a2, b2)
 
-	diff_0 = abs(angle1_0 - angle2_0)
-	diff_1 = abs(angle1_1 - angle2_1)
-	diff_2 = abs(angle1_2 - angle2_2)
-
-	diff_a = abs(a1 - a2)
-	diff_b = abs(b1 - b2)
-	diff_c = abs(c1 - c2)
-	return all(diff < tolerance for diff in [diff_0, diff_1, diff_2, diff_a, diff_b, diff_c])
+	diff_0 = abs(angle1_0 / angle2_0)
+	diff_a = abs(a1 / a2)
+	diff_b = abs(b1 / b2)
+	return all((1 - tolerance) < diff < (1 + tolerance) for diff in [diff_0, diff_a, diff_b])
 
 def k_neighbors(positions: PositionArray, k : int) -> List[List[int]]:
 	num_points = len(positions)
