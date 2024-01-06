@@ -1,4 +1,5 @@
-from random import randint
+from math import isnan
+from random import randint, uniform
 from typing import Any, List, Literal, Sequence, Tuple
 import numpy as np
 from startrak.native.classes import TrackingSolution
@@ -12,14 +13,22 @@ from startrak.types.phot import _get_cropped
 from startrak.types import detection
 
 class PhotometryTracker(Tracker):
-	def __init__(self, tracking_size : int, tracking_steps : int = 1, size_mul : float = 0.5,
+	def __init__(self, tracking_size : int, tracking_steps : int = 1, size_mul : float | Literal['auto', 'random'] = 0.5,
 							stochasticity : float | None = None, rejection_sigma= 3, rejection_iter= 3) -> None:
+		assert tracking_size > 0 and type(tracking_size) is int, 'Tracking size must be a positive integer'
+		assert tracking_steps >= 1, 'Tracking steps must be greater or equal than one'
+		assert isinstance(size_mul, (float, int)) or (type(size_mul) is str and (size_mul == 'auto' or size_mul=='random')),\
+				'Size multiplier must be a real number or literal "auto" | "random"'
+		assert stochasticity is None or stochasticity > 0, 'Stochasticity must be a positive number or None'
+		assert rejection_iter >= 1, 'Rejection iterations must be greater or equal than one'
+		assert rejection_sigma > 0, 'Rejection sigms value must be a positive number'
+
+		self.crop_size = tracking_size
 		self.tracking_steps = tracking_steps
-		self.size_mult = size_mul
-		self.random_size = stochasticity if stochasticity else 0
 		self.rej_sigma = rejection_sigma
 		self.rej_iter = rejection_iter
-		self.crop_size = tracking_size
+		self.size_mult = size_mul
+		self.random_size = stochasticity if stochasticity else 0
 
 	# todo: Weights should be inside the Star object, not the tracker
 	# todo: Trackers models should contain references to stars
@@ -43,17 +52,17 @@ class PhotometryTracker(Tracker):
 
 	def track(self, image: ImageLike) -> TrackingSolution:
 		start_coords = self._model_coords.copy()
-		lost = list[int]()
 		last_dp = image.shape[0]
 		crop_size = self.crop_size
 
 		def track_single():
 			current = PositionArray()
+			lost = list[int]()
 			for i in range(self._model_count): 
 				rand_size = int(crop_size * self.random_size)
 				rand_offset = randint(-rand_size, rand_size), randint(-rand_size, rand_size)
 
-				crop = _get_cropped(image, start_coords[i] + rand_offset, 0, padding= crop_size)
+				crop = _get_cropped(image, start_coords[i] + rand_offset, 0, padding= int(crop_size))
 				phot = self._model_phot[i]
 				bkg = np.nanmean((np.nanmean(crop[-4:, :]), np.nanmean(crop[:, -4:]), np.nanmean(crop[:4, :]), np.nanmean(crop[:, :4])))
 				try:	
@@ -63,25 +72,38 @@ class PhotometryTracker(Tracker):
 					mask &= ~np.isnan(crop)
 
 					indices = np.transpose(np.nonzero(mask))
-					if len(indices) < 4: raise IndexError()
+					if len(indices) < 16: raise IndexError()
 					_w = np.clip(crop[indices[:, 0], indices[:, 1]] - bkg, 0, phot.flux.max) / phot.flux
 					_w[np.isnan(_w)] = 0
 					avg = np.average(indices, weights= _w ** 2, axis= 0)[::-1]
 				except:	#raises ZeroDivisionError and IndexError
 					lost.append(i)
-					current.append([0, 0])
+					current.append(start_coords[i])
 					continue
 				current.append(avg - (crop_size,) * 2 + start_coords[i])
 			return current - start_coords, lost
+		
+		def change_size(previous_size : float, lost_indices):
+			if isinstance(self.size_mult, (float, int)):
+				return previous_size * self.size_mult
+			elif self.size_mult == 'auto':
+				if previous_size > image.shape[0] / 2:
+					return previous_size
+				multiplier = 1.5 if len(lost_indices) >= self._model_count // 2 else 0.5
+				return previous_size * multiplier
+			else:
+				return uniform(self.crop_size * 0.5, self.crop_size * 1.5)
 
+		lost_indices = list[int]()
 		for i in range(self.tracking_steps):
 			current_dp, lost = track_single()
 			avg = average(current_dp, [w if n not in lost else 0 for n, w in enumerate(self._model_weights)])
 			
-			if avg.length < 1.5 or avg.length > last_dp * 1.5 or avg.length > crop_size:
-				if len(lost) < self._model_count:
+			new_size = change_size(crop_size, lost)
+			if avg.length < 2: # px
+				if len(lost) < self._model_count // 2:
 					break
-			crop_size = int(crop_size * self.size_mult)
+			# print(f'iter: {i}, crop_size= {crop_size}, mode= {self.size_mult}, lost= {len(lost)}, current_dp= {avg.length:.2f}')
 			res = current_dp - avg
 			var = average( [r.sq_length for r in res])
 			
@@ -89,8 +111,10 @@ class PhotometryTracker(Tracker):
 				if j in lost or dp.sq_length > max(var * self.rej_sigma, 1):
 					current_dp[j] = avg
 			start_coords += current_dp
+			crop_size = new_size
 			last_dp = avg.length
 
+		lost_indices = lost #type:ignore
 		delta_pos = start_coords - self._model_coords
 		center = image.shape[1]/2, image.shape[0]/2
 		c_previous = self._model_coords - center
@@ -103,7 +127,7 @@ class PhotometryTracker(Tracker):
 		return TrackingSolution.create(delta_pos= delta_pos, 
 											delta_angle= delta_angle, 
 											image_size= image.shape, 
-											lost_indices= lost,
+											lost_indices= lost_indices,
 											weights= tuple(self._model_weights),
 											rejection_sigma= self.rej_sigma,
 											rejection_iter= self.rej_iter)
