@@ -1,7 +1,9 @@
 from math import isnan
 from random import randint, uniform
 from typing import Any, List, Literal, Sequence, Tuple
+import cv2
 import numpy as np
+from startrak.imageutils import sigma_stretch
 from startrak.native.classes import TrackingSolution
 from startrak.native.numeric import average
 
@@ -240,6 +242,30 @@ class GlobalAlignmentTracker(Tracker):
 			weight_array = tuple(np.repeat(_areas, 3).tolist())
 		else:
 			weight_array = None
+
+		# Visualization of triangle matching
+		# todo: Delete afterwards
+		_f = 720 / np.min(image.shape) 
+		image = cv2.resize(image, None, fx=_f, fy=_f, interpolation=cv2.INTER_CUBIC)
+		image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+		image = sigma_stretch(image, sigma=4)
+		cv2.namedWindow("image")
+
+		for star in detected_stars:
+			pos = int(star.position[0] * _f), int(star.position[1] * _f)
+			image = cv2.circle(image, pos, 5, (1, 0,0), 2)
+
+		for trig in triangles:
+			a = int(trig[0].x * _f), int(trig[0].y * _f)
+			b = int(trig[1].x * _f), int(trig[1].y * _f)
+			c = int(trig[2].x * _f), int(trig[2].y * _f)
+			image = cv2.line(image, a, b, (0,1,0) )
+			image = cv2.line(image, b, c, (0,1,0) )
+			image = cv2.line(image, c, a, (0,1,0) )
+
+		cv2.imshow('image', image)
+		cv2.waitKey(0)
+		cv2.destroyAllWindows()
 
 		print(f'Matched {len(matched)} of {len(triangles)} triangles')
 		return TrackingSolution.create(delta_pos= delta_pos,
