@@ -13,7 +13,7 @@ from startrak.types.phot import _get_cropped
 from startrak.types import detection
 
 class PhotometryTracker(Tracker):
-	def __init__(self, tracking_size : int, tracking_steps : int = 1, size_mul : float | Literal['auto', 'random'] = 0.5,
+	def __init__(self, tracking_size : int, tracking_steps : int = 1, size_mul : float | Literal['auto', 'random'] = 0.5, verbose : bool = False,
 							stochasticity : float | None = None, rejection_sigma= 3, rejection_iter= 3) -> None:
 		assert tracking_size > 0 and type(tracking_size) is int, 'Tracking size must be a positive integer'
 		assert tracking_steps >= 1, 'Tracking steps must be greater or equal than one'
@@ -29,6 +29,7 @@ class PhotometryTracker(Tracker):
 		self.rej_iter = rejection_iter
 		self.size_mult = size_mul
 		self.random_size = stochasticity if stochasticity else 0
+		self.verbose = verbose
 
 	# todo: Weights should be inside the Star object, not the tracker
 	# todo: Trackers models should contain references to stars
@@ -98,12 +99,13 @@ class PhotometryTracker(Tracker):
 		for i in range(self.tracking_steps):
 			current_dp, lost = track_single()
 			avg = average(current_dp, [w if n not in lost else 0 for n, w in enumerate(self._model_weights)])
+			if self.verbose:
+				print(f'iter: {i}, size mode= {self.size_mult} crop size= {crop_size}, lost= {len(lost)}, displacement= {avg.length:.2f}')
 			
-			new_size = change_size(crop_size, lost)
 			if avg.length < 2: # px
 				if len(lost) < self._model_count // 2:
 					break
-			# print(f'iter: {i}, crop_size= {crop_size}, mode= {self.size_mult}, lost= {len(lost)}, current_dp= {avg.length:.2f}')
+			crop_size = change_size(crop_size, lost)
 			res = current_dp - avg
 			var = average( [r.sq_length for r in res])
 			
@@ -111,7 +113,6 @@ class PhotometryTracker(Tracker):
 				if j in lost or dp.sq_length > max(var * self.rej_sigma, 1):
 					current_dp[j] = avg
 			start_coords += current_dp
-			crop_size = new_size
 			last_dp = avg.length
 
 		lost_indices = lost #type:ignore
