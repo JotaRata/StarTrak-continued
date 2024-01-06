@@ -177,7 +177,7 @@ class GlobalAlignmentTracker(Tracker):
 		if len(stars) <= 3:
 			raise RuntimeError(f'Model of {type(self).__name__} requires more than 3 stars to set up')
 		
-		coords = stars.positions
+		coords = PositionArray(* sorted(stars.positions, key= lambda p: p.y))
 		self._indices = k_neighbors(coords, 2)
 		self._model = list[PositionArray]()
 		
@@ -199,7 +199,7 @@ class GlobalAlignmentTracker(Tracker):
 			print('Less than 3 stars were detected for this image')
 			return TrackingSolution.identity()
 		
-		coords = detected_stars.positions
+		coords = PositionArray( *sorted(detected_stars.positions, key= lambda p: p.y))
 		indices = k_neighbors(coords, 2)
 		triangles : List[PositionArray] = [coords[idx] for idx in indices]
 		
@@ -208,8 +208,9 @@ class GlobalAlignmentTracker(Tracker):
 		for i, trig1 in enumerate(self._model):
 			for j, trig2 in enumerate(triangles):
 				if self._method(trig1, trig2, self.tolerance):
-					matched.append((i, j))
-					break
+					if 0.99 < area(trig1) / area(trig2) < 1.01:
+						matched.append((i, j))
+						break
 		if len(matched) == 0:
 			print('No triangles were matched for this image')
 			return TrackingSolution.identity()
@@ -221,9 +222,10 @@ class GlobalAlignmentTracker(Tracker):
 		for model_idx, current_idx in matched:
 			model = self._model[model_idx]
 			triangle = triangles[current_idx]
-			
+
 			reference.extend(model)
 			current.extend(triangle)
+
 			if self._use_w:
 				_areas.append(self._areas[model_idx])
 
@@ -234,7 +236,6 @@ class GlobalAlignmentTracker(Tracker):
 		
 		delta_pos = current - reference
 		delta_rot = np.arctan2(cross,  dot)
-
 		if self._use_w:
 			weight_array = tuple(np.repeat(_areas, 3).tolist())
 		else:
