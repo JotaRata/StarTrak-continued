@@ -82,7 +82,7 @@ class Matrix2x2(NamedTuple):
 		
 	
 	def __repr__(self) -> str:
-		return type(self).__name__ + f':\n[ {self.a:^6.4f} {self.b:^6.4f} ]\n[ {self.c:^6.4f} {self.d:^6.4f} ]'
+		return type(self).__name__ + f':\n[ {self.a:^8.4f} {self.b:^8.4f} ]\n[ {self.c:^8.4f} {self.d:^8.4f} ]'
 	
 	def __getitem__(self, index : Tuple[int , int ]) -> float: #type: ignore[override]
 		i, j = index
@@ -177,7 +177,7 @@ class Matrix3x3(NamedTuple):
 		)
 
 	def __repr__(self) -> str:
-		return type(self).__name__ + f':\n[ {self.a:^6.4f} {self.b:^6.4f} {self.c:^6.4f} ]\n[ {self.d:^6.4f} {self.e:^6.4f} {self.f:^6.4f} ]\n[ {self.g:^6.4f} {self.h:^6.4f} {self.i:^6.4f} ]'
+		return type(self).__name__ + f':\n[ {self.a:^8.4f} {self.b:^8.4f} {self.c:^8.4f} ]\n[ {self.d:^8.4f} {self.e:^8.4f} {self.f:^8.4f} ]\n[ {self.g:^8.4f} {self.h:^8.4f} {self.i:^8.4f} ]'
 	
 	def __getitem__(self, index : Tuple[int , int ]) -> float: #type: ignore[override]
 		i, j = index
