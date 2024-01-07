@@ -96,7 +96,7 @@ class Position(NamedTuple):
 	def __array_wrap__(self, out_arr : NDArray[np.float_], context= None):
 		return Position(out_arr[0], out_arr[1])
 	
-	def __str__(self) -> str:
+	def __repr__(self) -> str:
 		return f'({self.x:.1f}, {self.y:.1f})'
 	
 class PositionArray(STCollection[Position]):
