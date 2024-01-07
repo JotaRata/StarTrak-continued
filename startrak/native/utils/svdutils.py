@@ -28,11 +28,8 @@ def SVD(A: Matrix2x2) :
 	ata = A.transpose * A
 	aat = A * A.transpose
 
-	# Compute the eigenvalues and eigenvectors of A^TA
 	v_matrix = ata.eigenvectors
-
-	# Compute the eigenvalues and eigenvectors of AA^T
-	u_matrix = ata.eigenvectors
+	u_matrix = aat.eigenvectors
 
 	# Singular values are square roots of eigenvalues
 	singular_values = tuple(math.sqrt(lambda_i) for lambda_i in ata.eigenvalues)
