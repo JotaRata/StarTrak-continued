@@ -115,10 +115,8 @@ class PhotometryTracker(Tracker):
 			start_coords += current_dp
 
 		lost_indices = lost #type:ignore
-		return TrackingSolution.compute(	start_pos= self._model_coords,
-													new_pos = start_coords,
-													weights= tuple(self._model_weights),
-													lost_indices= lost_indices)
+		return TrackingSolution.compute('photometry', self._model_coords, start_coords, 
+													weights= tuple(self._model_weights), lost_indices= lost_indices)
 
 # todo: move elsewhere
 _Method = Literal['hough', 'hough_adaptive', 'hough_threshold']
@@ -218,8 +216,5 @@ class GlobalAlignmentTracker(Tracker):
 			weight_array = None
 
 		print(f'Matched {len(matched)} of {len(triangles)} triangles')
-		return TrackingSolution.compute(	start_pos= reference,
-													new_pos = current,
-													weights= weight_array,
-													rejection_iter= self.iterations,
-													rejection_sigma= self.sigma)
+		return TrackingSolution.compute('global_alignment', reference, current, 
+													weights= weight_array, rejection_iter= self.iterations, rejection_sigma= self.sigma)

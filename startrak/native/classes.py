@@ -291,15 +291,16 @@ class ReferenceStar(Star):
 
 _Radians = float
 class TrackingSolution(NamedTuple, STObject):	#type: ignore[misc]
+	method : str
 	translation : Position
 	rotation_matrix : Matrix2x2
 	error : float
 	lost : Optional[List[int]]
 
 	@classmethod
-	def compute(cls, *,
+	def compute(cls,method : str,
 						start_pos : ArrayLike | PositionArray,
-						new_pos : ArrayLike | PositionArray,
+						new_pos : ArrayLike | PositionArray,*,
 						weights : Optional[ArrayLike] = None,
 						lost_indices : List[int] = [],
 						rejection_iter : int = 1,
@@ -321,7 +322,7 @@ class TrackingSolution(NamedTuple, STObject):	#type: ignore[misc]
 		for i in range(rejection_iter):
 			if len(mask) == 0:
 				print('Solution did not converge')
-				return TrackingSolution.identity()
+				return TrackingSolution.identity(method)
 			if len(mask) < 3:
 				print('SVD with less than three tracked stars may not converge')
 			
@@ -350,22 +351,19 @@ class TrackingSolution(NamedTuple, STObject):	#type: ignore[misc]
 
 		transformed_points = PositionArray( *[ (R_matrix * pos) + delta_pos for pos in start_masked] )
 		reprojection_error = math.sqrt(average( [diff.sq_length for diff in transformed_points - new_masked] ))
-		return cls(delta_pos, R_matrix, reprojection_error, lost_indices)
+		return cls(method, delta_pos, R_matrix, reprojection_error, lost_indices)
 
 	@classmethod
-	def new(cls, *,
-							translation : Position, rotation : _Radians,
-							error : float, lost_indices : Optional[List[int]] = None) -> Self:
+	def new(cls,method : str,
+					translation : Position, rotation : _Radians,
+					error : float, lost_indices : Optional[List[int]] = None) -> Self:
 		a = math.cos(rotation)
 		b = math.sin(rotation)
-		# c = dx + j - j * a + k * b
-		# d = dy + k - k * a - j * b
-
-		return cls(translation, Matrix2x2(a, -b, b, a), error, lost_indices)
+		return cls(method, translation, Matrix2x2(a, -b, b, a), error, lost_indices)
 
 	@classmethod
-	def identity(cls):
-		return cls(Position(0, 0), Matrix2x2.identity(), 0, None)
+	def identity(cls, method : str = 'None'):
+		return cls(method, Position(0, 0), Matrix2x2.identity(), 0, None)
 	
 	@property
 	def matrix(self) -> Matrix3x3:
@@ -385,23 +383,16 @@ class TrackingSolution(NamedTuple, STObject):	#type: ignore[misc]
 	
 	def __export__(self) -> AttrDict:
 		return {
+			'method': self.method,
 			'translation': self.translation,
 			'rotation' : self.rotation,
-			# 'size' : self.dim,
 			'error' : self.error,
-			'lost_indices' : self.lost
-		}
+			'lost_indices' : self.lost }
 	@classmethod
 	def __import__(cls, attributes: AttrDict) -> TrackingSolution:
-		params = {
-			'translation' : 'translation',
-			'rotation' : 'rotation',
-			'size' : 'image_size',
-			'error' : 'error',
-			'lost_indices' : 'lost_indices'
-			}
-		kwargs = {params[k]: attributes[k] for k in params}
-		return TrackingSolution.new(**kwargs)
+		translation = Position.new(attributes['translation'])
+		rot_rad = math.radians(attributes['rotation'])
+		return TrackingSolution.new(attributes['method'], translation, rot_rad, attributes['error'], attributes['lost_indices'])
 	
 	def __str__(self) -> str:
 		return self.__pprint__()
@@ -415,10 +406,10 @@ class TrackingSolution(NamedTuple, STObject):	#type: ignore[misc]
 		indentation = spaces * (indent + 1)
 		t = self.translation
 		return ( f'\n{spaces * indent}{type(self).__name__}: '
+					'\n' + indentation + f'method:      {self.method}'
 					'\n' + indentation + f'translation: {t[0]:.1f} px, {t[1]:.1f} px'
 					'\n' + indentation + f'rotation:    {self.rotation:.2f}°'
 					'\n' + indentation + f'error:       {self.error:.3f} px')
-
 #endregion
 
 __STObject_subclasses__['TrackingSolution'] = TrackingSolution
