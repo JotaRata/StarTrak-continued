@@ -1,5 +1,6 @@
 # compiled module
 from __future__ import annotations
+from gettext import translation
 from mypy_extensions import mypyc_attr
 from dataclasses import dataclass
 from functools import lru_cache
@@ -14,7 +15,9 @@ from startrak.native.collections.position import Position, PositionArray, Positi
 from startrak.native.fits import _FITSBufferedReaderWrapper as FITSReader
 from startrak.native.fits import _bitsize
 from startrak.native.ext import AttrDict, STObject, spaces, __STObject_subclasses__
+from startrak.native.matrices import Matrix2x2, Matrix3x3
 from startrak.native.numeric import average, stdev
+from startrak.native.utils.svdutils import SVD, outer
 
 #region File management
 _defaults : Final[Dict[str, Type[ValueType]]] = \
@@ -290,147 +293,81 @@ class ReferenceStar(Star):
 
 _Radians = float
 class TrackingSolution(NamedTuple, STObject):	#type: ignore[misc]
-	# Transform matrix is defined as
-	# | a -b  c |
-	# | b -a  d |
-	# | 0  0  1 |
-	#                a      b      c      d      r  
-	params : Tuple[float, float, float, float, float]
-	dim : Tuple[float, float]
+	translation : Position
+	rotation_matrix : Matrix2x2
 	error : float
 	lost : Optional[List[int]]
 
 	@classmethod
-	def create(cls, *,delta_pos : ArrayLike | PositionArray,
-						delta_angle : ArrayLike | Array,
-						image_size : Tuple[int, ...],
+	def compute(cls, *,
+						start_pos : ArrayLike | PositionArray,
+						new_pos : ArrayLike | PositionArray,
 						weights : Tuple[float, ...] | None = None,
-						lost_indices : List[int] = [],
-						rejection_sigma : int = 3,
-						rejection_iter : int = 1) -> Self:
+						lost_indices : List[int] = []) -> Self:
 
-		if type(delta_pos) is PositionArray: dpos_arr = delta_pos
-		else: dpos_arr = PositionArray( *delta_pos)
-		if type(delta_angle) is Array: dang_arr = delta_angle
-		else: dang_arr = Array( *delta_angle)
-
-
-		j, k = image_size[0]/2, image_size[1]/2
-		mask = list(range(len(dpos_arr)))
-		pos_residuals = dpos_arr - average(dpos_arr)
-		ang_residuals = dang_arr -  average(dang_arr)
-
-		# pos_residuals = delta_pos - np.nanmean(delta_pos, axis= 0)
-		# ang_residuals = delta_angle - np.nanmean(delta_angle, axis= 0)
+		if type(start_pos) is PositionArray: 
+			start_arr = start_pos
+		else: 
+			start_arr = PositionArray( *start_pos)
 		
-		for _ in range(rejection_iter):
-			if len(mask) == 0:
-				break
+		if type(new_pos) is PositionArray: 
+			new_arr = new_pos
+		else: 
+			new_arr = PositionArray( *new_pos)
 
-			masked_pos = pos_residuals[mask]
-			masked_ang = ang_residuals[mask]
+		mask = list(range(len(start_arr)))
+		centroid_start =  average(start_arr)
+		centroid_new =   average(new_arr)
 
-			pos_var = average(Array( *[pos.sq_length for pos in masked_pos]))
-			ang_var = average(masked_ang ** 2)
-			rej_count, rej_error = 0, 0.0
-			exx: float; eyy: float; eaa : float; i: int
-			# Translation error
-			for i, (exx, eyy) in enumerate(pos_residuals):
-				isnan = math.isnan(exx + eyy)
-				if ((err:= exx**2 + eyy**2) > max(rejection_sigma * pos_var, 1)) or isnan:
-					if i in mask:
-						mask.remove(i)
-						lost_indices.append(i)
-						if not isnan:
-							rej_error += err; rej_count += 1
-			# Rotation Error
-			for i, eaa in enumerate(ang_residuals):
-				isnan = math.isnan(eaa)
-				if (eaa**2 > max(rejection_sigma * ang_var, 1)) or isnan:
-					if i in mask:
-						mask.remove(i)
-						lost_indices.append(i)
-						if not isnan:
-							rej_error += math.cos(eaa)**2 * j +  math.sin(eaa)**2 * k; rej_count += 1
-			
-			if rej_count > 0:
-				print(f'{rej_count} stars deviated from the solution with average error: {math.sqrt(rej_error/rej_count):.2f}px (iter {_+1})')
+		H_matrix = outer(start_arr - centroid_start, new_arr - centroid_new)
+		_, U_matrix, V_matrix = SVD(H_matrix)
+		R_matrix = V_matrix * U_matrix.transpose
+
+		delta_pos = centroid_new - R_matrix * centroid_start
 		
-		# Initilize the matrix as the identity
-		dx, dy = 0.0, 0.0
-		r = 0.0
-		e = 0.0
-		l = list(range(len(dpos_arr)))
-		if weights is not None:
-				weights = tuple(weights[i] for i in mask)
-		dpos_masked = dpos_arr[mask]
-		dang_masked = dang_arr[mask]
-		
-		if len(mask) > 0:
-			dx = average(dpos_masked.x, weights)
-			dy = average(dpos_masked.y, weights)
-			r = average(dang_masked, weights)
-			
-			ex, ey = stdev(dpos_masked.x), stdev(dpos_masked.y)
-			e = (ex**2 + ey**2) ** 0.5
-			l = lost_indices
-
-		a = math.cos(r)
-		b = math.sin(r)
-		
-		c = dx + j - j * a + k * b
-		d = dy + k - k * a - j * b
-
-		return cls((a, b, c, d, r), (j, k), e, l)
+		transformed_points = PositionArray( *[R_matrix * (pos - centroid_start) for pos in start_arr]) + centroid_new + delta_pos
+		residuals = average(transformed_points - new_arr).sq_length
+		return cls(delta_pos, R_matrix, residuals, [])
 
 	@classmethod
 	def new(cls, *,
 							translation : Position, rotation : _Radians, image_size : Tuple[float, float],
 							error : float, lost_indices : Optional[List[int]] = None) -> Self:
-		dx, dy = translation
 		j, k = image_size
 		a = math.cos(rotation)
 		b = math.sin(rotation)
-		
-		c = dx + j - j * a + k * b
-		d = dy + k - k * a - j * b
+		# c = dx + j - j * a + k * b
+		# d = dy + k - k * a - j * b
 
-		return cls((a, b, c, d, rotation), (j, k), error, lost_indices)
+		return cls(translation, Matrix2x2(a, -b, b, a), error, lost_indices)
 
 	@classmethod
 	def identity(cls):
 		return cls((1, 0, 0, 0, 0), (0, 0), 0, None)
 	
 	@property
-	def matrix(self) -> NDArray:
-		a,b,c,d = self.params[:4]
-		return np.array([ [a, -b, c], 
-								[b,  a, d],
-								[0,           0,          1]])
-	@property
-	def translation(self) -> Tuple[float, float]:
-		a,b,c,d = self.params[:4]
-		j,k = self.dim
-		dx = c - j + a * j - b * k
-		dy = d + b * j - k + a * k
-		return (dx, dy)
+	def matrix(self) -> Matrix3x3:
+		return Matrix3x3(
+			self.rotation_matrix.a, self.rotation_matrix.b, self.translation.x,
+			self.rotation_matrix.c, self.rotation_matrix.d, self.translation.y,
+			0                    , 0                     , 1                )  
 	
 	@property	
 	def rotation(self) -> float:
-		return math.degrees(self.params[4])
+		return math.degrees(math.acos(self.rotation_matrix.a))
 	
-	def transform(self, pos : Position) -> Position:
-		a,b,c,d = self.params[:4]
-		vx, vy = pos
-		x = a * vx + -b * vy + c
-		y = b * vx + a * vy + d
-		return Position(x, y)
+	# def transform(self, pos : Position) -> Position:
+	# 	a,b,c,d = self.params[:4]
+	# 	vx, vy = pos
+	# 	x = a * vx + -b * vy + c
+	# 	y = b * vx + a * vy + d
+	# 	return Position(x, y)
 	
 	def __export__(self) -> AttrDict:
 		return {
 			'translation': self.translation,
 			'rotation' : self.rotation,
-			'size' : self.dim,
+			# 'size' : self.dim,
 			'error' : self.error,
 			'lost_indices' : self.lost
 		}
