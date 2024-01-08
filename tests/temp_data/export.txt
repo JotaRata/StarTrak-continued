@@ -1,0 +1,31 @@
+
+StarList: 
+  0: 
+    Star: 
+      aperture: 13
+      flux: 0.0
+      name: 'Sirius'
+      photometry: None
+      position: (531.0, 364.0)
+  1: 
+    ReferenceStar: 
+      aperture: 8
+      flux: 0.0
+      magnitude: 0.0
+      name: 'Vega'
+      photometry: None
+      position: (384.0, 46.0)
+  2: 
+    Star: 
+      aperture: 15
+      flux: 0.0
+      name: 'Rigel'
+      photometry: None
+      position: (358.0, 439.0)
+  3: 
+    Star: 
+      aperture: 10
+      flux: 0.0
+      name: 'Betelgeuse'
+      photometry: None
+      position: (203.0, 136.0)

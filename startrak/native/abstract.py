@@ -1,6 +1,6 @@
 # compiled module
 from __future__ import annotations
-from typing import IO, List, Optional, Self, Set, Tuple, final
+from typing import IO, List, Optional, Self, Sequence, Set, Tuple, final
 from abc import ABC, ABCMeta, abstractmethod
 
 from startrak.native.alias import ImageLike
@@ -66,13 +66,12 @@ class Session(STObject, metaclass= ABCMeta):
 		elif type(item) is FileInfo:
 			_items = [item]
 		else: raise TypeError()
-		_added = {_item for _item in _items if type(_item) is FileInfo}
+		_added = [_item for _item in _items if type(_item) is FileInfo]
 		if len(self.included_items) == 0:
-			first = next(iter(_added))
-			assert isinstance(first, FileInfo)
+			first = _added[0]
 			self.set_archetype(first.header)
 		
-		self.included_items |= _added
+		self.included_items |= set(_added)
 		self.__item_added__(_added)
 		# todo: raise warning if no items were added
 
@@ -82,8 +81,8 @@ class Session(STObject, metaclass= ABCMeta):
 		elif type(item) is FileInfo:
 			_items = [item]
 		else: raise TypeError()
-		_removed = {_item for _item in _items if type(_item) is FileInfo}
-		self.included_items -= _removed
+		_removed = [_item for _item in _items if type(_item) is FileInfo]
+		self.included_items -= set(_removed)
 		self.__item_removed__(_removed)
 	
 	def set_archetype(self, header : Optional[Header]):
@@ -93,10 +92,10 @@ class Session(STObject, metaclass= ABCMeta):
 		self.archetype = HeaderArchetype(header)
 
 	@abstractmethod
-	def __item_added__(self, added : Set[FileInfo]): 
+	def __item_added__(self, added : Sequence[FileInfo]): 
 		raise NotImplementedError()
 	@abstractmethod
-	def __item_removed__(self, removed : Set[FileInfo]): 
+	def __item_removed__(self, removed : Sequence[FileInfo]): 
 		raise NotImplementedError()
 	@abstractmethod
 	def save(self, out : str): 
