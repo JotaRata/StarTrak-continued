@@ -294,6 +294,7 @@ class ReferenceStar(Star):
 _Radians = float
 class TrackingSolution(NamedTuple, STObject):	#type: ignore[misc]
 	translation : Position
+	transform_origin : Position
 	rotation_matrix : Matrix2x2
 	error : float
 	lost : Optional[List[int]]
@@ -303,7 +304,9 @@ class TrackingSolution(NamedTuple, STObject):	#type: ignore[misc]
 						start_pos : ArrayLike | PositionArray,
 						new_pos : ArrayLike | PositionArray,
 						weights : Tuple[float, ...] | None = None,
-						lost_indices : List[int] = []) -> Self:
+						lost_indices : List[int] = [],
+						rejection_iter : int = 1,
+						rejection_sigma : float = 3) -> Self:
 
 		if type(start_pos) is PositionArray: 
 			start_arr = start_pos
@@ -315,42 +318,70 @@ class TrackingSolution(NamedTuple, STObject):	#type: ignore[misc]
 		else: 
 			new_arr = PositionArray( *new_pos)
 
+		solution = TrackingSolution.identity()
+		reprojection_error = 0.0
 		mask = list(range(len(start_arr)))
-		centroid_start =  average(start_arr)
-		centroid_new =   average(new_arr)
-
-		H_matrix = outer(start_arr - centroid_start, new_arr - centroid_new)
-		_, U_matrix, V_matrix = SVD(H_matrix)
-		R_matrix = V_matrix * U_matrix.transpose
-
-		delta_pos = centroid_new - R_matrix * centroid_start
 		
-		transformed_points = PositionArray( *[R_matrix * (pos - centroid_start) for pos in start_arr]) + centroid_new + delta_pos
-		residuals = average(transformed_points - new_arr).sq_length
-		return cls(delta_pos, R_matrix, residuals, [])
+		for i in range(rejection_iter + 1):
+			if len(mask) == 0:
+				print('Solution did not converge')
+				return TrackingSolution.identity()
+			if len(mask) < 3:
+				print('SVD with less than three tracked stars may not converge')
+			start_masked = start_arr[mask]
+			new_masked = new_arr[mask]
+
+			centroid_start =  average(start_masked)
+			centroid_new =   average(new_masked)
+
+			H_matrix = outer(start_masked - centroid_start, new_masked - centroid_new)
+			_, U_matrix, V_matrix = SVD(H_matrix)
+			R_matrix = V_matrix.transpose * U_matrix
+			delta_pos = centroid_new - R_matrix * centroid_start
+			solution = cls(delta_pos, centroid_new,  R_matrix, math.sqrt(reprojection_error), lost_indices)
+			if i == rejection_iter:
+				break
+			
+			transformed_points = PositionArray( *[ (solution.rotation_matrix * pos) + solution.translation for pos in start_masked] )
+			residuals = [p.sq_length for p in transformed_points - new_masked]
+			reprojection_error = average(residuals)
+
+			r_count, r_error = 0, 0.
+			for j, idx in enumerate(mask):
+				if residuals[j] > reprojection_error * rejection_sigma:
+					mask.remove(idx)
+					lost_indices.append(idx)
+					r_count +=1
+					r_error += reprojection_error
+			if r_count > 0:
+				print(f'{r_count} stars deviated from the solution with average error: {math.sqrt(r_error/r_count):.2f}px (iter {i+1})')
+		
+		return solution
 
 	@classmethod
 	def new(cls, *,
-							translation : Position, rotation : _Radians, image_size : Tuple[float, float],
+							translation : Position, rotation : _Radians, transform_origin: Position,
 							error : float, lost_indices : Optional[List[int]] = None) -> Self:
-		j, k = image_size
 		a = math.cos(rotation)
 		b = math.sin(rotation)
 		# c = dx + j - j * a + k * b
 		# d = dy + k - k * a - j * b
 
-		return cls(translation, Matrix2x2(a, -b, b, a), error, lost_indices)
+		return cls(translation, transform_origin, Matrix2x2(a, -b, b, a), error, lost_indices)
 
 	@classmethod
 	def identity(cls):
-		return cls((1, 0, 0, 0, 0), (0, 0), 0, None)
+		return cls(Position(0, 0), Position(0, 0), Matrix2x2.identity(), 0, None)
 	
 	@property
 	def matrix(self) -> Matrix3x3:
+		dx, dy = self.translation
+		j, k = self.transform_origin
+		a, b, c, d = self.rotation_matrix
 		return Matrix3x3(
-			self.rotation_matrix.a, self.rotation_matrix.b, self.translation.x,
-			self.rotation_matrix.c, self.rotation_matrix.d, self.translation.y,
-			0                    , 0                     , 1                )  
+			a, b, dx  ,
+			c, d, dy  ,
+			0, 0, 1                    )  
 	
 	@property	
 	def rotation(self) -> float:
