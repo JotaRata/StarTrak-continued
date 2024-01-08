@@ -1,14 +1,11 @@
-from math import isnan
 from random import randint, uniform
 from typing import Any, List, Literal, Sequence, Tuple
-import cv2
 import numpy as np
-from startrak.imageutils import sigma_stretch
 from startrak.native.classes import TrackingSolution
 from startrak.native.numeric import average
 
 from startrak.native.utils.geomutils import *
-from startrak.native import Array, PhotometryResult, StarDetector, StarList, Tracker, TrackingSolution
+from startrak.native import PhotometryResult, StarDetector, StarList, Tracker, TrackingSolution
 from startrak.native.alias import ImageLike
 from startrak.native import PositionArray
 from startrak.types.phot import _get_cropped
@@ -115,21 +112,12 @@ class PhotometryTracker(Tracker):
 				if j in lost or dp.sq_length > max(var * self.rej_sigma, 1):
 					current_dp[j] = avg
 			start_coords += current_dp
-			last_dp = avg.length
 
 		lost_indices = lost #type:ignore
-		delta_pos = start_coords - self._model_coords
-		center = image.shape[1]/2, image.shape[0]/2
-		c_previous = self._model_coords - center
-		c_current = start_coords - center
-
-		dot = np.nansum(np.multiply(c_previous, c_current), axis= 1)
-		cross = np.cross(c_previous, c_current)
-		delta_angle = np.arctan2(cross,  dot)
-
 		return TrackingSolution.compute(	start_pos= self._model_coords,
 													new_pos = start_coords,
-													weights= tuple(self._model_weights))
+													weights= tuple(self._model_weights),
+													lost_indices= lost_indices)
 
 # todo: move elsewhere
 _Method = Literal['hough', 'hough_adaptive', 'hough_threshold']
@@ -188,10 +176,6 @@ class GlobalAlignmentTracker(Tracker):
 			self._areas = np.array([area(trig) for trig in self._model])
 
 	def track(self, image: ImageLike) -> TrackingSolution:
-		''' 
-			Based on "Efficient k-Nearest Neighbors (k-NN) Solutions with NumPy" by Peng Qian (2023)
-			https://www.dataleadsfuture.com/efficient-k-nearest-neighbors-k-nn-solutions-with-numpy/
-		'''
 		detected_stars = self._detector.detect(image)
 		if len(detected_stars) <= 3:
 			print('Less than 3 stars were detected for this image')
@@ -227,13 +211,6 @@ class GlobalAlignmentTracker(Tracker):
 			if self._use_w:
 				_areas.append(self._areas[model_idx])
 
-		center = image.shape[1]/2, image.shape[0]/2
-		
-		dot = np.nansum(np.multiply((reference - center), (current - center)), axis= 1)
-		cross = np.cross((reference - center), (current - center))
-		
-		delta_pos = current - reference
-		delta_rot = np.arctan2(cross,  dot)
 		if self._use_w:
 			weight_array = tuple(np.repeat(_areas, 3).tolist())
 		else:
@@ -242,4 +219,6 @@ class GlobalAlignmentTracker(Tracker):
 		print(f'Matched {len(matched)} of {len(triangles)} triangles')
 		return TrackingSolution.compute(	start_pos= reference,
 													new_pos = current,
-													weights= weight_array)
+													weights= weight_array,
+													rejection_iter= self.iterations,
+													rejection_sigma= self.sigma)
