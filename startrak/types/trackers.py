@@ -11,6 +11,7 @@ from startrak.native import PositionArray
 from startrak.types.phot import _get_cropped
 from startrak.types import detection
 
+__all__ = ['PhotometryTracker', 'GlobalAlignmentTracker', 'Tracker']
 class PhotometryTracker(Tracker):
 	def __init__(self, tracking_size : int, tracking_steps : int = 1, size_mul : float | Literal['auto', 'random'] = 0.5, verbose : bool = False,
 							stochasticity : float | None = None, rejection_sigma= 3, rejection_iter= 3) -> None:

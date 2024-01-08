@@ -2,9 +2,7 @@
 from __future__ import annotations
 import math
 from typing import Any, NamedTuple, Tuple, overload
-from typing_extensions import SupportsIndex
 import numpy as np
-
 from startrak.native.collections.position import Position
 
 class Matrix2x2(NamedTuple):

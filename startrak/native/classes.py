@@ -1,14 +1,12 @@
 # compiled module
 from __future__ import annotations
-from gettext import translation
 from mypy_extensions import mypyc_attr
-from dataclasses import dataclass
 from functools import lru_cache
 import math
-from typing import Any, Callable, ClassVar, Dict, Final, List, NamedTuple, Never, Optional, Self, Sequence, Tuple, Type, cast, overload
+from typing import Any, Callable, ClassVar, Dict, Final, List, NamedTuple, Optional, Self, Tuple, Type, cast
 import numpy as np
 import os.path
-from startrak.native.alias import RealDType, ValueType, NDArray, ArrayLike
+from startrak.native.alias import RealDType, ValueType, ArrayLike
 from startrak.native.collections.native_array import Array
 from startrak.native.collections.position import Position, PositionArray, PositionLike
 
@@ -16,7 +14,7 @@ from startrak.native.fits import _FITSBufferedReaderWrapper as FITSReader
 from startrak.native.fits import _bitsize
 from startrak.native.ext import AttrDict, STObject, spaces, __STObject_subclasses__
 from startrak.native.matrices import Matrix2x2, Matrix3x3
-from startrak.native.numeric import average, stdev
+from startrak.native.numeric import average
 from startrak.native.utils.svdutils import SVD, outer
 
 #region File management
