@@ -1,38 +1,45 @@
-import math
-from typing import Callable, List, Literal, Tuple
-import cv2
+from random import randint, uniform
+from typing import Any, List, Literal, Sequence, Tuple
 import numpy as np
+from startrak.native.classes import TrackingSolution
+from startrak.native.numeric import average
 
 from startrak.native.utils.geomutils import *
 from startrak.native import PhotometryResult, StarDetector, StarList, Tracker, TrackingSolution
-from startrak.native.alias import ImageLike, NDArray
+from startrak.native.alias import ImageLike
 from startrak.native import PositionArray
 from startrak.types.phot import _get_cropped
 from startrak.types import detection
 
-class SimpleTracker(Tracker):
-	_size : int
+__all__ = ['PhotometryTracker', 'GlobalAlignmentTracker', 'Tracker']
+class PhotometryTracker(Tracker):
+	def __init__(self, tracking_size : int, tracking_steps : int = 1, size_mul : float | Literal['auto', 'random'] = 0.5, verbose : bool = False,
+							stochasticity : float | None = None, rejection_sigma= 3, rejection_iter= 3) -> None:
+		assert tracking_size > 0 and type(tracking_size) is int, 'Tracking size must be a positive integer'
+		assert tracking_steps >= 1, 'Tracking steps must be greater or equal than one'
+		assert isinstance(size_mul, (float, int)) or (type(size_mul) is str and (size_mul == 'auto' or size_mul=='random')),\
+				'Size multiplier must be a real number or literal "auto" | "random"'
+		assert stochasticity is None or stochasticity > 0, 'Stochasticity must be a positive number or None'
+		assert rejection_iter >= 1, 'Rejection iterations must be greater or equal than one'
+		assert rejection_sigma > 0, 'Rejection sigms value must be a positive number'
 
-	def __init__(self, tracking_size : int,
-						rejection_sigma= 3, rejection_iter= 3) -> None:
-		self._r_sigma = rejection_sigma
-		self._r_iter = rejection_iter
-		self._size = tracking_size
+		self.crop_size = tracking_size
+		self.tracking_steps = tracking_steps
+		self.rej_sigma = rejection_sigma
+		self.rej_iter = rejection_iter
+		self.size_mult = size_mul
+		self.random_size = stochasticity if stochasticity else 0
+		self.verbose = verbose
 
-	def setup_model(self, stars: StarList, variability : float | Tuple[float, ...] = 1., weights : Tuple[float, ...] | None= None, **kwargs):
-		if isinstance(variability, float):
-			self._model_variability = (variability, ) * len(stars)
-		else:
-			if len(variability) != len(stars):
-				raise ValueError('Variabilities size must be equal to star list size')
-			self._model_variability = variability
-		
-		if weights and type(weights) is tuple:
+	# todo: Weights should be inside the Star object, not the tracker
+	# todo: Trackers models should contain references to stars
+	def setup_model(self, stars: StarList, weights : Sequence[float] | None= None, **kwargs : Any):
+		if weights:
 			if len(weights) != len(stars):
 				raise ValueError('Weights size must be equal to star list size')
 			self._model_weights = weights
 		else:
-			self._model_weights = (1, ) * len(stars)
+			self._model_weights = [1., ] * len(stars)
 		coords = PositionArray()
 		phot = list[PhotometryResult]()
 		for star in stars:
@@ -44,53 +51,72 @@ class SimpleTracker(Tracker):
 		self._model_coords = coords
 		self._model_coords.close()
 
-	def track(self, _image : ImageLike):
-		current= PositionArray()
-		lost= list[int]()
+	def track(self, image: ImageLike) -> TrackingSolution:
+		start_coords = self._model_coords.copy()
+		last_dp = image.shape[0]
+		crop_size = self.crop_size
 
+		def track_single():
+			current = PositionArray()
+			lost = list[int]()
+			for i in range(self._model_count): 
+				rand_size = int(crop_size * self.random_size)
+				rand_offset = randint(-rand_size, rand_size), randint(-rand_size, rand_size)
+
+				crop = _get_cropped(image, start_coords[i] + rand_offset, 0, padding= int(crop_size))
+				phot = self._model_phot[i]
+				bkg = np.nanmean((np.nanmean(crop[-4:, :]), np.nanmean(crop[:, -4:]), np.nanmean(crop[:4, :]), np.nanmean(crop[:, :4])))
+				try:	
+					mask = (crop - bkg) > phot.background.sigma * (1 + phot.snr * 2)
+					mask &= (crop - bkg) > phot.flux.sigma * (1 + phot.snr) / 2
+					mask &= ((crop - bkg) - phot.flux.max) <  phot.flux.sigma
+					mask &= ~np.isnan(crop)
+
+					indices = np.transpose(np.nonzero(mask))
+					if len(indices) < 16: raise IndexError()
+					_w = np.clip(crop[indices[:, 0], indices[:, 1]] - bkg, 0, phot.flux.max) / phot.flux
+					_w[np.isnan(_w)] = 0
+					avg = np.average(indices, weights= _w ** 2, axis= 0)[::-1]
+				except:	#raises ZeroDivisionError and IndexError
+					lost.append(i)
+					current.append(start_coords[i])
+					continue
+				current.append(avg - (crop_size,) * 2 + start_coords[i])
+			return current - start_coords, lost
 		
-		for i in range(self._model_count): 
-			crop = _get_cropped(_image, self._model_coords[i], 0, padding= self._size)
-			phot = self._model_phot[i]
-			bkg = np.nanmean((np.nanmean(crop[-4:, :]), np.nanmean(crop[:, -4:]), np.nanmean(crop[:4, :]), np.nanmean(crop[:, :4])))
+		def change_size(previous_size : float, lost_indices):
+			if isinstance(self.size_mult, (float, int)):
+				return previous_size * self.size_mult
+			elif self.size_mult == 'auto':
+				if previous_size > image.shape[0] / 2:
+					return previous_size
+				multiplier = 1.5 if len(lost_indices) >= self._model_count // 2 else 0.5
+				return previous_size * multiplier
+			else:
+				return uniform(self.crop_size * 0.5, self.crop_size * 1.5)
+
+		lost_indices = list[int]()
+		for i in range(self.tracking_steps):
+			current_dp, lost = track_single()
+			avg = average(current_dp, [w if n not in lost else 0 for n, w in enumerate(self._model_weights)])
+			if self.verbose:
+				print(f'iter: {i}, size mode= {self.size_mult} crop size= {crop_size}, lost= {len(lost)}, displacement= {avg.length:.2f}')
 			
-			try:
-				mask = (crop - bkg) > phot.background.sigma * (1 + phot.snr * 2)
-				mask &= np.abs(((crop - bkg)) - phot.flux) <= phot.flux.sigma / 2
-				mask &= (-crop + phot.flux.max) < np.abs(phot.flux.max - max(np.nanmax(crop) - bkg, bkg) ) * (1 + self._model_variability[i] * phot.flux) / 2 
-				mask &= ~np.isnan(crop)
+			if avg.length < 2: # px
+				if len(lost) < self._model_count // 2:
+					break
+			crop_size = change_size(crop_size, lost)
+			res = current_dp - avg
+			var = average( [r.sq_length for r in res])
+			
+			for j, dp in enumerate(res):
+				if j in lost or dp.sq_length > max(var * self.rej_sigma, 1):
+					current_dp[j] = avg
+			start_coords += current_dp
 
-				indices = np.transpose(np.nonzero(mask))
-				if len(indices) == 0: raise IndexError()
-				_w = np.clip(crop[indices[:, 0], indices[:, 1]] - bkg, 0, phot.flux.max) / phot.flux
-				_w[np.isnan(_w)] = 0
-				average = np.average(indices, weights= _w ** 2, axis= 0)[::-1]
-				# variance = np.average((indices - average[::-1])**2 , weights=_w, axis= 0)
-			except:	#raises ZeroDivisionError and IndexError
-				lost.append(i)
-				current.append([np.nan, np.nan])
-				continue
-			# print(i, 'psf', np.sqrt(variance))
-			# median_rc = np.median(indices, axis= 0)[::-1]
-			current.append(average - (self._size,) * 2 + self._model_coords[i])
-		
-		delta_pos = current - self._model_coords
-		
-		center = _image.shape[1]/2, _image.shape[0]/2
-		c_previous = self._model_coords - center
-		c_current = current - center
-
-		dot = np.nansum(np.multiply(c_previous, c_current), axis= 1)
-		cross = np.cross(c_previous, c_current)
-		da = np.arctan2(cross,  dot)
-
-		return TrackingSolution.create(delta_pos= delta_pos, 
-											delta_angle= da, 
-											image_size= _image.shape, 
-											lost_indices= lost,
-											weights= self._model_weights,
-											rejection_sigma= self._r_sigma,
-											rejection_iter= self._r_iter)
+		lost_indices = lost #type:ignore
+		return TrackingSolution.compute('photometry', self._model_coords, start_coords, 
+													weights= tuple(self._model_weights), lost_indices= lost_indices)
 
 # todo: move elsewhere
 _Method = Literal['hough', 'hough_adaptive', 'hough_threshold']
@@ -136,7 +162,7 @@ class GlobalAlignmentTracker(Tracker):
 		if len(stars) <= 3:
 			raise RuntimeError(f'Model of {type(self).__name__} requires more than 3 stars to set up')
 		
-		coords = stars.positions
+		coords = PositionArray(* sorted(stars.positions, key= lambda p: p.y))
 		self._indices = k_neighbors(coords, 2)
 		self._model = list[PositionArray]()
 		
@@ -149,16 +175,12 @@ class GlobalAlignmentTracker(Tracker):
 			self._areas = np.array([area(trig) for trig in self._model])
 
 	def track(self, image: ImageLike) -> TrackingSolution:
-		''' 
-			Based on "Efficient k-Nearest Neighbors (k-NN) Solutions with NumPy" by Peng Qian (2023)
-			https://www.dataleadsfuture.com/efficient-k-nearest-neighbors-k-nn-solutions-with-numpy/
-		'''
 		detected_stars = self._detector.detect(image)
 		if len(detected_stars) <= 3:
 			print('Less than 3 stars were detected for this image')
 			return TrackingSolution.identity()
 		
-		coords = detected_stars.positions
+		coords = PositionArray( *sorted(detected_stars.positions, key= lambda p: p.y))
 		indices = k_neighbors(coords, 2)
 		triangles : List[PositionArray] = [coords[idx] for idx in indices]
 		
@@ -167,8 +189,9 @@ class GlobalAlignmentTracker(Tracker):
 		for i, trig1 in enumerate(self._model):
 			for j, trig2 in enumerate(triangles):
 				if self._method(trig1, trig2, self.tolerance):
-					matched.append((i, j))
-					break
+					if 0.99 < area(trig1) / area(trig2) < 1.01:
+						matched.append((i, j))
+						break
 		if len(matched) == 0:
 			print('No triangles were matched for this image')
 			return TrackingSolution.identity()
@@ -180,19 +203,12 @@ class GlobalAlignmentTracker(Tracker):
 		for model_idx, current_idx in matched:
 			model = self._model[model_idx]
 			triangle = triangles[current_idx]
-			
+
 			reference.extend(model)
 			current.extend(triangle)
+
 			if self._use_w:
 				_areas.append(self._areas[model_idx])
-
-		center = image.shape[1]/2, image.shape[0]/2
-		
-		dot = np.nansum(np.multiply((reference - center), (current - center)), axis= 1)
-		cross = np.cross((reference - center), (current - center))
-		
-		delta_pos = current - reference
-		delta_rot = np.arctan2(cross,  dot)
 
 		if self._use_w:
 			weight_array = tuple(np.repeat(_areas, 3).tolist())
@@ -200,9 +216,5 @@ class GlobalAlignmentTracker(Tracker):
 			weight_array = None
 
 		print(f'Matched {len(matched)} of {len(triangles)} triangles')
-		return TrackingSolution.create(delta_pos= delta_pos,
-											delta_angle= delta_rot,
-											image_size= image.shape,
-											weights= weight_array,
-											rejection_iter= self.iterations,
-											rejection_sigma= self.sigma)
+		return TrackingSolution.compute('global_alignment', reference, current, 
+													weights= weight_array, rejection_iter= self.iterations, rejection_sigma= self.sigma)
