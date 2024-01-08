@@ -5,7 +5,7 @@ from mypy_extensions import mypyc_attr
 from dataclasses import dataclass
 from functools import lru_cache
 import math
-from typing import Any, Callable, ClassVar, Dict, Final, List, NamedTuple, Never, Optional, Self, Tuple, Type, cast, overload
+from typing import Any, Callable, ClassVar, Dict, Final, List, NamedTuple, Never, Optional, Self, Sequence, Tuple, Type, cast, overload
 import numpy as np
 import os.path
 from startrak.native.alias import RealDType, ValueType, NDArray, ArrayLike
@@ -294,7 +294,6 @@ class ReferenceStar(Star):
 _Radians = float
 class TrackingSolution(NamedTuple, STObject):	#type: ignore[misc]
 	translation : Position
-	transform_origin : Position
 	rotation_matrix : Matrix2x2
 	error : float
 	lost : Optional[List[int]]
@@ -303,96 +302,88 @@ class TrackingSolution(NamedTuple, STObject):	#type: ignore[misc]
 	def compute(cls, *,
 						start_pos : ArrayLike | PositionArray,
 						new_pos : ArrayLike | PositionArray,
-						weights : Tuple[float, ...] | None = None,
+						weights : Optional[ArrayLike] = None,
 						lost_indices : List[int] = [],
 						rejection_iter : int = 1,
 						rejection_sigma : float = 3) -> Self:
 
-		if type(start_pos) is PositionArray: 
-			start_arr = start_pos
-		else: 
-			start_arr = PositionArray( *start_pos)
-		
-		if type(new_pos) is PositionArray: 
-			new_arr = new_pos
-		else: 
-			new_arr = PositionArray( *new_pos)
+		start_arr = PositionArray( *start_pos)
+		new_arr = PositionArray( *new_pos)
 
-		solution = TrackingSolution.identity()
-		reprojection_error = 0.0
+		if weights:
+			weights_arr = Array( *weights)
+		else: 
+			weights_arr = None
+
 		mask = list(range(len(start_arr)))
-		
-		for i in range(rejection_iter + 1):
+		displacements = new_arr - start_arr
+		residuals = displacements - average(displacements)
+
+		r_count, r_error = 0, 0.
+		for i in range(rejection_iter):
 			if len(mask) == 0:
 				print('Solution did not converge')
 				return TrackingSolution.identity()
 			if len(mask) < 3:
 				print('SVD with less than three tracked stars may not converge')
-			start_masked = start_arr[mask]
-			new_masked = new_arr[mask]
-
-			centroid_start =  average(start_masked)
-			centroid_new =   average(new_masked)
-
-			H_matrix = outer(start_masked - centroid_start, new_masked - centroid_new)
-			_, U_matrix, V_matrix = SVD(H_matrix)
-			R_matrix = V_matrix.transpose * U_matrix
-			delta_pos = centroid_new - R_matrix * centroid_start
-			solution = cls(delta_pos, centroid_new,  R_matrix, math.sqrt(reprojection_error), lost_indices)
-			if i == rejection_iter:
-				break
 			
-			transformed_points = PositionArray( *[ (solution.rotation_matrix * pos) + solution.translation for pos in start_masked] )
-			residuals = [p.sq_length for p in transformed_points - new_masked]
-			reprojection_error = average(residuals)
+			variance = average([ pos.sq_length for pos in residuals[mask] ])
 
-			r_count, r_error = 0, 0.
-			for j, idx in enumerate(mask):
-				if residuals[j] > reprojection_error * rejection_sigma:
-					mask.remove(idx)
-					lost_indices.append(idx)
-					r_count +=1
-					r_error += reprojection_error
+			for j, res in enumerate(residuals):
+				if j not in mask:
+					continue
+				if (err := res.sq_length) > max(rejection_sigma * variance, 1):
+					mask.remove(j)
+					lost_indices.append(j)
+					r_error += err; r_count += 1
 			if r_count > 0:
-				print(f'{r_count} stars deviated from the solution with average error: {math.sqrt(r_error/r_count):.2f}px (iter {i+1})')
-		
-		return solution
+				print(f'{r_count} stars deviated from the solution with average displacement error: {math.sqrt(r_error/r_count):.2f}px (iter {i+1})')
+
+		start_masked = start_arr[mask]
+		new_masked = new_arr[mask]
+		weights_masked = weights_arr[mask] if weights_arr else None
+		centroid_start =  average(start_masked, weights_masked)
+		centroid_new =   average(new_masked, weights_masked)
+
+		H_matrix = outer(start_masked - centroid_start, new_masked - centroid_new)
+		_, U_matrix, V_matrix = SVD(H_matrix)
+		R_matrix = V_matrix.transpose * U_matrix
+		delta_pos = centroid_new - R_matrix * centroid_start
+
+		transformed_points = PositionArray( *[ (R_matrix * pos) + delta_pos for pos in start_masked] )
+		reprojection_error = math.sqrt(average( [diff.sq_length for diff in transformed_points - new_masked] ))
+		return cls(delta_pos, R_matrix, reprojection_error, lost_indices)
 
 	@classmethod
 	def new(cls, *,
-							translation : Position, rotation : _Radians, transform_origin: Position,
+							translation : Position, rotation : _Radians,
 							error : float, lost_indices : Optional[List[int]] = None) -> Self:
 		a = math.cos(rotation)
 		b = math.sin(rotation)
 		# c = dx + j - j * a + k * b
 		# d = dy + k - k * a - j * b
 
-		return cls(translation, transform_origin, Matrix2x2(a, -b, b, a), error, lost_indices)
+		return cls(translation, Matrix2x2(a, -b, b, a), error, lost_indices)
 
 	@classmethod
 	def identity(cls):
-		return cls(Position(0, 0), Position(0, 0), Matrix2x2.identity(), 0, None)
+		return cls(Position(0, 0), Matrix2x2.identity(), 0, None)
 	
 	@property
 	def matrix(self) -> Matrix3x3:
 		dx, dy = self.translation
-		j, k = self.transform_origin
 		a, b, c, d = self.rotation_matrix
 		return Matrix3x3(
 			a, b, dx  ,
 			c, d, dy  ,
-			0, 0, 1                    )  
+			0, 0, 1   )  
 	
 	@property	
 	def rotation(self) -> float:
 		return math.degrees(math.acos(self.rotation_matrix.a))
 	
-	# def transform(self, pos : Position) -> Position:
-	# 	a,b,c,d = self.params[:4]
-	# 	vx, vy = pos
-	# 	x = a * vx + -b * vy + c
-	# 	y = b * vx + a * vy + d
-	# 	return Position(x, y)
+	def transform(self, pos : Position) -> Position:
+		return (self.rotation_matrix * pos) + self.translation
 	
 	def __export__(self) -> AttrDict:
 		return {
