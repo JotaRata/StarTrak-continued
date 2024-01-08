@@ -122,26 +122,38 @@ class Matrix3x3(NamedTuple):
 	def __array__(self) -> np.ndarray[Any, Any]:
 		return np.array([[self.a, self.b, self.c], [self.d, self.e, self.f], [self.g, self.h, self.i]])
 
-	def __mul__(self, other: Matrix3x3 | float | int) -> Matrix3x3:	#type: ignore[override]
+	@overload 	#type: ignore[override]
+	def __mul__(self, other: Position) -> Position: ...
+
+	@overload 	#type: ignore[override]
+	def __mul__(self, other: Matrix3x3 | float | int) -> Matrix3x3: ...
+
+	def __mul__(self, other: Matrix3x3 | float | int | Position) -> Matrix3x3 | Position:
 		if isinstance(other, (float, int)):
 			return Matrix3x3(
 					self.a * other, self.b * other, self.c * other,
 					self.d * other, self.e * other, self.f * other,
 					self.g * other, self.h * other, self.i * other
 			)
-		return Matrix3x3(
-			self.a * other.a + self.b * other.d + self.c * other.g,
-			self.a * other.b + self.b * other.e + self.c * other.h,
-			self.a * other.c + self.b * other.f + self.c * other.i,
-
-			self.d * other.a + self.e * other.d + self.f * other.g,
-			self.d * other.b + self.e * other.e + self.f * other.h,
-			self.d * other.c + self.e * other.f + self.f * other.i,
-
-			self.g * other.a + self.h * other.d + self.i * other.g,
-			self.g * other.b + self.h * other.e + self.i * other.h,
-			self.g * other.c + self.h * other.f + self.i * other.i
-		)
+		elif isinstance(other, Matrix3x3):
+			return Matrix3x3(
+					self.a * other.a + self.b * other.d + self.c * other.g,
+					self.a * other.b + self.b * other.e + self.c * other.h,
+					self.a * other.c + self.b * other.f + self.c * other.i,
+					self.d * other.a + self.e * other.d + self.f * other.g,
+					self.d * other.b + self.e * other.e + self.f * other.h,
+					self.d * other.c + self.e * other.f + self.f * other.i,
+					self.g * other.a + self.h * other.d + self.i * other.g,
+					self.g * other.b + self.h * other.e + self.i * other.h,
+					self.g * other.c + self.h * other.f + self.i * other.i
+			)
+		elif isinstance(other, Position):
+			vx, vy, v1 = other[0], other[1], 1
+			x = self.a * vx + self.b * vy + self.c * v1
+			y = self.d * vx + self.e * vy + self.f * v1
+			return Position(x, y)
+		else:
+			raise TypeError(type(other))
 
 	def __add__(self, other: Matrix3x3) -> Matrix3x3:	#type: ignore[override]
 		return Matrix3x3(
