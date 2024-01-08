@@ -8,7 +8,7 @@ on:
     inputs:
       rerun:
         description: 'Rerun the workflow'
-        required: false
+        required: true
 
 jobs:
   build:
