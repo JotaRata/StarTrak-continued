@@ -1,9 +1,8 @@
 # compiled module
 from __future__ import annotations
 import math
-from typing import List
 
-from startrak.native import Position, PositionArray
+from startrak.native.collections.position import PositionArray
 from startrak.native.matrices import Matrix2x2
 from startrak.native.numeric import average
 
