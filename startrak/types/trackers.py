@@ -41,7 +41,7 @@ class PhotometryTracker(Tracker):
 				raise ValueError('Weights size must be equal to star list size')
 			self._model_weights = weights
 		else:
-			self._model_weights = (1, ) * len(stars)
+			self._model_weights = [1., ] * len(stars)
 		coords = PositionArray()
 		phot = list[PhotometryResult]()
 		for star in stars:
@@ -127,13 +127,9 @@ class PhotometryTracker(Tracker):
 		cross = np.cross(c_previous, c_current)
 		delta_angle = np.arctan2(cross,  dot)
 
-		return TrackingSolution.create(delta_pos= delta_pos, 
-											delta_angle= delta_angle, 
-											image_size= image.shape, 
-											lost_indices= lost_indices,
-											weights= tuple(self._model_weights),
-											rejection_sigma= self.rej_sigma,
-											rejection_iter= self.rej_iter)
+		return TrackingSolution.compute(	start_pos= self._model_coords,
+													new_pos = start_coords,
+													weights= tuple(self._model_weights))
 
 # todo: move elsewhere
 _Method = Literal['hough', 'hough_adaptive', 'hough_threshold']
@@ -243,34 +239,7 @@ class GlobalAlignmentTracker(Tracker):
 		else:
 			weight_array = None
 
-		# Visualization of triangle matching
-		# todo: Delete afterwards
-		_f = 720 / np.min(image.shape) 
-		image = cv2.resize(image, None, fx=_f, fy=_f, interpolation=cv2.INTER_CUBIC)
-		image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-		image = sigma_stretch(image, sigma=4)
-		cv2.namedWindow("image")
-
-		for star in detected_stars:
-			pos = int(star.position[0] * _f), int(star.position[1] * _f)
-			image = cv2.circle(image, pos, 5, (1, 0,0), 2)
-
-		for trig in triangles:
-			a = int(trig[0].x * _f), int(trig[0].y * _f)
-			b = int(trig[1].x * _f), int(trig[1].y * _f)
-			c = int(trig[2].x * _f), int(trig[2].y * _f)
-			image = cv2.line(image, a, b, (0,1,0) )
-			image = cv2.line(image, b, c, (0,1,0) )
-			image = cv2.line(image, c, a, (0,1,0) )
-
-		cv2.imshow('image', image)
-		cv2.waitKey(0)
-		cv2.destroyAllWindows()
-
 		print(f'Matched {len(matched)} of {len(triangles)} triangles')
-		return TrackingSolution.create(delta_pos= delta_pos,
-											delta_angle= delta_rot,
-											image_size= image.shape,
-											weights= weight_array,
-											rejection_iter= self.iterations,
-											rejection_sigma= self.sigma)
+		return TrackingSolution.compute(	start_pos= reference,
+													new_pos = current,
+													weights= weight_array)
