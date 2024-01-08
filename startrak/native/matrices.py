@@ -1,8 +1,11 @@
 # compiled module
 from __future__ import annotations
 import math
-from typing import Any, NamedTuple, Tuple
+from typing import Any, NamedTuple, Tuple, overload
+from typing_extensions import SupportsIndex
 import numpy as np
+
+from startrak.native.collections.position import Position
 
 class Matrix2x2(NamedTuple):
 	a: float
@@ -13,20 +16,33 @@ class Matrix2x2(NamedTuple):
 	def __array__(self) -> np.ndarray[Any, Any]:  # Implementing the array protocol for compatibility
 		return np.array([[self.a, self.b], [self.c, self.d]])
 
-	def __mul__(self, other: Matrix2x2 | float | int) -> Matrix2x2: #type: ignore[override]
-		if isinstance(other, (float, int)):
+	@overload 	#type: ignore[override]
+	def __mul__(self, other:  Position) -> Position: ...
+	@overload	#type: ignore[override]
+	def __mul__(self, other: Matrix2x2 | float | int) -> Matrix2x2: ... 
+	def __mul__(self, other: Matrix2x2 | float | int | Position) -> Matrix2x2 | Position: #type: ignore[override]
+		if type(other) is float or type(other) is int:
 			return Matrix2x2(
 				self.a * other,
 				self.b * other,
 				self.c * other,
-				self.d * other
-			)
-		return Matrix2x2(
-			self.a * other.a + self.b * other.c,
-			self.a * other.b + self.b * other.d,
-			self.c * other.a + self.d * other.c,
-			self.c * other.b + self.d * other.d
-		)
+				self.d * other )
+		elif type(other) is Matrix2x2:
+			return Matrix2x2(
+				self.a * other.a + self.b * other.c,
+				self.a * other.b + self.b * other.d,
+				self.c * other.a + self.d * other.c,
+				self.c * other.b + self.d * other.d )
+		elif type(other) is Position:
+			vx, vy = other[0], other[1]
+			x = self.a * vx + -self.b * vy + self.c
+			y = self.b * vx + self.a * vy + self.d
+			return Position(x, y)
+		else:
+			raise TypeError(type(other))
+
+	def __rmul__(self, other: Matrix2x2 | float | int ) -> Matrix2x2:	#type: ignore[override]
+		return self.__mul__(other)
 	
 	def __add__(self, other : Matrix2x2):	#type: ignore[override]
 		return Matrix2x2(
