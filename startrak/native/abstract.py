@@ -51,39 +51,50 @@ class StarDetector(ABC):
 @mypyc_attr(allow_interpreted_subclasses=True)
 class Session(STObject, metaclass= ABCMeta):
 	archetype : Optional[HeaderArchetype]
-	included_items : Set[FileInfo]
+	included_files : Set[FileInfo]
+	included_stars : StarList
 	
 	def __init__(self, name : str):
 		if type(self) is Session:
 			raise NotImplementedError('Cannot create object of abtsract type "Session"')
 		self.name = name
 		self.archetype : HeaderArchetype = None
-		self.included_items : set[FileInfo] = set()
+		self.included_files : set[FileInfo] = set()
 
-	def add_item(self, item : FileInfo | List[FileInfo]): 
-		if type(item) is list:
-			_items = item
-		elif type(item) is FileInfo:
-			_items = [item]
-		else: raise TypeError()
-		_added = [_item for _item in _items if type(_item) is FileInfo]
-		if len(self.included_items) == 0:
+	def add_file(self, *items : FileInfo): 
+		if len(items) == 0:
+				print('No files were added')
+				return
+		
+		_added = [item for item in items if type(item) is FileInfo]
+		if len(self.included_files) == 0:
 			first = _added[0]
 			self.set_archetype(first.header)
 		
-		self.included_items |= set(_added)
+		self.included_files |= set(_added)
 		self.__item_added__(_added)
-		# todo: raise warning if no items were added
 
-	def remove_item(self, item : FileInfo | List[FileInfo]): 
-		if type(item) is list:
-			_items = item
-		elif type(item) is FileInfo:
-			_items = [item]
-		else: raise TypeError()
-		_removed = [_item for _item in _items if type(_item) is FileInfo]
-		self.included_items -= set(_removed)
+	def remove_file(self, *items : FileInfo): 
+		if len(items) == 0:
+				print('No files were removed')
+				return
+		
+		_removed = [item for item in items if type(item) is FileInfo]
+		self.included_files -= set(_removed)
 		self.__item_removed__(_removed)
+
+	def add_star(self, *stars : Star):
+		match stars:
+			case ():
+				print('No stars were added')
+				return
+			case (star, ):
+				self.included_stars.append(star)
+			case _:
+				self.included_stars.extend(stars)
+
+	def remove_star(self, star : Star):
+		self.included_stars.remove(star)
 	
 	def set_archetype(self, header : Optional[Header]):
 		if header is None: 
@@ -97,9 +108,6 @@ class Session(STObject, metaclass= ABCMeta):
 	@abstractmethod
 	def __item_removed__(self, removed : Sequence[FileInfo]): 
 		raise NotImplementedError()
-	@abstractmethod
-	def save(self, out : str): 
-		raise NotImplementedError()
 	
 	@classmethod
 	def __import__(cls, attributes: AttrDict) -> Self:
@@ -107,6 +115,9 @@ class Session(STObject, metaclass= ABCMeta):
 		for attr, value in attributes.items():
 			setattr(obj, attr, value)
 		return obj
+	
+	def __export__(self) -> AttrDict:
+		return super().__export__()
 
 #endregion
 
