@@ -1,12 +1,13 @@
 from enum import StrEnum
+from typing import Literal, Optional
 from startrak.native import Session
 from startrak.types.sessions import *
 
 __all__ = ['new_session', 'get_session', 'SessionType']
-__session__ : Session | None = None
-SessionType = StrEnum('SessionType', {'ASTRO_INSPECT': 'inspect','ASTRO_SCAN' : 'scan'})
+SessionType = Literal['inspect', 'scan']
+__session__ : Optional[Session] = None
 
-def new_session(sessionType : SessionType, name : str, *args, **kwargs) -> Session:
+def new_session(name : str, sessionType : SessionType = 'inspect', forced : bool = False, *args, **kwargs) -> Session:
 	'''
 		Parameters:
 		- sessionType (SessionType): The type of the new session. Accepted values are:
@@ -15,14 +16,19 @@ def new_session(sessionType : SessionType, name : str, *args, **kwargs) -> Sessi
 
 		- name (str): Name of the new session.
 	'''
-	session : Session
-	if sessionType == SessionType.ASTRO_INSPECT:
-			session = InspectionSession(name, *args, **kwargs)
-	elif sessionType == SessionType.ASTRO_SCAN:
-			session = ScanSession(name, *args, **kwargs)
-	else: raise TypeError('Invalid case')
-
 	global __session__
+	if __session__ and not forced:
+		raise RuntimeError(f'A Session of type {type(__session__).__name__} already exists, to overwrite call this function again with forced= True')
+
+
+	match sessionType:
+		case 'inspect':
+			session = InspectionSession(name, *args, **kwargs)
+		case 'scan':
+			session = ScanSession(name, *args, **kwargs)
+		case _:
+			raise NameError(f'Invalid session type: "{sessionType}", expected "inspect" or "scan".')	
+
 	__session__ = session
 	return session
 
