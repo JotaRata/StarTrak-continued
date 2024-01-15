@@ -14,12 +14,20 @@ def new_session(name : str, sessionType : Literal['scan'], *args, forced : bool 
 
 def new_session(name : str, sessionType : SessionType = 'inspect', *args, forced : bool = False, **kwargs) -> Session:
 	'''
-		Parameters:
-		- sessionType (SessionType): The type of the new session. Accepted values are:
-			- - SessionType.ASTRO_INSPECT ('inspect') = Analyze already saved files in the disk
-			- - SessionType.ASTRO_SCAN ('scan') = Load and Analyze files as they are being created in a folder
+		Creates a new session of the specified type, if another session exists a RuntimeError will be raised unless the forced flag is enabled.
 
-		- name (str): Name of the new session.
+		Parameters:
+		* name (str): The name of the new session
+		* sessionType ("inspect" or "scan"): The type of the new session.
+			* "inspect" will create a emtpy session useful to work with files already saved in disk.
+			* "scan" will actively scan in a given directory if new files were added or removed, useful for real-time analysys. Default: "inspect.
+		* *args: Additional arguments for the newly created Session, if sessionType = "scan" then the working directory must be specified here or in **kwargs.
+		* forced (bool): Whether the new session should overwrite the previous one if exists, if False then a RunTimeError is raised upon calling this function if another session already exists. Default: False.
+		* **kwargs: Additional keywords for the newly created session.
+
+		Returns:
+		* InspectionSession if sessionType = "inspect"
+		* ScanSession if sessionType = "scan"
 	'''
 	global __session__
 	if (__session__ and __session__.name != 'default') and not forced:
