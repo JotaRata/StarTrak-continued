@@ -18,6 +18,9 @@ class FileList(STCollection[FileInfo]):
 	@property
 	def paths(self) -> List[str]:
 		return [f.path for f in self._internal]
+	@property
+	def names(self) -> List[str]:
+		return [f.name for f in self._internal]
 		
 	def append(self, value: FileInfo):
 		if value not in self:
@@ -30,7 +33,9 @@ class FileList(STCollection[FileInfo]):
 	
 	def __setitem__(self, index: int, value: FileInfo):
 		raise TypeError('Cannot directly modify FileList')
-	def __contains__(self, item : FileInfo): #type: ignore[override]
+	def __contains__(self, item : FileInfo | str): #type: ignore[override]
+		if isinstance(item, str):
+			return item in self._dict
 		return item.name in self._dict
 
 	@overload
