@@ -31,5 +31,8 @@ def load_folder(path: str | Path, append : bool = True):
         if not entry.is_file() and not entry.name.endswith(
             ('.fit', '.fits', '.FIT', '.FITS')):
             continue
-        files.append(load_file(entry.path, append))
+        file = FileInfo(str(entry.path))
+        files.append(file)
+    if append:
+        get_session().add_file( *files)
     return FileList( *files)
