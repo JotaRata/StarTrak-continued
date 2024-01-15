@@ -1,11 +1,16 @@
 from enum import StrEnum
-from typing import Literal, Optional
+from typing import Literal, Optional, overload
 from startrak.native import Session
 from startrak.types.sessions import *
 
 __all__ = ['new_session', 'get_session', 'SessionType']
 SessionType = Literal['inspect', 'scan']
 __session__ : Session = InspectionSession('default')
+
+@overload
+def new_session(name : str, sessionType : Literal['inspect'], *args, forced : bool = False, **kwargs) -> InspectionSession: ...
+@overload
+def new_session(name : str, sessionType : Literal['scan'], *args, forced : bool = False, **kwargs) -> ScanSession: ...
 
 def new_session(name : str, sessionType : SessionType = 'inspect', *args, forced : bool = False, **kwargs) -> Session:
 	'''
