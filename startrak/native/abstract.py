@@ -1,9 +1,9 @@
 # compiled module
 from __future__ import annotations
-from typing import List, Optional, Self, Sequence, Tuple, final
+from typing import Callable, List, Optional, Self, Sequence, Tuple, final
 from abc import ABC, ABCMeta, abstractmethod
 
-from startrak.native.alias import ImageLike
+from startrak.native.alias import ImageLike, ValueType
 from startrak.native.classes import FileInfo, Header, HeaderArchetype, PhotometryResult, Star, TrackingSolution
 from startrak.native.collections.position import Position, PositionArray, PositionLike
 from startrak.native.collections.starlist import StarList
@@ -54,35 +54,40 @@ class Session(STObject, metaclass= ABCMeta):
 	archetype : Optional[HeaderArchetype]
 	included_files : FileList
 	included_stars : StarList
+	force_validation : bool
+	on_validationFailed : Callable[[str, ValueType, ValueType], None] | None
 	
 	def __init__(self, name : str):
 		if type(self) is Session:
 			raise NotImplementedError('Cannot create object of abtsract type "Session"')
 		self.name = name
 		self.archetype : HeaderArchetype = None
+		self.force_validation = False
+		self.on_validationFailed = None
 		self.included_files = FileList()
 		self.included_stars = StarList()
-
 
 	def add_file(self, *items : FileInfo): 
 		if len(items) == 0:
 				print('No files were added')
 				return
 		
-		_added = [item for item in items if type(item) is FileInfo]
-		if len(self.included_files) == 0:
-			first = _added[0]
-			self.set_archetype(first.header)
-		
-		self.included_files.extend(_added)
-		self.__item_added__(_added)
+		added = list[FileInfo]()
+		for item in items:
+			if not self._validate_file(item):
+				continue
+			if len(added) == 0 and len(self.included_files) == 0:
+				self.set_archetype(item.header)
+			added.append(item)
+		self.included_files.extend(added)
+		self.__item_added__(added)
 
 	def remove_file(self, *items : FileInfo): 
 		if len(items) == 0:
 				print('No files were removed')
 				return
 		
-		_removed = [item for item in items if type(item) is FileInfo]
+		_removed = [item for item in items if isinstance(item, FileInfo)]
 		self.included_files.remove_many(_removed)
 		self.__item_removed__(_removed)
 
@@ -100,6 +105,13 @@ class Session(STObject, metaclass= ABCMeta):
 			self.archetype = None
 			return
 		self.archetype = HeaderArchetype(header)
+	
+	def _validate_file(self, file : FileInfo) -> bool:
+		if not isinstance(file, FileInfo):
+			return False
+		if self.force_validation and self.archetype:
+			return self.archetype.validate(file.header, self.on_validationFailed)
+		return True
 
 	@abstractmethod
 	def __item_added__(self, added : Sequence[FileInfo]): 

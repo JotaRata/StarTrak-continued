@@ -49,8 +49,7 @@ class ScanSession(Session):
 					continue
 				info = FileInfo(path)
 				files.append(info)
-			self._session.__item_added__(files)
-			self._session.included_files.extend(files)
+			Session.add_file(self._session, *files)
 			
 		def process_removed(self, names : list[str]):
 			files = []
@@ -59,19 +58,19 @@ class ScanSession(Session):
 					continue
 				file = self._session.included_files[name]
 				files.append(file)
-			self._session.__item_removed__(files)
-			self._session.included_files.remove_many(files)
+			Session.remove_file(self._session, *files)
 
 	def add_file(self, *items: FileInfo):
 		pass
 	def remove_file(self, *items: FileInfo):
 		pass
 		
-	def __init__(self, name: str, scan_directory : str):
+	def __init__(self, name: str, scan_directory : str, auto_start : bool = True):
 		super().__init__(name)
 		self.working_dir = scan_directory
 		self._watcher = None
-		self.begin_scan()
+		if auto_start:
+			self.begin_scan()
 	
 	def begin_scan(self):
 		if self._watcher is None or self._watcher._stop is True:
@@ -83,9 +82,6 @@ class ScanSession(Session):
 			self._watcher.stop()
 
 	def __item_added__(self, added : Sequence[FileInfo]): 
-		if len(self.included_files) == 0:
-			first = added[0]
-			self.set_archetype(first.header)
 		print ("Added", added)
 	def __item_removed__(self, removed : Sequence[FileInfo]): 
 		print ("Removed", removed)
