@@ -138,6 +138,9 @@ class FileInfo(STObject):
 	def __setattr__(self, __name: str, __value: Any) -> None:
 		return super().__setattr__(__name, __value)
 
+	def __export__(self) -> AttrDict:
+		return {'path' : self.path, 'size' : f'{self.size} bytes', 'header' : self.header}
+
 	def __repr__(self) -> str:
 		return super().__repr__()
 	def __str__(self) -> str:

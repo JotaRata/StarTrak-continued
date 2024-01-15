@@ -5,7 +5,7 @@ from startrak.types.sessions import *
 
 __all__ = ['new_session', 'get_session', 'SessionType']
 SessionType = Literal['inspect', 'scan']
-__session__ : Optional[Session] = None
+__session__ : Session = InspectionSession('default')
 
 def new_session(name : str, sessionType : SessionType = 'inspect', *args, forced : bool = False, **kwargs) -> Session:
 	'''
@@ -17,10 +17,10 @@ def new_session(name : str, sessionType : SessionType = 'inspect', *args, forced
 		- name (str): Name of the new session.
 	'''
 	global __session__
-	if __session__ and not forced:
+	if (__session__ and __session__.name != 'default') and not forced:
 		raise RuntimeError(f'A Session of type {type(__session__).__name__} already exists, to overwrite call this function again with forced= True')
 
-
+	session : Session
 	match sessionType:
 		case 'inspect':
 			session = InspectionSession(name, *args, **kwargs)
@@ -32,6 +32,6 @@ def new_session(name : str, sessionType : SessionType = 'inspect', *args, forced
 	__session__ = session
 	return session
 
-def get_session() -> Session | None:
+def get_session() -> Session:
 	'''Returns the current session'''
 	return __session__

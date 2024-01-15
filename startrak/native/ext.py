@@ -72,7 +72,7 @@ class STObject(ABC):
 		'''
 		name : str =  getattr(self, "name", "")
 		if fold == 0:
-			return type(self).__name__ + sep + name
+			return type(self).__name__ + name
 		
 		indentation = spaces * (2*indent + 1)
 		string = [spaces * (2*indent) + type(self).__name__ + sep + name]
