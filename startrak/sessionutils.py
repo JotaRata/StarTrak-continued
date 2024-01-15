@@ -18,9 +18,9 @@ def new_session(name : str, sessionType : SessionType = 'inspect', *args, forced
 
 		Parameters:
 		* name (str): The name of the new session
-		* sessionType ("inspect" or "scan"): The type of the new session.
+		* sessionType ("inspect" or "scan"): The type of the new session. Default: "inspect".
 			* "inspect" will create a emtpy session useful to work with files already saved in disk.
-			* "scan" will actively scan in a given directory if new files were added or removed, useful for real-time analysys. Default: "inspect.
+			* "scan" will actively scan in a given directory if new files were added or removed, useful for real-time analysis. 
 		* *args: Additional arguments for the newly created Session, if sessionType = "scan" then the working directory must be specified here or in **kwargs.
 		* forced (bool): Whether the new session should overwrite the previous one if exists, if False then a RunTimeError is raised upon calling this function if another session already exists. Default: False.
 		* **kwargs: Additional keywords for the newly created session.

@@ -16,7 +16,7 @@ class ScanSession(Session):
 	working_dir : str
 	_watcher : DirectoryWatcher | None
 	class DirectoryWatcher(Thread):
-		def __init__(self, session : ScanSession, cadence_ms : int = 1000, *args) -> None:
+		def __init__(self, session : ScanSession, cadence_ms : int = 100, *args) -> None:
 			super().__init__(name= 'watcher-thread', daemon=False)
 			self._session = session
 			self._sleep = cadence_ms / 1000
@@ -49,8 +49,8 @@ class ScanSession(Session):
 					continue
 				info = FileInfo(path)
 				files.append(info)
-			self._session.included_files.extend(files)
 			self._session.__item_added__(files)
+			self._session.included_files.extend(files)
 			
 		def process_removed(self, names : list[str]):
 			files = []
@@ -59,8 +59,8 @@ class ScanSession(Session):
 					continue
 				file = self._session.included_files[name]
 				files.append(file)
-			self._session.included_files.remove_many(files)
 			self._session.__item_removed__(files)
+			self._session.included_files.remove_many(files)
 
 	def add_file(self, *items: FileInfo):
 		pass
@@ -83,6 +83,9 @@ class ScanSession(Session):
 			self._watcher.stop()
 
 	def __item_added__(self, added : Sequence[FileInfo]): 
+		if len(self.included_files) == 0:
+			first = added[0]
+			self.set_archetype(first.header)
 		print ("Added", added)
 	def __item_removed__(self, removed : Sequence[FileInfo]): 
 		print ("Removed", removed)
