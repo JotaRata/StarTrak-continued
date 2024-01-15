@@ -241,19 +241,22 @@ class PhotometryResult(NamedTuple, STObject):	#type: ignore[misc]
 		return cls(attributes['phot_method'], flux, backg, apert, attributes.get('psf_params', None))
 	
 	def __str__(self) -> str:
-		return self.__pprint__()
+		return self.__pprint__(0, 1)
 	def __repr__(self) -> str:
-		return type(self).__name__ + f': {self.flux.value:.2f} ± {self.flux.sigma:.2f}'
+		return self.__pprint__(0, 0)
 	
-	def __pprint__(self, indent: int = 0, compact : bool = False) -> str:
-		if compact:
-			return self.__repr__()
-		indentation = spaces * (indent + 1)
-		return ( f'\n{spaces * indent}{type(self).__name__}: '
-					'\n' + indentation + f'method: {self.method}'
-					'\n' + indentation + f'flux: {self.flux.value:.2f} ± {self.flux.sigma:.2f}'
-					'\n' + indentation + f'background: {self.background.value:.2f} ± {self.background.sigma:.2f}'
-					'\n' + indentation + f'error:       {self.error:.3f}')
+	def __pprint__(self, indent: int, fold : int) -> str:
+		if fold == 0:
+			return type(self).__name__ + f' {self.flux.value:.2f} ± {self.flux.sigma:.2f}'
+		indentation = spaces * (2*indent + 1)
+		string = [spaces * (2*indent) + type(self).__name__ + ':'
+					,indentation + f'method:     {self.method}'
+					,indentation + f'flux:       {self.flux.value:.2f} ± {self.flux.sigma:.2f}'
+					,indentation + f'background: {self.background.value:.2f} ± {self.background.sigma:.2f}'
+					,indentation + f'error:      {self.error:.3f}']
+		if indent != 0:
+			string.insert(0, '')
+		return '\n'.join(string)
 	
 @mypyc_attr(allow_interpreted_subclasses=True)
 class Star(STObject):
@@ -395,21 +398,24 @@ class TrackingSolution(NamedTuple, STObject):	#type: ignore[misc]
 		return TrackingSolution.new(attributes['method'], translation, rot_rad, attributes['error'], attributes['lost_indices'])
 	
 	def __str__(self) -> str:
-		return self.__pprint__()
+		return self.__pprint__(0, 1)
 	def __repr__(self) -> str:
-		t = self.translation
-		return type(self).__name__ + f' ({t[0]:.1f} px, {t[1]:.1f} px, {self.rotation:.2f}°)'
+		return self.__pprint__(0, 0)
 	
-	def __pprint__(self, indent: int = 0, compact : bool = False) -> str:
-		if compact:
-			return self.__repr__()
+	def __pprint__(self, indent: int, fold : int) -> str:
+		translation = f'{self.translation.x:.1f} px, {self.translation.x:.1f} px'
+		if fold == 0:
+			return type(self).__name__ + f' {translation}, {self.rotation:.2f}°'
+		
 		indentation = spaces * (indent + 1)
-		t = self.translation
-		return ( f'\n{spaces * indent}{type(self).__name__}: '
-					'\n' + indentation + f'method:      {self.method}'
-					'\n' + indentation + f'translation: {t[0]:.1f} px, {t[1]:.1f} px'
-					'\n' + indentation + f'rotation:    {self.rotation:.2f}°'
-					'\n' + indentation + f'error:       {self.error:.3f} px')
+		string = [spaces * (2*indent) + type(self).__name__ +':'
+					,indentation + f'method:      {self.method}'
+					,indentation + f'translation: {translation}'
+					,indentation + f'rotation:    {self.rotation:.2f}°'
+					,indentation + f'error:       {self.error:.3f} px']
+		if indent != 0:
+			string.insert(0, '')
+		return '\n'.join(string)
 #endregion
 
 __STObject_subclasses__['TrackingSolution'] = TrackingSolution

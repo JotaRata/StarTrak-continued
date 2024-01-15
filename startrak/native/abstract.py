@@ -50,17 +50,27 @@ class StarDetector(ABC):
 #region Sessions
 @mypyc_attr(allow_interpreted_subclasses=True)
 class Session(STObject, metaclass= ABCMeta):
-	archetype : Optional[HeaderArchetype]
-	included_files : Set[FileInfo]
-	included_stars : StarList
+	__arch : Optional[HeaderArchetype]
+	__inc_files : Set[FileInfo]
+	__inc_stars : StarList
 	
 	def __init__(self, name : str):
 		if type(self) is Session:
 			raise NotImplementedError('Cannot create object of abtsract type "Session"')
 		self.name = name
-		self.archetype : HeaderArchetype = None
-		self.included_files : set[FileInfo] = set()
-		self.included_stars = StarList()
+		self.__arch : HeaderArchetype = None
+		self.__inc_files : set[FileInfo] = set()
+		self.__inc_stars = StarList()
+
+	@property
+	def archetype(self) -> HeaderArchetype:
+		return self.__arch if self.__arch else HeaderArchetype({})
+	@property
+	def files(self) -> List[FileInfo]:
+		return list(self.__inc_files)
+	@property
+	def stars(self) -> StarList:
+		return self.__inc_stars
 
 	def add_file(self, *items : FileInfo): 
 		if len(items) == 0:
@@ -68,11 +78,11 @@ class Session(STObject, metaclass= ABCMeta):
 				return
 		
 		_added = [item for item in items if type(item) is FileInfo]
-		if len(self.included_files) == 0:
+		if len(self.__inc_files) == 0:
 			first = _added[0]
 			self.set_archetype(first.header)
 		
-		self.included_files |= set(_added)
+		self.__inc_files |= set(_added)
 		self.__item_added__(_added)
 
 	def remove_file(self, *items : FileInfo): 
@@ -81,7 +91,7 @@ class Session(STObject, metaclass= ABCMeta):
 				return
 		
 		_removed = [item for item in items if type(item) is FileInfo]
-		self.included_files -= set(_removed)
+		self.__inc_files -= set(_removed)
 		self.__item_removed__(_removed)
 
 	def add_star(self, *stars : Star):
@@ -90,18 +100,18 @@ class Session(STObject, metaclass= ABCMeta):
 				print('No stars were added')
 				return
 			case (star, ):
-				self.included_stars.append(star)
+				self.__inc_stars.append(star)
 			case _:
-				self.included_stars.extend(stars)
+				self.__inc_stars.extend(stars)
 
 	def remove_star(self, star : Star):
-		self.included_stars.remove(star)
+		self.__inc_stars.remove(star)
 	
 	def set_archetype(self, header : Optional[Header]):
 		if header is None: 
-			self.archetype = None
+			self.__arch = None
 			return
-		self.archetype = HeaderArchetype(header)
+		self.__arch = HeaderArchetype(header)
 
 	@abstractmethod
 	def __item_added__(self, added : Sequence[FileInfo]): 
@@ -118,10 +128,10 @@ class Session(STObject, metaclass= ABCMeta):
 		return obj
 	
 	def __export__(self) -> AttrDict:
-		return {'archetype' : self.archetype,'included_files': self.included_files, 'included_stars': self.included_stars}
+		return {'archetype' : self.__arch,'included_files': self.files, 'included_stars': self.stars}
 	
-	def __pprint__(self, indent: int = 0, compact: bool = False) -> str:
-		return super().__pprint__(indent, compact)
+	def __pprint__(self, indent: int, expand_tree : int) -> str:
+		return super().__pprint__(indent, expand_tree)
 
 #endregion
 

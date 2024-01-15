@@ -32,8 +32,8 @@ class HeaderTest(unittest.TestCase):
 			s = new_session('Test session')
 			s.add_file( *load_folder(dir))
 
-			for f in s.included_files:
-				self.assertTrue(s.archetype.validate(f.header))
+			for f in s.__inc_files:
+				self.assertTrue(s.__arch.validate(f.header))
 
 if __name__ == '__main__':
 	unittest.main()
