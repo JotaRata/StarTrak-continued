@@ -60,6 +60,7 @@ class Session(STObject, metaclass= ABCMeta):
 		self.name = name
 		self.archetype : HeaderArchetype = None
 		self.included_files : set[FileInfo] = set()
+		self.included_stars = StarList()
 
 	def add_file(self, *items : FileInfo): 
 		if len(items) == 0:
@@ -117,7 +118,10 @@ class Session(STObject, metaclass= ABCMeta):
 		return obj
 	
 	def __export__(self) -> AttrDict:
-		return super().__export__()
+		return {'archetype' : self.archetype,'included_files': self.included_files, 'included_stars': self.included_stars}
+	
+	def __pprint__(self, indent: int = 0, compact: bool = False) -> str:
+		return super().__pprint__(indent, compact)
 
 #endregion
 

@@ -67,7 +67,7 @@ class STObject(ABC):
 			if (isinstance(value, STObject) or STObject.__subclasshook__(type(value))) and not compact:
 				string.append(indentation + key + separator + value.__pprint__(indent + 2))
 			else:
-				string.append(indentation + key + separator  + str(value))
+				string.append(indentation + key + separator  + repr(value))
 		return '\n'.join(string)
 	
 	def __str__(self) -> str:
