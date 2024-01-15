@@ -7,7 +7,7 @@ __all__ = ['new_session', 'get_session', 'SessionType']
 SessionType = Literal['inspect', 'scan']
 __session__ : Optional[Session] = None
 
-def new_session(name : str, sessionType : SessionType = 'inspect', forced : bool = False, *args, **kwargs) -> Session:
+def new_session(name : str, sessionType : SessionType = 'inspect', *args, forced : bool = False, **kwargs) -> Session:
 	'''
 		Parameters:
 		- sessionType (SessionType): The type of the new session. Accepted values are:
