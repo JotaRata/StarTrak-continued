@@ -13,7 +13,7 @@ def load_file(path: str | Path, append : bool = True) -> FileInfo:
         append (bool): If True, append the file to the current session, default: True
     '''
     file = FileInfo(str(path))
-    if append:
+    if append and file:
         get_session().add_file(file)
     return file
 

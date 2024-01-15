@@ -130,8 +130,10 @@ class FileInfo(STObject):
 		return cls(attributes['path'])
 	
 	def __eq__(self, __value):
-		if not  isinstance(__value, type(self)): return False
+		if not isinstance(__value, FileInfo): 
+			return False
 		return self.__path == __value.__path
+	
 	def __hash__(self) -> int:
 		return hash(self.__path)
 	
