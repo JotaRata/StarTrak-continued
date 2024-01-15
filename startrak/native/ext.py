@@ -201,39 +201,46 @@ class STCollection(STObject, Collection[TList]):
 
 	def __setitem__(self, index : int, value : TList):
 		self.__rt_check(value)
+		self._internal.__setitem__(index, value)
 		self.__on_change__()
-		return self._internal.__setitem__(index, value)
 	
 	def append(self, value: TList): 
 		self.__rt_check(value)
-		self.__on_change__()
 		self._internal.append(value)
+		self.__on_change__()
+	
+	def remove_many(self, values: Self | Iterable[TList]): 
+		'''Currently it does not support runtime checking'''
+		for value in values:
+			self._internal.remove(value)
+		self.__on_change__()
 	
 	def extend(self, values: Self | Iterable[TList]): 
 		'''Currently it does not support runtime checking'''
+		self._internal.extend(values)
 		self.__on_change__()
-		return self._internal.extend(values)
 	
 	def insert(self, index: int, value: TList): 
 		self.__rt_check(value)
-		self.__on_change__()
 		self._internal.insert(index, value)
+		self.__on_change__()
 	
 	def remove(self, value: TList): 
-		self.__on_change__()
 		self._internal.remove(value)
+		self.__on_change__()
 	
 	def pop(self, index: int) -> TList: 
+		ret = self._internal.pop(index)
 		self.__on_change__()
-		return self._internal.pop(index)
+		return ret
 	
 	def clear(self): 
-		self.__on_change__()
 		self._internal.clear()
+		self.__on_change__()
 	
 	def reverse(self): 
-		self.__on_change__()
 		self._internal.reverse()
+		self.__on_change__()
 	def copy(self) -> Self:
 		return type(self)(*self._internal.copy())
 	
@@ -242,9 +249,9 @@ class STCollection(STObject, Collection[TList]):
 		closed = '*' if self.is_closed else ''
 		indentation = spaces * (2*indent + 1)
 		if fold == 0:
-			return type(self).__name__ + closed + sep + f'({self.__len__()} entries)'
+			return type(self).__name__ + closed + f' ({self.__len__()} entries)'
 		
-		string : List[str] = ['', spaces *  (2*indent) + type(self).__name__ + closed + sep + f'({self.__len__()} entries):']
+		string = [spaces *  (2*indent) + type(self).__name__ + closed + f' ({self.__len__()} entries)']
 		for i, value in enumerate(self.__iter__()):
 			index = indentation + f'{i}:'
 			if isinstance(value, STObject) and indent + 1 < fold:

@@ -41,12 +41,12 @@ class SessionTests(unittest.TestCase):
 	def test_session_load_file(self):
 			s = new_session(sessionName, 'inspect', forced= True)
 			s.add_file(load_file(dir + paths[0]))
-			self.assertEqual(1, len(s.__inc_files))
+			self.assertEqual(1, len(s.included_files))
 
 	def test_session_load_folder(self):
 			s = new_session(sessionName, 'inspect', forced= True)
 			s.add_file( *load_folder(dir))
-			self.assertEqual(len(paths), len(s.__inc_files))
+			self.assertEqual(len(paths), len(s.included_files))
 # ------------- Test for exceptions ---------------
 	def test_invalid_case(self):
 		with self.assertRaises(NameError):

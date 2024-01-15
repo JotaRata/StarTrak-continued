@@ -7,6 +7,7 @@ try:
 	from . import classes
 	from . import abstract
 	from .collections import starlist
+	from .collections import filelist
 except:
 	__compiled__ = True
 	from startrak.native.collections import position
@@ -15,6 +16,7 @@ except:
 	import startrak.native.classes as classes
 	import startrak.native.abstract as abstract
 	from startrak.native.collections import starlist
+	from startrak.native.collections import filelist
 
 
 Position = position.Position
@@ -31,6 +33,7 @@ PhotometryResult = classes.PhotometryResult
 TrackingSolution = classes.TrackingSolution
 
 StarList = starlist.StarList
+FileList = filelist.FileList
 
 Session = abstract.Session
 PhotometryBase = abstract.PhotometryBase
