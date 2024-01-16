@@ -28,7 +28,7 @@ def load_folder(path: str | Path, append : bool = True):
     '''
     files = []
     for entry in scandir(path):
-        if not entry.is_file() and not entry.name.endswith(
+        if not entry.is_file() or not entry.name.endswith(
             ('.fit', '.fits', '.FIT', '.FITS')):
             continue
         file = FileInfo(str(entry.path))
