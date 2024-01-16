@@ -52,19 +52,21 @@ class StarDetector(ABC):
 @mypyc_attr(allow_interpreted_subclasses=True)
 class Session(STObject, metaclass= ABCMeta):
 	working_dir : str
+	use_relative : bool
 	archetype : Optional[HeaderArchetype]
 	included_files : FileList
 	included_stars : StarList
 	force_validation : bool
 	on_validationFailed : Callable[[str, ValueType, ValueType], None] | None
 	
-	def __init__(self, name : str, working_dir : str):
+	def __init__(self, name : str, working_dir : str, force_validation : bool = False, use_relativePaths : bool = False):
 		if type(self) is Session:
 			raise NotImplementedError('Cannot create object of abtsract type "Session"')
 		self.name = name
 		self.working_dir = working_dir
 		self.archetype : HeaderArchetype = None
-		self.force_validation = False
+		self.force_validation = force_validation
+		self.use_relative = use_relativePaths
 		self.on_validationFailed = None
 		self.included_files = FileList()
 		self.included_stars = StarList()
@@ -127,14 +129,22 @@ class Session(STObject, metaclass= ABCMeta):
 	
 	@classmethod
 	def __import__(cls, attributes: AttrDict, **cls_kw) -> Self:
-		session= cls(attributes['name'], attributes['working_dir'], **cls_kw)
+		session= cls(attributes['name'], attributes['working_dir'], force_validation= attributes['force_validation'], 
+					use_relativePaths= attributes['use_relativePaths'], **cls_kw)
 		session.archetype = attributes['archetype']
 		session.included_files = attributes['included_files']
 		session.included_stars = attributes['included_stars']
 		return session
 	
 	def __export__(self) -> AttrDict:
-		return {'name': self.name, 'archetype' : self.archetype,'included_files': self.included_files, 'included_stars': self.included_stars, 'working_dir' : self.working_dir}
+		return {
+			'name': self.name, 
+			'archetype' : self.archetype,
+			'included_files': self.included_files, 
+			'included_stars': self.included_stars, 
+			'working_dir' : self.working_dir,
+			'force_validation' : self.force_validation,
+			'use_relativePaths' : self.use_relative}
 	
 	def __pprint__(self, indent: int, expand_tree : int) -> str:
 		return super().__pprint__(indent, expand_tree)

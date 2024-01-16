@@ -9,8 +9,11 @@ from startrak.native.classes import FileInfo
 from startrak.native.ext import AttrDict
 
 class InspectionSession(Session):
-	def __init__(self, name: str, working_dir: str | None = ''):
-		super().__init__(name, working_dir if working_dir else os.getcwd())
+
+	def __init__(self, name: str, working_dir: str | None = None, 
+					force_validation: bool = False, use_relativePaths: bool = False):
+		_working_dir = working_dir if working_dir else os.getcwd().replace('\\', '/')
+		super().__init__(name, _working_dir, force_validation, use_relativePaths)
 
 	def __on_saved__(self, output_path: str):
 		self.working_dir = os.path.abspath(os.path.join(output_path, os.pardir)).replace('\\', '/')
@@ -70,8 +73,9 @@ class ScanSession(Session):
 	def remove_file(self, *items: FileInfo):
 		pass
 		
-	def __init__(self, name: str, working_dir : str, auto_start : bool = True):
-		super().__init__(name, working_dir)
+	def __init__(self, name: str, working_dir: str, auto_start : bool = True,
+					force_validation: bool = False, use_relativePaths: bool = False):
+		super().__init__(name, working_dir, force_validation, use_relativePaths)
 		self._watcher = None
 		if auto_start:
 			self.begin_scan()
@@ -91,11 +95,6 @@ class ScanSession(Session):
 		print ("Added", added)
 	def __item_removed__(self, removed : Sequence[FileInfo]): 
 		print ("Removed", removed)
-	
-	def __export__(self) -> AttrDict:
-		attr = super().__export__()
-		attr['working_dir'] = self.working_dir.replace("\\", "/")
-		return attr
 	
 	@classmethod
 	def __import__(cls, attributes: AttrDict, **cls_kw) -> Self:
