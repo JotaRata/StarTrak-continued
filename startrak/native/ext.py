@@ -55,7 +55,7 @@ class STObject(ABC):
 		return {attr: getattr(self, attr, None) for attr in dir(self) if not attr.startswith(('_', '__')) and not callable(attr)}
 
 	@classmethod
-	def __import__(cls, attributes : AttrDict) -> Self:
+	def __import__(cls, attributes : AttrDict, **cls_kw : Any) -> Self:
 		raise NotImplementedError(cls.__name__)
 
 	def __pprint__(self, indent : int, fold : int) -> str:
@@ -140,8 +140,8 @@ class STCollection(STObject, Collection[TList]):
 	def __export__(self) -> AttrDict:
 		return { str(index): value for index, value in enumerate(self.__iter__())}
 	@classmethod
-	def __import__(cls, attributes : AttrDict) -> Self:
-		obj = cls()
+	def __import__(cls, attributes : AttrDict, **cls_kw : Any) -> Self:
+		obj = cls(**cls_kw)
 		for attr, value in attributes.items():
 			if attr.isdigit():
 				obj._internal.append(value)

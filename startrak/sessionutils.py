@@ -64,4 +64,5 @@ def load_session(file_path : str | Path, overwrite : bool = False) -> Session:
 
 def save_session(output_path : str | Path):
 	with TextExporter(str(output_path) + '.session') as out:
+		__session__.__on_saved__(  str(output_path) )
 		out.write(__session__)

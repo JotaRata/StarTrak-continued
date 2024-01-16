@@ -12,6 +12,8 @@ class InspectionSession(Session):
 	def __init__(self, name: str, working_dir: str | None = ''):
 		super().__init__(name, working_dir if working_dir else os.getcwd())
 
+	def __on_saved__(self, output_path: str):
+		self.working_dir = os.path.abspath(os.path.join(output_path, os.pardir)).replace('\\', '/')
 	def __item_added__(self, added : Sequence[FileInfo]): pass
 	def __item_removed__(self, removed : Sequence[FileInfo]): pass
 	
@@ -83,6 +85,8 @@ class ScanSession(Session):
 		if self._watcher is not None:
 			self._watcher.stop()
 
+	def __on_saved__(self, output_path: str):
+		pass
 	def __item_added__(self, added : Sequence[FileInfo]): 
 		print ("Added", added)
 	def __item_removed__(self, removed : Sequence[FileInfo]): 
@@ -94,9 +98,5 @@ class ScanSession(Session):
 		return attr
 	
 	@classmethod
-	def __import__(cls, attributes: AttrDict) -> Self:
-		session= cls(attributes['name'], attributes['working_dir'], auto_start= False)
-		session.archetype = attributes['archetype']
-		session.included_files = attributes['included_files']
-		session.included_stars = attributes['included_stars']
-		return session
+	def __import__(cls, attributes: AttrDict, **cls_kw) -> Self:
+		return super().__import__(attributes, auto_start= False, **cls_kw)

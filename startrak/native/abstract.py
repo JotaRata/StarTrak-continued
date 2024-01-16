@@ -116,6 +116,9 @@ class Session(STObject, metaclass= ABCMeta):
 		return True
 
 	@abstractmethod
+	def __on_saved__(self, output_path : str): 
+		raise NotImplementedError()
+	@abstractmethod
 	def __item_added__(self, added : Sequence[FileInfo]): 
 		raise NotImplementedError()
 	@abstractmethod
@@ -123,8 +126,8 @@ class Session(STObject, metaclass= ABCMeta):
 		raise NotImplementedError()
 	
 	@classmethod
-	def __import__(cls, attributes: AttrDict) -> Self:
-		session= cls(attributes['name'], attributes['working_dir'])
+	def __import__(cls, attributes: AttrDict, **cls_kw) -> Self:
+		session= cls(attributes['name'], attributes['working_dir'], **cls_kw)
 		session.archetype = attributes['archetype']
 		session.included_files = attributes['included_files']
 		session.included_stars = attributes['included_stars']

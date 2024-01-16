@@ -83,7 +83,7 @@ class HeaderArchetype(Header):
 		HeaderArchetype._entries = user_keys
 	
 	@classmethod
-	def __import__(cls, attributes: AttrDict) -> Self:
+	def __import__(cls, attributes: AttrDict, **cls_kw : Any) -> Self:
 		return cls(attributes)
 
 class FileInfo(STObject):
@@ -136,7 +136,7 @@ class FileInfo(STObject):
 		return _raw.reshape(_shape).astype(_dtype)
 	
 	@classmethod
-	def __import__(cls, attributes: AttrDict) -> Self:
+	def __import__(cls, attributes: AttrDict, **cls_kw : Any) -> Self:
 		return cls(attributes['path'])
 	
 	def __eq__(self, __value):
@@ -319,7 +319,7 @@ class Star(STObject):
 		return super().__export__()
 	
 	@classmethod
-	def __import__(cls, attributes: AttrDict) -> Self:
+	def __import__(cls, attributes: AttrDict, **cls_kw : Any) -> Self:
 		params = ('name', 'position', 'aperture', 'photometry')
 		attributes = {k: attributes[k] for k in params if k in attributes}
 		return cls(**attributes)
