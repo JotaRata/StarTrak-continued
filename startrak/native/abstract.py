@@ -1,10 +1,11 @@
 # compiled module
 from __future__ import annotations
+import os
 from typing import Callable, List, Optional, Self, Sequence, Tuple, final
 from abc import ABC, ABCMeta, abstractmethod
 
 from startrak.native.alias import ImageLike, ValueType
-from startrak.native.classes import FileInfo, Header, HeaderArchetype, PhotometryResult, Star, TrackingSolution
+from startrak.native.classes import SessionLocationBlock, FileInfo, Header, HeaderArchetype, PhotometryResult, RelativeContext, Star, TrackingSolution
 from startrak.native.collections.position import Position, PositionArray, PositionLike
 from startrak.native.collections.starlist import StarList
 from startrak.native.collections.filelist import FileList
@@ -51,8 +52,7 @@ class StarDetector(ABC):
 #region Sessions
 @mypyc_attr(allow_interpreted_subclasses=True)
 class Session(STObject, metaclass= ABCMeta):
-	working_dir : str
-	use_relative : bool
+	_session_path : SessionLocationBlock
 	archetype : Optional[HeaderArchetype]
 	included_files : FileList
 	included_stars : StarList
@@ -63,13 +63,25 @@ class Session(STObject, metaclass= ABCMeta):
 		if type(self) is Session:
 			raise NotImplementedError('Cannot create object of abtsract type "Session"')
 		self.name = name
-		self.working_dir = working_dir
 		self.archetype : HeaderArchetype = None
 		self.force_validation = force_validation
-		self.use_relative = use_relativePaths
 		self.on_validationFailed = None
+		self._session_path = SessionLocationBlock(working_dir.replace('\\', '/'), use_relativePaths)
 		self.included_files = FileList()
 		self.included_stars = StarList()
+
+	@property
+	def working_dir(self) -> str:
+		return self._session_path.session_path
+	@working_dir.setter
+	def working_dir(self, value):
+		self._session_path = SessionLocationBlock(value, self._session_path.uses_relative)
+	@property
+	def relative_paths(self) -> bool:
+		return self._session_path.uses_relative
+	@relative_paths.setter
+	def relative_paths(self, value):
+		self._session_path = SessionLocationBlock(self._session_path.session_path, value)
 
 	def add_file(self, *items : FileInfo): 
 		if len(items) == 0:
@@ -117,9 +129,11 @@ class Session(STObject, metaclass= ABCMeta):
 			return self.archetype.validate(file.header, self.on_validationFailed)
 		return True
 
-	@abstractmethod
-	def __on_saved__(self, output_path : str): 
-		raise NotImplementedError()
+	def __on_saved__(self, output_dir : str): 
+		if not self._session_path.uses_relative:
+			return
+		self.included_files = self.included_files.make_relative(output_dir)
+		
 	@abstractmethod
 	def __item_added__(self, added : Sequence[FileInfo]): 
 		raise NotImplementedError()
@@ -129,22 +143,23 @@ class Session(STObject, metaclass= ABCMeta):
 	
 	@classmethod
 	def __import__(cls, attributes: AttrDict, **cls_kw) -> Self:
-		session= cls(attributes['name'], attributes['working_dir'], force_validation= attributes['force_validation'], 
-					use_relativePaths= attributes['use_relativePaths'], **cls_kw)
+		block = attributes['location_info']
+		session= cls(attributes['name'], block.session_path, force_validation= attributes['force_validation'], 
+					use_relativePaths= block.uses_relative, **cls_kw)
 		session.archetype = attributes['archetype']
 		session.included_files = attributes['included_files']
 		session.included_stars = attributes['included_stars']
+		RelativeContext.reset()
 		return session
 	
 	def __export__(self) -> AttrDict:
 		return {
 			'name': self.name, 
+			'location_info' : self._session_path,
 			'archetype' : self.archetype,
 			'included_files': self.included_files, 
 			'included_stars': self.included_stars, 
-			'working_dir' : self.working_dir,
-			'force_validation' : self.force_validation,
-			'use_relativePaths' : self.use_relative}
+			'force_validation' : self.force_validation}
 	
 	def __pprint__(self, indent: int, expand_tree : int) -> str:
 		return super().__pprint__(indent, expand_tree)

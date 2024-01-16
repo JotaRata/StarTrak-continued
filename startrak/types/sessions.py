@@ -12,11 +12,12 @@ class InspectionSession(Session):
 
 	def __init__(self, name: str, working_dir: str | None = None, 
 					force_validation: bool = False, use_relativePaths: bool = False):
-		_working_dir = working_dir if working_dir else os.getcwd().replace('\\', '/')
+		_working_dir = working_dir if working_dir else os.getcwd()
 		super().__init__(name, _working_dir, force_validation, use_relativePaths)
 
-	def __on_saved__(self, output_path: str):
-		self.working_dir = os.path.abspath(os.path.join(output_path, os.pardir)).replace('\\', '/')
+	def __on_saved__(self, output_dir: str):
+		super().__on_saved__(output_dir)
+		self.working_dir = output_dir
 	def __item_added__(self, added : Sequence[FileInfo]): pass
 	def __item_removed__(self, removed : Sequence[FileInfo]): pass
 	
@@ -89,8 +90,6 @@ class ScanSession(Session):
 		if self._watcher is not None:
 			self._watcher.stop()
 
-	def __on_saved__(self, output_path: str):
-		pass
 	def __item_added__(self, added : Sequence[FileInfo]): 
 		print ("Added", added)
 	def __item_removed__(self, removed : Sequence[FileInfo]): 

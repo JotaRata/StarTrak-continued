@@ -20,6 +20,26 @@ from startrak.native.utils.svdutils import SVD, outer
 #region File management
 _defaults : Final[Dict[str, Type[ValueType]]] = \
 		{'SIMPLE' : int, 'BITPIX' : int, 'NAXIS' : int, 'EXPTIME' : float, 'BSCALE' : float, 'BZERO' : float}
+
+_FileInfo_cwd : str | None = None	# Canot use early bindign since its dynamic
+
+class RelativeContext:
+	def __init__(self, new_dir : str) -> None:
+		self.new_dir = new_dir
+	@staticmethod
+	def set(new_dir : str):
+		global _FileInfo_cwd
+		_FileInfo_cwd = new_dir
+	@staticmethod
+	def reset():
+		global _FileInfo_cwd
+		_FileInfo_cwd = None
+	def __enter__(self) -> Self:
+		RelativeContext.set(self.new_dir)
+		return self
+	def __exit__(self, *args):
+		RelativeContext.reset()
+
 class Header(STObject):
 	_items : Dict[str, ValueType]
 	bitsize : np.dtype[RealDType]
@@ -98,14 +118,16 @@ class FileInfo(STObject):
 			'Input path is not a FITS file'
 		# self.closed = False
 		self.__file = FITSReader(path)
-		self.__relpath = relative_path
-		if relative_path:
-			self.__path = path
+
+		if relative_path and _FileInfo_cwd:
+			self.__path = os.path.join(_FileInfo_cwd, path)
+			self.__relpath = True
 		else:
 			self.__path = os.path.abspath(path)
-		self.__size = os.path.getsize(path)
+			self.__relpath = False
 		self.__header = None
 		self.name = os.path.basename(self.__path)
+		self.__size = os.path.getsize(self.__path)
 	
 	@property
 	def path(self) -> str:
@@ -137,7 +159,7 @@ class FileInfo(STObject):
 	
 	@classmethod
 	def __import__(cls, attributes: AttrDict, **cls_kw : Any) -> Self:
-		return cls(attributes['path'])
+		return cls(attributes['path'], attributes['relative_path'] )
 	
 	def __eq__(self, __value):
 		if not isinstance(__value, FileInfo): 
@@ -151,7 +173,13 @@ class FileInfo(STObject):
 		return super().__setattr__(__name, __value)
 
 	def __export__(self) -> AttrDict:
-		return {'path' : self.__path.replace("\\", "/"), 'relative_path' : self.__relpath}
+		if self.__relpath and _FileInfo_cwd:
+			print('EXEC!!')
+			path = os.path.relpath(self.__path, _FileInfo_cwd)
+		else:
+			print('no exec:(', self.__relpath, _FileInfo_cwd)
+			path = self.__path
+		return {'path' : path.replace("\\", "/"), 'relative_path' : self.__relpath}
 
 	def __pprint__(self, indent: int, fold: int) -> str:
 		if fold == 0:
@@ -185,7 +213,6 @@ class FileInfo(STObject):
 
 
 #region Photometry
-	
 	
 class FluxInfo(NamedTuple):
 	value: float
@@ -456,6 +483,28 @@ class TrackingSolution(NamedTuple, STObject):	#type: ignore[misc]
 		return '\n'.join(string)
 #endregion
 
+# Trick to communicate between Session and FileInfo during the Import process
+class SessionLocationBlock(NamedTuple, STObject): #type: ignore[misc]
+	session_path : str
+	uses_relative : bool
+
+	@classmethod
+	def __import__(cls, attributes: AttrDict, **cls_kw: Any) -> Self:
+		RelativeContext.set(attributes['session_path'])
+		return cls(attributes['session_path'], attributes['uses_relative'])
+	
+	def __export__(self) -> AttrDict:
+		return {'session_path': self.session_path, 'uses_relative': self.uses_relative}
+	
+	def __pprint__(self, indent: int, fold: int) -> str:
+		if fold == 0:
+			return self.session_path
+		string = ['',spaces * (2*indent + 1) + 'path: ' + self.session_path,
+					 spaces * (2*indent + 1) + 'uses_relative: ' + str(self.uses_relative)]
+		return '\n'.join(string)
+
 __STObject_subclasses__['TrackingSolution'] = TrackingSolution
 __STObject_subclasses__['PhotometryResult'] = PhotometryResult
+__STObject_subclasses__['SessionLocationBlock'] = SessionLocationBlock
+
 

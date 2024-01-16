@@ -1,8 +1,9 @@
 # compiled module
 
 from __future__ import annotations
+import os
 from typing import Dict, Iterable, List, Self, overload
-from startrak.native.classes import FileInfo
+from startrak.native.classes import FileInfo, RelativeContext
 from startrak.native.alias import MaskLike
 from startrak.native.ext import STCollection
 
@@ -21,6 +22,15 @@ class FileList(STCollection[FileInfo]):
 	@property
 	def names(self) -> List[str]:
 		return [f.name for f in self._internal]
+	
+	def make_relative(self, relative_path : str) -> FileList:
+		with RelativeContext(relative_path):
+			files = [FileInfo(file.path, True) for file in self]
+		return FileList( *files)
+	
+	def make_abslute(self, relative_path : str) -> FileList:
+		files = [FileInfo(os.path.join(relative_path, file.path), False) for file in self]
+		return FileList( *files)
 		
 	def append(self, value: FileInfo):
 		if value not in self:

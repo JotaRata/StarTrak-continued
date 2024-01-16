@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Literal, overload
 from startrak.native import Session
+from startrak.native.classes import RelativeContext
 from startrak.types.sessions import *
 from startrak.types.exporters import TextExporter
 from startrak.types.importers import TextImporter
@@ -64,5 +65,8 @@ def load_session(file_path : str | Path, overwrite : bool = False) -> Session:
 
 def save_session(output_path : str | Path):
 	with TextExporter(str(output_path) + '.session') as out:
-		__session__.__on_saved__(  str(output_path) )
-		out.write(__session__)
+		directory = os.path.abspath(os.path.join(output_path, os.pardir)).replace('\\', '/') 
+		__session__.__on_saved__( directory )
+		
+		with RelativeContext(__session__.working_dir):
+			out.write(__session__)
