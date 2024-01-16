@@ -3,7 +3,7 @@ from collections.abc import Callable, Iterable, Mapping
 import os
 from threading import Thread
 import time
-from typing import Any, Sequence, Set
+from typing import Any, Self, Sequence, Set
 from startrak.native import FileInfo, Session
 from startrak.native.classes import FileInfo
 from startrak.native.ext import AttrDict
@@ -11,6 +11,13 @@ from startrak.native.ext import AttrDict
 class InspectionSession(Session):
 	def __item_added__(self, added : Sequence[FileInfo]): pass
 	def __item_removed__(self, removed : Sequence[FileInfo]): pass
+	@classmethod
+	def __import__(cls, attributes: AttrDict) -> Self:
+		session= cls(attributes['name'])
+		session.archetype = attributes['archetype']
+		session.included_files = attributes['included_files']
+		session.included_stars = attributes['included_stars']
+		return session
 
 class ScanSession(Session):
 	working_dir : str
@@ -85,7 +92,16 @@ class ScanSession(Session):
 		print ("Added", added)
 	def __item_removed__(self, removed : Sequence[FileInfo]): 
 		print ("Removed", removed)
+	
 	def __export__(self) -> AttrDict:
 		attr = super().__export__()
-		attr['scan_directory'] = self.working_dir
+		attr['scan_directory'] = self.working_dir.replace("\\", "/")
 		return attr
+	
+	@classmethod
+	def __import__(cls, attributes: AttrDict) -> Self:
+		session= cls(attributes['name'], attributes['scan_directory'], auto_start= False)
+		session.archetype = attributes['archetype']
+		session.included_files = attributes['included_files']
+		session.included_stars = attributes['included_stars']
+		return session

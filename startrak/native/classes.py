@@ -81,6 +81,10 @@ class HeaderArchetype(Header):
 		assert all([ type(key) is str  for key in user_keys])
 		assert all([ value in (int, bool, float, str) for value in user_keys.values()])
 		HeaderArchetype._entries = user_keys
+	
+	@classmethod
+	def __import__(cls, attributes: AttrDict) -> Self:
+		return cls(attributes)
 
 class FileInfo(STObject):
 	__path : str
@@ -102,7 +106,7 @@ class FileInfo(STObject):
 	def path(self) -> str:
 		return self.__path
 	@property
-	def size(self) -> int:
+	def bytes(self) -> int:
 		return self.__size
 	
 	@property
@@ -141,7 +145,30 @@ class FileInfo(STObject):
 		return super().__setattr__(__name, __value)
 
 	def __export__(self) -> AttrDict:
-		return {'path' : self.path, 'size' : f'{self.size} bytes', 'header' : self.header}
+		return {'path' : self.path.replace("\\", "/")}
+
+	def __pprint__(self, indent: int, fold: int) -> str:
+		if fold == 0:
+			return type(self).__name__ + f': {self.name}'
+		indentation = spaces * (2*indent + 1)
+		string = [spaces * (2*indent) + type(self).__name__ + f' {self.name}:']
+		string.append(indentation + f'path: "{self.path}"')
+
+		if self.bytes < 1024:
+			string.append(indentation + f'size: {self.bytes} bytes')
+		elif self.bytes < 1048576:
+			string.append(indentation + f'size: {self.bytes/1024:.2f} KB')
+		else:
+			string.append(indentation + f'size: {self.bytes/1048576:.2f} MB')
+		
+		if indent + 1 < fold:
+			string.append(indentation + 'header: ' + self.header.__pprint__(indent + 1, fold))
+		else:
+			string.append(indentation + 'header: Header')
+		if indent != 0:
+			string.insert(0, '')
+		return '\n'.join(string)
+
 
 	def __repr__(self) -> str:
 		return super().__repr__()

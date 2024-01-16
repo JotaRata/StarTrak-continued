@@ -122,13 +122,10 @@ class Session(STObject, metaclass= ABCMeta):
 	
 	@classmethod
 	def __import__(cls, attributes: AttrDict) -> Self:
-		obj = cls(attributes['name'])
-		for attr, value in attributes.items():
-			setattr(obj, attr, value)
-		return obj
+		raise NotImplementedError()
 	
 	def __export__(self) -> AttrDict:
-		return {'archetype' : self.archetype,'included_files': self.included_files, 'included_stars': self.included_stars}
+		return {'name': self.name, 'archetype' : self.archetype,'included_files': self.included_files, 'included_stars': self.included_stars}
 	
 	def __pprint__(self, indent: int, expand_tree : int) -> str:
 		return super().__pprint__(indent, expand_tree)
