@@ -51,16 +51,18 @@ class StarDetector(ABC):
 #region Sessions
 @mypyc_attr(allow_interpreted_subclasses=True)
 class Session(STObject, metaclass= ABCMeta):
+	working_dir : str
 	archetype : Optional[HeaderArchetype]
 	included_files : FileList
 	included_stars : StarList
 	force_validation : bool
 	on_validationFailed : Callable[[str, ValueType, ValueType], None] | None
 	
-	def __init__(self, name : str):
+	def __init__(self, name : str, working_dir : str):
 		if type(self) is Session:
 			raise NotImplementedError('Cannot create object of abtsract type "Session"')
 		self.name = name
+		self.working_dir = working_dir
 		self.archetype : HeaderArchetype = None
 		self.force_validation = False
 		self.on_validationFailed = None
@@ -122,10 +124,14 @@ class Session(STObject, metaclass= ABCMeta):
 	
 	@classmethod
 	def __import__(cls, attributes: AttrDict) -> Self:
-		raise NotImplementedError()
+		session= cls(attributes['name'], attributes['working_dir'])
+		session.archetype = attributes['archetype']
+		session.included_files = attributes['included_files']
+		session.included_stars = attributes['included_stars']
+		return session
 	
 	def __export__(self) -> AttrDict:
-		return {'name': self.name, 'archetype' : self.archetype,'included_files': self.included_files, 'included_stars': self.included_stars}
+		return {'name': self.name, 'archetype' : self.archetype,'included_files': self.included_files, 'included_stars': self.included_stars, 'working_dir' : self.working_dir}
 	
 	def __pprint__(self, indent: int, expand_tree : int) -> str:
 		return super().__pprint__(indent, expand_tree)

@@ -88,23 +88,29 @@ class HeaderArchetype(Header):
 
 class FileInfo(STObject):
 	__path : str
+	__relpath : bool
 	__size : int
 	__file : FITSReader
 	__header : Header | None
 
-	def __init__(self, path : str):
+	def __init__(self, path: str, relative_path: bool = False):
 		assert path.lower().endswith(('.fit', '.fits')),\
 			'Input path is not a FITS file'
 		# self.closed = False
 		self.__file = FITSReader(path)
-		self.__path = os.path.abspath(path)
+		self.__relpath = relative_path
+		if relative_path:
+			self.__path = path
+		else:
+			self.__path = os.path.abspath(path)
 		self.__size = os.path.getsize(path)
 		self.__header = None
 		self.name = os.path.basename(self.__path)
 	
 	@property
 	def path(self) -> str:
-		return self.__path
+		return os.path.abspath(self.__path).replace("\\", "/")
+	
 	@property
 	def bytes(self) -> int:
 		return self.__size
@@ -145,7 +151,7 @@ class FileInfo(STObject):
 		return super().__setattr__(__name, __value)
 
 	def __export__(self) -> AttrDict:
-		return {'path' : self.path.replace("\\", "/")}
+		return {'path' : self.__path.replace("\\", "/"), 'relative_path' : self.__relpath}
 
 	def __pprint__(self, indent: int, fold: int) -> str:
 		if fold == 0:

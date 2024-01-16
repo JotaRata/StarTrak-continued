@@ -9,18 +9,14 @@ from startrak.native.classes import FileInfo
 from startrak.native.ext import AttrDict
 
 class InspectionSession(Session):
+	def __init__(self, name: str, working_dir: str | None = ''):
+		super().__init__(name, working_dir if working_dir else os.getcwd())
+
 	def __item_added__(self, added : Sequence[FileInfo]): pass
 	def __item_removed__(self, removed : Sequence[FileInfo]): pass
-	@classmethod
-	def __import__(cls, attributes: AttrDict) -> Self:
-		session= cls(attributes['name'])
-		session.archetype = attributes['archetype']
-		session.included_files = attributes['included_files']
-		session.included_stars = attributes['included_stars']
-		return session
+	
 
 class ScanSession(Session):
-	working_dir : str
 	_watcher : DirectoryWatcher | None
 	class DirectoryWatcher(Thread):
 		def __init__(self, session : ScanSession, cadence_ms : int = 100, *args) -> None:
@@ -72,9 +68,8 @@ class ScanSession(Session):
 	def remove_file(self, *items: FileInfo):
 		pass
 		
-	def __init__(self, name: str, scan_directory : str, auto_start : bool = True):
-		super().__init__(name)
-		self.working_dir = scan_directory
+	def __init__(self, name: str, working_dir : str, auto_start : bool = True):
+		super().__init__(name, working_dir)
 		self._watcher = None
 		if auto_start:
 			self.begin_scan()
@@ -95,12 +90,12 @@ class ScanSession(Session):
 	
 	def __export__(self) -> AttrDict:
 		attr = super().__export__()
-		attr['scan_directory'] = self.working_dir.replace("\\", "/")
+		attr['working_dir'] = self.working_dir.replace("\\", "/")
 		return attr
 	
 	@classmethod
 	def __import__(cls, attributes: AttrDict) -> Self:
-		session= cls(attributes['name'], attributes['scan_directory'], auto_start= False)
+		session= cls(attributes['name'], attributes['working_dir'], auto_start= False)
 		session.archetype = attributes['archetype']
 		session.included_files = attributes['included_files']
 		session.included_stars = attributes['included_stars']
