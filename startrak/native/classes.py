@@ -117,8 +117,6 @@ class FileInfo(STObject):
 		assert path.lower().endswith(('.fit', '.fits')),\
 			'Input path is not a FITS file'
 		# self.closed = False
-		self.__file = FITSReader(path)
-
 		if relative_path and _FileInfo_cwd:
 			self.__path = os.path.join(_FileInfo_cwd, path)
 			self.__relpath = True
@@ -128,6 +126,8 @@ class FileInfo(STObject):
 		self.__header = None
 		self.name = os.path.basename(self.__path)
 		self.__size = os.path.getsize(self.__path)
+
+		self.__file = FITSReader(self.__path)
 	
 	@property
 	def path(self) -> str:
