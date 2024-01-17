@@ -3,7 +3,7 @@ from __future__ import annotations
 from mypy_extensions import mypyc_attr
 from functools import lru_cache
 import math
-from typing import Any, Callable, ClassVar, Dict, Final, List, NamedTuple, Optional, Self, Tuple, Type, cast
+from typing import Any, Callable, ClassVar, Dict, Final, List, NamedTuple, Optional, Self, Tuple, Type, TypeVar, Union, cast, overload
 import numpy as np
 import os.path
 from startrak.native.alias import RealDType, ValueType, ArrayLike
@@ -18,8 +18,8 @@ from startrak.native.numeric import average
 from startrak.native.utils.svdutils import SVD, outer
 
 #region File management
-_defaults : Final[Dict[str, Type[ValueType]]] = \
-		{'SIMPLE' : int, 'BITPIX' : int, 'NAXIS' : int, 'EXPTIME' : float, 'BSCALE' : float, 'BZERO' : float}
+_defaults : Final[Dict[str, Tuple[type, ...]]] = \
+		{'SIMPLE' : (bool,), 'BITPIX' : (int,), 'NAXIS' : (int,), 'EXPTIME' : (int, float), 'BSCALE' : (int, float), 'BZERO' : (int, float)}
 
 _FileInfo_cwd : str | None = None	# Canot use early bindign since its dynamic
 
@@ -40,59 +40,66 @@ class RelativeContext:
 	def __exit__(self, *args):
 		RelativeContext.reset()
 
-class Header(STObject):
-	_items : Dict[str, ValueType]
-	bitsize : np.dtype[RealDType]
-	shape : Tuple[int, int]
-	bscale : np.uint
-	bzero : np.uint
-	def __init__(self, source : Dict[str, ValueType]):
-		self._items = {str(key) : value for key, value in  source.items() 
-			if type(value) in (int, bool, float, str)}
-		if not all((key in self._items for key in _defaults.keys())):
-			raise KeyError('Header not having mandatory keywords')
-		self.bitsize = _bitsize(cast(int, self._items['BITPIX']))
-		self.bscale = cast(np.uint,self._items['BSCALE'])
-		self.bzero = cast(np.uint,self._items['BZERO'])
-		
-		# todo: Add support for ND Arrays
-		if self._items['NAXIS'] != 2:
-			raise NotImplementedError('Only 2D data blocks are supported')
-		self.shape = cast(int, self._items['NAXIS2']),cast(int, self._items['NAXIS1'])
-	def contains_key(self, key : str):
-		return key in self._items.keys()
-	def __getitem__(self, key : str):
-		return self._items[key]
-	def __getattr__(self, __name: str):
-		return self._items[__name]
+# todo: Add support for ND Arrays
+TValue = TypeVar('TValue', bound= Union[ValueType, RealDType])
+class Header(dict[str, ValueType], STObject):
+	# linked_file : str
+
+	def __init__(self, source : dict[str, ValueType]):
+		# self.linked_file = 'None'
+		assert all( [key in source and isinstance(source[key], cls)  for key, cls in _defaults.items()]), 'Invalid keywords'
+		assert source['NAXIS'] == 2, 'Only 2D data blocks are supported'
+		dict.__init__(self, source)
+
+	@property
+	def bitsize(self) -> np.dtype[RealDType]:
+		depth = cast(int, self['BITPIX'])
+		return _bitsize(depth)
+	@property
+	def shape(self) -> Tuple[int, int]:
+		return cast(int, self['NAXIS2']),cast(int, self['NAXIS1'])
 	
-	def __iter__(self):
-		return self._items.__iter__()
-
+	@overload
+	def __getitem__(self, __key: Tuple[str, Type[TValue]]) -> TValue: ...
+	@overload
+	def __getitem__(self, __key: str) -> ValueType: ...
+	def __getitem__(self, __key: str | Tuple[str, type]) -> ValueType | RealDType:
+		if isinstance(__key, tuple):
+			key, cls = __key
+			return cls(super().__getitem__(key))
+		return super().__getitem__(__key)
+	
 	def __export__(self) -> AttrDict:
-		return self._items.copy()
+		return self.copy()
+	
+	def __pprint__(self, indent: int, fold: int) -> str:
+		if fold == 0:
+			return type(self).__name__ + f' ({len(self)} entries)'
+		indentation = spaces * (2*indent + 1)
+		string = [spaces * (2*indent) + type(self).__name__]
+		if indent != 0:
+			string.insert(0, '')
 
+		for key, value in self.items():
+			string.append(indentation + key + ':' + repr(value))
+		return '\n'.join(string)
+	
 class HeaderArchetype(Header):
 	_entries : ClassVar[Dict[str, Type[ValueType]]] = {}
 
 	def __init__(self, source : Header | Dict[str, ValueType]):
-		self._items = dict()
-		for key, _type in _defaults.items():
-			self._items[key] = _type(source[key])
+		super().__init__( { key : source[key] for key in (_defaults | HeaderArchetype._entries).keys() } )
 		
-		for key, _type in HeaderArchetype._entries.items():
-			self._items[key] = _type(source[key])
-		
-		assert 'NAXIS' in self._items
-		_naxis = self._items['NAXIS']
-		assert type(_naxis) is int
-		_naxisn = tuple(int(source[f'NAXIS{n + 1}']) for n in range(_naxis))
-		for n in range(_naxis): self._items[f'NAXIS{n+1}'] = _naxisn[n]
+		axes = cast(int, self['NAXIS'])
+		axes_n = tuple(int(source[f'NAXIS{n + 1}']) for n in range(axes))
+		for n in range(axes):
+			self[f'NAXIS{n+1}'] = axes_n[n]
 	
 	def validate(self, header : Header, failed : Optional[Callable[[str, ValueType, ValueType], None]] = None) -> bool:
-		for key, value in self._items.items():
-			if (key not in header._items.keys()) or (header._items[key] != value):
-					if callable(failed): failed(key, value, header._items[key])
+		for key, value in self.items():
+			if (key not in header.keys()) or (header[key] != value):
+					if callable(failed): 
+						failed(key, value, header[key])
 					return False
 		return True
 
@@ -140,9 +147,8 @@ class FileInfo(STObject):
 	@property
 	def header(self) -> Header:
 		if self.__header is None:
-			_dict = {key.rstrip() : value for key, value in self.__file._read_header()}
-			self.__header = Header(_dict)
-			self.__header.name = self.name
+			self.__header = Header( {key.rstrip() : value for key, value in self.__file._read_header()} )
+			# self.__header.name = self.name
 		retval = self.__header
 		return retval
 	
@@ -152,7 +158,7 @@ class FileInfo(STObject):
 		_shape = self.header.shape
 		_raw = self.__file._read_data(_dtype.newbyteorder('>'), _shape[0] * _shape[1])
 		if scale:
-			_scale, _zero = self.header.bscale, self.header.bzero
+			_scale, _zero =self.header['BSCALE', np.uint], self.header['BZERO', np.uint]
 			if _scale != 1 or _zero != 0:
 				_raw = _zero + _scale * _raw
 		return _raw.reshape(_shape).astype(_dtype)

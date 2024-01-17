@@ -6,7 +6,7 @@ from numpy.typing import NDArray as _NDArray
 
 ValueType = Union[int, float, str, bool]
 RealNumber = float | int
-RealDType = Union[np.uint, np.float_]
+RealDType = Union[np.int_, np.float_, np.uint]
 
 _TReal = TypeVar('_TReal', bound= RealNumber)
 
