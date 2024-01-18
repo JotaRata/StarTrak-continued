@@ -80,6 +80,10 @@ class Header(STObject):
 		return self.__dict__.__getitem__(__key)
 	def __setitem__(self, __key : str, __value : ValueType):
 		return self.__dict__.__setitem__(__key, __value)
+	def __iter__(self):
+		return self.__dict__.__iter__()
+	def __contains__(self, __key):
+		return self.__dict__.__contains__(__key)
 	
 	def __export__(self) -> AttrDict:
 		return self.__dict__.copy()
