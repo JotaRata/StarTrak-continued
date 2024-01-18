@@ -43,12 +43,12 @@ class RelativeContext:
 # todo: Add support for ND Arrays
 TValue = TypeVar('TValue', bound= Union[ValueType, RealDType])
 class Header(dict[str, ValueType], STObject):
-	# linked_file : str
+	linked_file : str
 
 	def __init__(self, source : dict[str, ValueType]):
-		# self.linked_file = 'None'
 		assert all( [key in source and isinstance(source[key], cls)  for key, cls in _defaults.items()]), 'Invalid keywords'
 		assert source['NAXIS'] == 2, 'Only 2D data blocks are supported'
+		self.linked_file = 'None'
 		dict.__init__(self, source)
 
 	@property
@@ -83,6 +83,10 @@ class Header(dict[str, ValueType], STObject):
 		for key, value in self.items():
 			string.append(indentation + key + ':' + repr(value))
 		return '\n'.join(string)
+	def __repr__(self) -> str:
+		return self.__pprint__(0, 0)
+	def __str__(self) -> str:
+		return self.__pprint__(0, 1)
 	
 class HeaderArchetype(Header):
 	_entries : ClassVar[Dict[str, Type[ValueType]]] = {}
