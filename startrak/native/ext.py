@@ -1,7 +1,7 @@
 # compiled module
 from __future__ import annotations
-from abc import ABC, ABCMeta, abstractmethod
-from typing import Any, ClassVar, Collection, Dict, Final, Generic, Iterable, Iterator, List, Self, Tuple, Type, TypeVar, cast, final, overload
+from abc import ABC, abstractmethod
+from typing import Any, Collection, Dict, Final, Iterable, Iterator, List, Self, Type, TypeVar, overload
 import numpy as np
 from startrak.native.alias import MaskLike
 from mypy_extensions import mypyc_attr, trait
@@ -12,12 +12,26 @@ AttrDict = dict[str, Any]
 
 __STObject_subclasses__ : Final[AttrDict] = dict[str, Any]()
 __STCollection__subclasses__ : Final[Dict[str, Type[Any]]] = dict[str, Type[Any]]()
+
 def get_stobject(name : str) -> Type[STObject]:
 	return __STObject_subclasses__.__getitem__(name)
+def _register_class(cls : type):
+	if cls.__name__ == "STObject" or cls.__name__ == "STCollection":
+		return
+	if cls.__base__ is ABC:
+		return
+	__STObject_subclasses__.__setitem__(cls.__name__, cls)
+def is_stobj(obj : Any):
+	if isinstance(obj, STObject):
+		return True
+	cls = type(obj)
+	if cls.__name__ in __STObject_subclasses__:
+		return True
+	return all([getattr(cls, name, None) for name in ['__export__', '__import__', '__pprint__']])
 
 def pprint(obj : Any, fold : int = 2):
 	string : str
-	if isinstance(obj, STObject):
+	if is_stobj(obj):
 		string = obj.__pprint__(0, fold)
 	elif hasattr(obj, '__pprint__'):
 		string = obj.__pprint__(0, fold)
@@ -40,11 +54,7 @@ class STObject(ABC):
 
 	def __init_subclass__(cls, *args, **kwargs):
 		super().__init_subclass__(*args, **kwargs)
-		if cls.__name__ == "STObject" or cls.__name__ == "STCollection":
-			return
-		if cls.__base__ is ABC:
-			return
-		__STObject_subclasses__.__setitem__(cls.__name__, cls)
+		_register_class(cls)
 	
 	@classmethod
 	def __subclasshook__(cls, subclass : Type[Any]):
@@ -82,7 +92,7 @@ class STObject(ABC):
 		for key, value in self.__export__().items():
 			if key == 'name':
 				continue
-			if (isinstance(value, STObject) or STObject.__subclasshook__(type(value))) and indent + 1 < fold:
+			if is_stobj(value) and indent + 1 < fold:
 				string.append(indentation + key + sep + value.__pprint__(indent + 1, fold))
 			else:
 				string.append(indentation + key + sep  + repr(value))
@@ -254,8 +264,9 @@ class STCollection(STObject, Collection[TList]):
 		string = [spaces *  (2*indent) + type(self).__name__ + closed + f' ({self.__len__()} entries)']
 		for i, value in enumerate(self.__iter__()):
 			index = indentation + f'{i}:'
-			if isinstance(value, STObject) and indent + 1 < fold:
-				string.append(index + indentation + value.__pprint__(indent + 1, fold))
+
+			if is_stobj(value) and indent + 1 < fold:
+				string.append(index + indentation + value.__pprint__(indent + 1, fold))	#type: ignore
 			else:
 				string.append(index + indentation + repr(value))
 		if indent != 0:

@@ -1,7 +1,6 @@
 # compiled module
 from __future__ import annotations
 from mypy_extensions import mypyc_attr
-from functools import lru_cache
 import math
 from typing import Any, Callable, ClassVar, Dict, Final, List, NamedTuple, Optional, Self, Tuple, Type, TypeVar, Union, cast, overload
 import numpy as np
@@ -11,13 +10,13 @@ from startrak.native.collections.native_array import Array
 from startrak.native.collections.position import Position, PositionArray, PositionLike
 
 from startrak.native.fits import _bound_reader, _get_header
-from startrak.native.ext import AttrDict, STObject, spaces, __STObject_subclasses__
+from startrak.native.ext import AttrDict, STObject, _register_class, spaces
 from startrak.native.matrices import Matrix2x2, Matrix3x3
 from startrak.native.numeric import average
 from startrak.native.utils.svdutils import SVD, outer
 
-_defaults : Final[Dict[str, Tuple[type, ...]]] = \
-		{'SIMPLE' : (bool,), 'BITPIX' : (int,), 'NAXIS' : (int,), 'EXPTIME' : (int, float), 'BSCALE' : (int, float), 'BZERO' : (int, float)}
+_min_required : Final[Dict[str, Tuple[type, ...]]] = \
+		{'SIMPLE' : (bool,), 'BITPIX' : (int,), 'NAXIS' : (int,)}
 
 _EXPORT_PATH : str | None = None	# Canot use early bindign since its dynamic
 
@@ -45,7 +44,7 @@ class Header(STObject):
 	__dict__ : dict[str, ValueType]
 
 	def __init__(self, linked_filepath : str, source : Dict[str, ValueType]):
-		assert all( [key in source and isinstance(source[key], cls)  for key, cls in _defaults.items()]), 'Invalid keywords'
+		assert all( [key in source and isinstance(source[key], cls)  for key, cls in _min_required.items()]), "FITS Header doesn't have the minimum required keywords"
 		assert source['NAXIS'] == 2, 'Only 2D data blocks are supported'
 		self.__dict__ = source
 		self.linked_file = linked_filepath
@@ -65,14 +64,23 @@ class Header(STObject):
 	def copy(self):
 		return Header( self.__dict__.copy())
 	@overload
+	def __getitem__(self, __key: Tuple[str, Type[TValue], TValue]) -> TValue: ...
+	@overload
 	def __getitem__(self, __key: Tuple[str, Type[TValue]]) -> TValue: ...
 	@overload
 	def __getitem__(self, __key: str) -> ValueType: ...
-	def __getitem__(self, __key: str | Tuple[str, type]) -> ValueType | RealDType:
-		if isinstance(__key, tuple):
-			key, cls = __key
-			return cls(self.__dict__.__getitem__(key))
-		return self.__dict__.__getitem__(__key)
+	def __getitem__(self, key: str | Tuple[str, Type[TValue]] | Tuple[str, Type[TValue], TValue]) -> ValueType | RealDType:
+		if isinstance(key, tuple):
+			if len(key) == 2:
+				key, cls = cast(Tuple[str, Type[TValue]] , key)
+				return cls(self.__dict__.__getitem__(key))
+			elif len(key) == 3:
+				key, cls, _def = cast(Tuple[str, Type[TValue], TValue], key)
+				return cls(self.__dict__.get(key, _def))
+			else:
+				raise ValueError()
+
+		return self.__dict__.__getitem__(key)
 	def __setitem__(self, __key : str, __value : ValueType):
 		return self.__dict__.__setitem__(__key, __value)
 	def __iter__(self):
@@ -87,7 +95,7 @@ class HeaderArchetype(Header):
 	_entries : ClassVar[Dict[str, Type[ValueType]]] = {}
 
 	def __init__(self, source : Header | Dict[str, ValueType]):
-		super().__init__('', {key : source[key] for key in (_defaults | HeaderArchetype._entries).keys()} )
+		super().__init__('', {key : source[key] for key in (_min_required | HeaderArchetype._entries).keys()} )
 		
 		axes = cast(int, self['NAXIS'])
 		axes_n = tuple(int(source[f'NAXIS{n + 1}']) for n in range(axes))
@@ -133,8 +141,8 @@ class FileInfo(NamedTuple, STObject):	#type: ignore[misc]
 		norm_path = abs_path.replace('\\', '/')
 		_h_dict = {key.rstrip() : value for key, value in _get_header(abs_path)}
 		header_obj = Header(norm_path, _h_dict)
-		bound_reader = _bound_reader(file_path, header_obj.shape, 
-											(header_obj['BSCALE', int], header_obj['BZERO', int]), header_obj['BITPIX', int]) 
+		bound_reader = _bound_reader(abs_path, header_obj.shape, 
+											(header_obj['BSCALE', int, 0], header_obj['BZERO', int, 0]), header_obj['BITPIX', int]) 
 		
 		return cls(norm_path, is_rel, header_obj, bound_reader)
 	
@@ -480,8 +488,10 @@ class SessionLocationBlock(NamedTuple, STObject): #type: ignore[misc]
 					 spaces * (2*indent + 1) + 'uses_relative: ' + str(self.uses_relative)]
 		return '\n'.join(string)
 
-__STObject_subclasses__['TrackingSolution'] = TrackingSolution
-__STObject_subclasses__['PhotometryResult'] = PhotometryResult
-__STObject_subclasses__['SessionLocationBlock'] = SessionLocationBlock
+_register_class(FileInfo)
+_register_class(TrackingSolution)
+_register_class(PhotometryResult)
+_register_class(SessionLocationBlock)
+
 
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 from collections import deque
 from mmap import ACCESS_READ, ALLOCATIONGRANULARITY, mmap
 from re import I
+import sys
 from typing import Any, Final, Iterator, List, NamedTuple, TypeVar, Tuple, overload
 from startrak.native.alias import NDArray, ValueType, RealDType
 import numpy as np
@@ -12,11 +13,15 @@ BYTE_OFFSET : Final[int] = 2880 << 1
 
 # DYNAMIC OBJECTS
 MAX_CACHED = 5
+MAX_ARRAYSIZE = 1048576
 _fitsdata_lru = [0] * MAX_CACHED
 _fitsdata_cache = dict[int, NDArray]()
 
 def _enqueue_data(id : int, data : NDArray):
-	if id in _fitsdata_lru:
+	if id in _fitsdata_cache:
+		return
+	if sys.getsizeof(data) > MAX_ARRAYSIZE:
+		print('File too big to cache')
 		return
 	last = _fitsdata_lru.pop(0)
 	if last in _fitsdata_cache:
@@ -47,18 +52,22 @@ class _bound_reader(NamedTuple):
 	dtype : int
 
 	def __call__(self) -> NDArray:
-		_bio = open(self.path, 'rb')
-		_offset = (BYTE_OFFSET // ALLOCATIONGRANULARITY) * ALLOCATIONGRANULARITY
-		_mmap = mmap(_bio.fileno(), 0, offset=_offset, access=ACCESS_READ)
+		if (sid := id(self)) in _fitsdata_cache:
+			print('found cache', sid)
+			return _fitsdata_cache[sid]
+
+		file = open(self.path, 'rb')
+		offset = (BYTE_OFFSET // ALLOCATIONGRANULARITY) * ALLOCATIONGRANULARITY
+		_mmap = mmap(file.fileno(), 0, offset=offset, access=ACCESS_READ)
 		
 		_dtype = get_bitsize(self.dtype)
-		if _offset == 0:
+		if offset == 0:
 			_mmap.seek(BYTE_OFFSET)
 		else:
-			_mmap.seek(BYTE_OFFSET - _offset)	
+			_mmap.seek(BYTE_OFFSET - offset)	
 		raw =  np.frombuffer( _mmap.read(), count= self.shape[0] * self.shape[1] ,dtype= _dtype.newbyteorder('>'))
 		_mmap.close()
-		_bio.close()
+		file.close()
 
 		if self.transf[0] > 0:
 			_scale, _zero = np.uint(self.transf[0]), np.uint(self.transf[1])
@@ -67,7 +76,7 @@ class _bound_reader(NamedTuple):
 		data = raw.reshape(self.shape).astype(_dtype)
 
 		if MAX_CACHED > 0:
-			_enqueue_data(id(self), data)
+			_enqueue_data(sid, data)
 		return data
 	def __repr__(self) -> str:
 		return object.__repr__(self)
