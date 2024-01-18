@@ -42,14 +42,16 @@ class RelativeContext:
 
 # todo: Add support for ND Arrays
 TValue = TypeVar('TValue', bound= Union[ValueType, RealDType])
-class Header(dict[str, ValueType], STObject):
+class Header(STObject):
 	linked_file : str
+	__dict__ : dict[str, ValueType]
 
-	def __init__(self, source : dict[str, ValueType]):
+	def __init__(self, linked_filepath : str, source : Dict[str, ValueType]):
 		assert all( [key in source and isinstance(source[key], cls)  for key, cls in _defaults.items()]), 'Invalid keywords'
 		assert source['NAXIS'] == 2, 'Only 2D data blocks are supported'
-		self.linked_file = 'None'
-		dict.__init__(self, source)
+		self.__dict__ = source
+		self.linked_file = linked_filepath
+		self.name = os.path.basename(linked_filepath)
 
 	@property
 	def bitsize(self) -> np.dtype[RealDType]:
@@ -59,6 +61,14 @@ class Header(dict[str, ValueType], STObject):
 	def shape(self) -> Tuple[int, int]:
 		return cast(int, self['NAXIS2']),cast(int, self['NAXIS1'])
 	
+	def items(self):
+		return self.__dict__.items()
+	def keys(self):
+		return self.__dict__.keys()
+	def values(self):
+		return self.__dict__.values()
+	def copy(self):
+		return Header( self.__dict__.copy())
 	@overload
 	def __getitem__(self, __key: Tuple[str, Type[TValue]]) -> TValue: ...
 	@overload
@@ -66,33 +76,19 @@ class Header(dict[str, ValueType], STObject):
 	def __getitem__(self, __key: str | Tuple[str, type]) -> ValueType | RealDType:
 		if isinstance(__key, tuple):
 			key, cls = __key
-			return cls(super().__getitem__(key))
-		return super().__getitem__(__key)
+			return cls(self.__dict__.__getitem__(key))
+		return self.__dict__.__getitem__(__key)
+	def __setitem__(self, __key : str, __value : ValueType):
+		return self.__dict__.__setitem__(__key, __value)
 	
 	def __export__(self) -> AttrDict:
-		return self.copy()
-	
-	def __pprint__(self, indent: int, fold: int) -> str:
-		if fold == 0:
-			return type(self).__name__ + f' ({len(self)} entries)'
-		indentation = spaces * (2*indent + 1)
-		string = [spaces * (2*indent) + type(self).__name__]
-		if indent != 0:
-			string.insert(0, '')
-
-		for key, value in self.items():
-			string.append(indentation + key + ':' + repr(value))
-		return '\n'.join(string)
-	def __repr__(self) -> str:
-		return self.__pprint__(0, 0)
-	def __str__(self) -> str:
-		return self.__pprint__(0, 1)
+		return self.__dict__.copy()
 	
 class HeaderArchetype(Header):
 	_entries : ClassVar[Dict[str, Type[ValueType]]] = {}
 
 	def __init__(self, source : Header | Dict[str, ValueType]):
-		super().__init__( { key : source[key] for key in (_defaults | HeaderArchetype._entries).keys() } )
+		super().__init__('', {key : source[key] for key in (_defaults | HeaderArchetype._entries).keys()} )
 		
 		axes = cast(int, self['NAXIS'])
 		axes_n = tuple(int(source[f'NAXIS{n + 1}']) for n in range(axes))
@@ -151,7 +147,7 @@ class FileInfo(STObject):
 	@property
 	def header(self) -> Header:
 		if self.__header is None:
-			self.__header = Header( {key.rstrip() : value for key, value in self.__file._read_header()} )
+			self.__header = Header(self.path, {key.rstrip() : value for key, value in self.__file._read_header()} )
 			# self.__header.name = self.name
 		retval = self.__header
 		return retval
