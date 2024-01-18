@@ -9,11 +9,12 @@ import numpy as np
 
 
 _BitDepth =  TypeVar('_BitDepth', bound= np.dtype)
+BLANK_LINE : Final[bytes] = b' '* 80
 BYTE_OFFSET : Final[int] = 2880 << 1
 
 # DYNAMIC OBJECTS
 MAX_CACHED = 5
-MAX_ARRAYSIZE = 1048576
+MAX_ARRAYSIZE = 1e7
 _fitsdata_lru = [0] * MAX_CACHED
 _fitsdata_cache = dict[int, NDArray]()
 
@@ -53,7 +54,6 @@ class _bound_reader(NamedTuple):
 
 	def __call__(self) -> NDArray:
 		if (sid := id(self)) in _fitsdata_cache:
-			print('found cache', sid)
 			return _fitsdata_cache[sid]
 
 		file = open(self.path, 'rb')
@@ -95,7 +95,9 @@ def _parse_bytevalue(src : bytes) -> ValueType:
 def _validate_byteline(line : bytes):
 	''' This method returns False when the line is blank or it is a valid line but it contains no data.
 	In case of being invalid an OSError exception is thrown, otherwise it returns True'''
-	if line == b' '* 80: return False
+	if line == BLANK_LINE: return False
+	if b'COMMENT' in line: return False
+	if b'HISTORY' in line: return False
 	if not (line[8] == 61 and line[9] == 32):
 		raise IOError('Invalid header syntax', line)
 	return True
@@ -106,5 +108,5 @@ def get_bitsize(depth : int) -> np.dtype[RealDType]:
 	elif depth == 32: return np.dtype(np.uint32)
 	elif depth == 64: return np.dtype(np.uint64)
 	elif depth == -32: return np.dtype(np.float32)
-	elif depth == 64: return np.dtype(np.float64)
+	elif depth == -64: return np.dtype(np.float64)
 	else: raise TypeError('Invalid bit depth: ', depth)
