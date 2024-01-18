@@ -179,6 +179,10 @@ class FileInfo(NamedTuple, STObject):	#type: ignore[misc]
 			string.insert(0, '')
 		return '\n'.join(string)
 	
+	def __str__(self) -> str:
+		return self.__pprint__(0, 1)
+	def __repr__(self) -> str:
+		return self.__pprint__(0, 0)
 	def __eq__(self, __value):
 		if not isinstance(__value, FileInfo): 
 			return False

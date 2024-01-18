@@ -16,6 +16,8 @@ _fitsdata_lru = [0] * MAX_CACHED
 _fitsdata_cache = dict[int, NDArray]()
 
 def _enqueue_data(id : int, data : NDArray):
+	if id in _fitsdata_lru:
+		return
 	last = _fitsdata_lru.pop(0)
 	if last in _fitsdata_cache:
 		del _fitsdata_cache[last]
@@ -53,7 +55,7 @@ class _bound_reader(NamedTuple):
 		if _offset == 0:
 			_mmap.seek(BYTE_OFFSET)
 		else:
-			_mmap.seek(BYTE_OFFSET - _offset)
+			_mmap.seek(BYTE_OFFSET - _offset)	
 		raw =  np.frombuffer( _mmap.read(), count= self.shape[0] * self.shape[1] ,dtype= _dtype.newbyteorder('>'))
 		_mmap.close()
 		_bio.close()
@@ -67,6 +69,8 @@ class _bound_reader(NamedTuple):
 		if MAX_CACHED > 0:
 			_enqueue_data(id(self), data)
 		return data
+	def __repr__(self) -> str:
+		return object.__repr__(self)
 
 def _parse_bytevalue(src : bytes) -> ValueType:
 	if src[10] == 39:

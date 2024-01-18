@@ -1,11 +1,13 @@
+from functools import cache
 from pathlib import Path
 from startrak.native import FileInfo, FileList
 from os import  scandir
 
 from startrak.sessionutils import get_session
 
-__all__ = ['load_file', 'load_folder']
-# ----- Wrapper functions around astropy.io --------
+__all__ = ['load_file', 'load_folder', 'retrieve_data', 'clear_cache']
+
+@cache
 def load_file(path: str | Path, append : bool = True) -> FileInfo:
     '''
         Loads a FITS file.
@@ -36,3 +38,6 @@ def load_folder(path: str | Path, append : bool = True):
     if append:
         get_session().add_file( *files)
     return FileList( *files)
+
+def clear_cache():
+    load_file.cache_clear()
