@@ -10,30 +10,28 @@ from startrak.native.alias import RealDType, ValueType, ArrayLike
 from startrak.native.collections.native_array import Array
 from startrak.native.collections.position import Position, PositionArray, PositionLike
 
-from startrak.native.fits import _FITSBufferedReaderWrapper as FITSReader
-from startrak.native.fits import _bitsize
+from startrak.native.fits import _bound_reader, _get_header
 from startrak.native.ext import AttrDict, STObject, spaces, __STObject_subclasses__
 from startrak.native.matrices import Matrix2x2, Matrix3x3
 from startrak.native.numeric import average
 from startrak.native.utils.svdutils import SVD, outer
 
-#region File management
 _defaults : Final[Dict[str, Tuple[type, ...]]] = \
 		{'SIMPLE' : (bool,), 'BITPIX' : (int,), 'NAXIS' : (int,), 'EXPTIME' : (int, float), 'BSCALE' : (int, float), 'BZERO' : (int, float)}
 
-_FileInfo_cwd : str | None = None	# Canot use early bindign since its dynamic
+_EXPORT_PATH : str | None = None	# Canot use early bindign since its dynamic
 
 class RelativeContext:
 	def __init__(self, new_dir : str) -> None:
 		self.new_dir = new_dir
 	@staticmethod
 	def set(new_dir : str):
-		global _FileInfo_cwd
-		_FileInfo_cwd = new_dir
+		global _EXPORT_PATH
+		_EXPORT_PATH = new_dir
 	@staticmethod
 	def reset():
-		global _FileInfo_cwd
-		_FileInfo_cwd = None
+		global _EXPORT_PATH
+		_EXPORT_PATH = None
 	def __enter__(self) -> Self:
 		RelativeContext.set(self.new_dir)
 		return self
@@ -53,10 +51,7 @@ class Header(STObject):
 		self.linked_file = linked_filepath
 		self.name = os.path.basename(linked_filepath)
 
-	@property
-	def bitsize(self) -> np.dtype[RealDType]:
-		depth = cast(int, self['BITPIX'])
-		return _bitsize(depth)
+	
 	@property
 	def shape(self) -> Tuple[int, int]:
 		return cast(int, self['NAXIS2']),cast(int, self['NAXIS1'])
@@ -117,80 +112,51 @@ class HeaderArchetype(Header):
 	def __import__(cls, attributes: AttrDict, **cls_kw : Any) -> Self:
 		return cls(attributes)
 
-class FileInfo(STObject):
-	__path : str
-	__relpath : bool
-	__size : int
-	__file : FITSReader
-	__header : Header | None
+class FileInfo(NamedTuple, STObject):	#type: ignore[misc]
+	path : str
+	relative_path : bool
+	header : Header
+	get_data : _bound_reader
 
-	def __init__(self, path: str, relative_path: bool = False):
-		assert path.lower().endswith(('.fit', '.fits')),\
-			'Input path is not a FITS file'
-		# self.closed = False
-		if relative_path and _FileInfo_cwd:
-			self.__path = os.path.join(_FileInfo_cwd, path)
-			self.__relpath = True
+	@classmethod
+	def new(cls, file_path : str, relative_path : bool | None = None) -> Self:
+		if relative_path is not None:
+			is_rel = relative_path
 		else:
-			self.__path = os.path.abspath(path)
-			self.__relpath = False
-		self.__header = None
-		self.name = os.path.basename(self.__path)
-		self.__size = os.path.getsize(self.__path)
+			is_rel = not os.path.isabs(file_path)
+		
+		if is_rel and _EXPORT_PATH:
+			abs_path = os.path.join(_EXPORT_PATH, file_path)
+		else:
+			abs_path = os.path.abspath(file_path)
 
-		self.__file = FITSReader(self.__path)
+		norm_path = abs_path.replace('\\', '/')
+		_h_dict = {key.rstrip() : value for key, value in _get_header(abs_path)}
+		header_obj = Header(norm_path, _h_dict)
+		bound_reader = _bound_reader(file_path, header_obj.shape, 
+											(header_obj['BSCALE', int], header_obj['BZERO', int]), header_obj['BITPIX', int]) 
+		
+		return cls(norm_path, is_rel, header_obj, bound_reader)
 	
 	@property
-	def path(self) -> str:
-		return os.path.abspath(self.__path).replace("\\", "/")
+	def name(self) -> str:
+		return os.path.basename(self.path)
 	
 	@property
 	def bytes(self) -> int:
-		return self.__size
-	
-	@property
-	def header(self) -> Header:
-		if self.__header is None:
-			self.__header = Header(self.path, {key.rstrip() : value for key, value in self.__file._read_header()} )
-			# self.__header.name = self.name
-		retval = self.__header
-		return retval
-	
-	@lru_cache(maxsize=5)	# todo: Add parameter to config
-	def get_data(self, scale = True) -> np.ndarray[Any, np.dtype[RealDType]]:
-		_dtype = self.header.bitsize
-		_shape = self.header.shape
-		_raw = self.__file._read_data(_dtype.newbyteorder('>'), _shape[0] * _shape[1])
-		if scale:
-			_scale, _zero =self.header['BSCALE', np.uint], self.header['BZERO', np.uint]
-			if _scale != 1 or _zero != 0:
-				_raw = _zero + _scale * _raw
-		return _raw.reshape(_shape).astype(_dtype)
+		return os.path.getsize(self.path)
 	
 	@classmethod
-	def __import__(cls, attributes: AttrDict, **cls_kw : Any) -> Self:
-		return cls(attributes['path'], attributes['relative_path'] )
+	def __import__(cls, attributes: AttrDict, **cls_kw : Any) -> FileInfo:
+		return FileInfo.new(attributes['path'], attributes['relative_path'])
 	
-	def __eq__(self, __value):
-		if not isinstance(__value, FileInfo): 
-			return False
-		return self.__path == __value.__path
-	
-	def __hash__(self) -> int:
-		return hash(self.__path)
-	
-	def __setattr__(self, __name: str, __value: Any) -> None:
-		return super().__setattr__(__name, __value)
-
 	def __export__(self) -> AttrDict:
-		if self.__relpath and _FileInfo_cwd:
-			print('EXEC!!')
-			path = os.path.relpath(self.__path, _FileInfo_cwd)
+		if self.relative_path and _EXPORT_PATH:
+			path = os.path.relpath(self.path, _EXPORT_PATH)
 		else:
-			print('no exec:(', self.__relpath, _FileInfo_cwd)
-			path = self.__path
-		return {'path' : path.replace("\\", "/"), 'relative_path' : self.__relpath}
-
+			path = self.path
+		return {'path' : path.replace("\\", "/"), 'relative_path' : self.relative_path}
+	
 	def __pprint__(self, indent: int, fold: int) -> str:
 		if fold == 0:
 			return type(self).__name__ + f': {self.name}'
@@ -212,18 +178,15 @@ class FileInfo(STObject):
 		if indent != 0:
 			string.insert(0, '')
 		return '\n'.join(string)
-
-
-	def __repr__(self) -> str:
-		return super().__repr__()
-	def __str__(self) -> str:
-		return super().__str__()
 	
-#endregion
-
+	def __eq__(self, __value):
+		if not isinstance(__value, FileInfo): 
+			return False
+		return self.path == __value.path
+	def __hash__(self) -> int:
+		return hash(self.path)
 
 #region Photometry
-	
 class FluxInfo(NamedTuple):
 	value: float
 	sigma: float

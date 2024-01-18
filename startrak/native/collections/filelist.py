@@ -25,11 +25,11 @@ class FileList(STCollection[FileInfo]):
 	
 	def make_relative(self, relative_path : str) -> FileList:
 		with RelativeContext(relative_path):
-			files = [FileInfo(file.path, True) for file in self]
+			files = [FileInfo.new(file.path, True) for file in self]
 		return FileList( *files)
 	
 	def make_abslute(self, relative_path : str) -> FileList:
-		files = [FileInfo(os.path.join(relative_path, file.path), False) for file in self]
+		files = [FileInfo.new(os.path.join(relative_path, file.path), False) for file in self]
 		return FileList( *files)
 		
 	def append(self, value: FileInfo):

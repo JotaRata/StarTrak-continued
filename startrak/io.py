@@ -12,7 +12,7 @@ def load_file(path: str | Path, append : bool = True) -> FileInfo:
         path (str | Path): The path of the file to load
         append (bool): If True, append the file to the current session, default: True
     '''
-    file = FileInfo(str(path))
+    file = FileInfo.new(str(path))
     if append and file:
         get_session().add_file(file)
     return file
@@ -31,7 +31,7 @@ def load_folder(path: str | Path, append : bool = True):
         if not entry.is_file() or not entry.name.endswith(
             ('.fit', '.fits', '.FIT', '.FITS')):
             continue
-        file = FileInfo(str(entry.path))
+        file = FileInfo.new(str(entry.path))
         files.append(file)
     if append:
         get_session().add_file( *files)
