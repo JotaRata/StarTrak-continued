@@ -1,48 +1,71 @@
+from __future__ import annotations
+from collections import deque
 from mmap import ACCESS_READ, ALLOCATIONGRANULARITY, mmap
-from typing import Any, Final, Iterator, TypeVar, Tuple, overload
-from startrak.native.alias import ValueType, RealDType
-from numpy.typing import NDArray
+from re import I
+from typing import Any, Final, Iterator, List, NamedTuple, TypeVar, Tuple, overload
+from startrak.native.alias import NDArray, ValueType, RealDType
 import numpy as np
+
+
 _BitDepth =  TypeVar('_BitDepth', bound= np.dtype)
+BYTE_OFFSET : Final[int] = 2880 << 1
 
-class _FITSBufferedReaderWrapper:
-	_filePath : str
-	_OFFSET : Final[int] = 2880 << 1
+# DYNAMIC OBJECTS
+MAX_CACHED = 5
+_fitsdata_lru = [0] * MAX_CACHED
+_fitsdata_cache = dict[int, NDArray]()
 
-	def __init__(self, file_path : str) -> None:
-		self._filePath = file_path
+def _enqueue_data(id : int, data : NDArray):
+	last = _fitsdata_lru.pop(0)
+	if last in _fitsdata_cache:
+		del _fitsdata_cache[last]
+	_fitsdata_cache[id] = data
+	_fitsdata_lru.append(id)
 
-	def _read_header(self) -> Iterator[Tuple[str, ValueType]]:
-		_bio = open(self._filePath, 'rb')
-		_mmap = mmap(_bio.fileno(), _FITSBufferedReaderWrapper._OFFSET, access=ACCESS_READ)
-		while True:
-			line = _mmap.read(80)
-			if not line: break
-			if line[:3] == b'END':
-				break
+def _get_header(path : str) -> Iterator[Tuple[str, ValueType]]:
+	_bio = open(path, 'rb')
+	_mmap = mmap(_bio.fileno(), BYTE_OFFSET, access=ACCESS_READ)
+	while True:
+		line = _mmap.read(80)
+		if not line: break
+		if line[:3] == b'END':
+			break
 
-			if not _validate_byteline(line): continue
-			_keyword = line[:8].decode()
-			_value = _parse_bytevalue(line)
-			yield _keyword, _value
-		_mmap.close()
-		_bio.close()
-	@overload
-	def _read_data(self,) -> NDArray[np.uint16]: ...
-	@overload
-	def _read_data(self, dtype :_BitDepth, count : int) -> np.ndarray[Any,_BitDepth]: ...
+		if not _validate_byteline(line): continue
+		_keyword = line[:8].decode()
+		_value = _parse_bytevalue(line)
+		yield _keyword, _value
+	_mmap.close()
+	_bio.close()
+	
+class _bound_reader(NamedTuple):
+	path : str
+	shape : Tuple[int, int]
+	transf : Tuple[int, int]
+	dtype : int
 
-	def _read_data(self, dtype = np.uint16, count = -1) -> np.ndarray[Any,  _BitDepth]:
-		_bio = open(self._filePath, 'rb')
-		_offset = (_FITSBufferedReaderWrapper._OFFSET // ALLOCATIONGRANULARITY) * ALLOCATIONGRANULARITY
+	def __call__(self) -> NDArray:
+		_bio = open(self.path, 'rb')
+		_offset = (BYTE_OFFSET // ALLOCATIONGRANULARITY) * ALLOCATIONGRANULARITY
 		_mmap = mmap(_bio.fileno(), 0, offset=_offset, access=ACCESS_READ)
+		
+		_dtype = get_bitsize(self.dtype)
 		if _offset == 0:
-			_mmap.seek(_FITSBufferedReaderWrapper._OFFSET)
+			_mmap.seek(BYTE_OFFSET)
 		else:
-			_mmap.seek(_FITSBufferedReaderWrapper._OFFSET - _offset)
-		data =  np.frombuffer( _mmap.read(), count=count ,dtype=dtype)
+			_mmap.seek(BYTE_OFFSET - _offset)
+		raw =  np.frombuffer( _mmap.read(), count= self.shape[0] * self.shape[1] ,dtype= _dtype.newbyteorder('>'))
 		_mmap.close()
 		_bio.close()
+
+		if self.transf[0] > 0:
+			_scale, _zero = np.uint(self.transf[0]), np.uint(self.transf[1])
+			if _scale != 1 or _zero != 0:
+				raw = _zero + _scale * raw
+		data = raw.reshape(self.shape).astype(_dtype)
+
+		if MAX_CACHED > 0:
+			_enqueue_data(id(self), data)
 		return data
 
 def _parse_bytevalue(src : bytes) -> ValueType:
@@ -64,7 +87,7 @@ def _validate_byteline(line : bytes):
 		raise IOError('Invalid header syntax', line)
 	return True
 
-def _bitsize(depth : int) -> np.dtype[RealDType]:
+def get_bitsize(depth : int) -> np.dtype[RealDType]:
 	if depth == 8: return np.dtype(np.uint8)
 	elif depth == 16: return np.dtype(np.uint16)
 	elif depth == 32: return np.dtype(np.uint32)
