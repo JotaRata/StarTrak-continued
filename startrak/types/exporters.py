@@ -1,7 +1,7 @@
 
 from typing import Any, List, Self
 from startrak.native.abstract import STExporter
-from startrak.native.ext import STObject
+from startrak.native.ext import STObject, is_stobj
 
 
 class TextExporter(STExporter):
@@ -28,7 +28,7 @@ class TextExporter(STExporter):
 		for key, value in obj.__export__().items():
 			if key in obj_type.__dict__ and  isinstance(obj_type.__dict__[key], property):
 				continue
-			if isinstance(value, STObject) or hasattr(value, '__export__'):
+			if is_stobj(value) or hasattr(value, '__export__'):
 				lines.append(indentation + self._indent + key + self._sep + self.write_block(value, indent + 2))
 			else:
 				value_str = str(value)

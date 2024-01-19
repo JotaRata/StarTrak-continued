@@ -1,45 +1,43 @@
-from ast import literal_eval
-from functools import lru_cache
-from typing import Iterable, Iterator
-from startrak.native import FileInfo
-from startrak.native import Star, ReferenceStar
+from functools import cache
+from pathlib import Path
+from startrak.native import FileInfo, FileList
 from os import  scandir
 
-__all__ = ['load_file', 'load_folder', 'export_stars', 'import_stars']
-# ----- Wrapper functions around astropy.io --------
-@lru_cache(5)
-def load_file(path: str) -> FileInfo:
-    return FileInfo(path)
+from startrak.sessionutils import get_session
+
+__all__ = ['load_file', 'load_folder', 'retrieve_data', 'clear_cache']
+
+@cache
+def load_file(path: str | Path, append : bool = True) -> FileInfo:
+    '''
+        Loads a FITS file.
+        path (str | Path): The path of the file to load
+        append (bool): If True, append the file to the current session, default: True
+    '''
+    file = FileInfo.new(str(path))
+    if append and file:
+        get_session().add_file(file)
+    return file
 
 def retrieve_data(fileInfo : FileInfo):
     return fileInfo.get_data()
 
-def load_folder(dir: str):
-    for entry in scandir(dir):
-        if not entry.is_file() and not entry.name.endswith(
+def load_folder(path: str | Path, append : bool = True):
+    '''
+        Loads a folder containing FITS files.
+        path (str | Path): The path of the folder to load
+        append (bool): If True, append the file to the current session, default: True
+    '''
+    files = []
+    for entry in scandir(path):
+        if not entry.is_file() or not entry.name.endswith(
             ('.fit', '.fits', '.FIT', '.FITS')):
             continue
-        yield load_file(entry.path)
+        file = FileInfo.new(str(entry.path))
+        files.append(file)
+    if append:
+        get_session().add_file( *files)
+    return FileList( *files)
 
-def export_stars(path : str, star_collection : Iterable[Star]):
-    with open(path + '.stlist', 'w') as out:
-        out.write('# Exported from Startrak\n')
-        out.write('# Type\tName\tPosition\tRadius\tExtra\n')
-        for star in star_collection:
-            line = '\t'.join(map(str, star))
-            out.write(line + '\n')
-
-def import_stars(path : str) -> Iterator[Star]:
-    assert path.endswith(('.stlist', '.list', 'txt')), 'Not a text file'
-    with open(path, 'r') as file:
-        for line in file:
-            if line.lstrip().startswith('#'): continue
-            _type, _name, _pos, _rad, *_extras = line.split('\t')
-
-            print(f'"{_type}"')
-            T = globals().get(_type, None)
-            assert T is not None and issubclass(T, Star), f'Type "{T}" is not a subclass of Star'
-            _args = [literal_eval(arg) for arg in _extras]
-            _pos = literal_eval(_pos)
-            star = T(_name, tuple(_pos), int(_rad), *_args)
-            yield star
+def clear_cache():
+    load_file.cache_clear()

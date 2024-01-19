@@ -1,78 +1,112 @@
 # compiled module
 from __future__ import annotations
 from mypy_extensions import mypyc_attr
-from functools import lru_cache
 import math
-from typing import Any, Callable, ClassVar, Dict, Final, List, NamedTuple, Optional, Self, Tuple, Type, cast
+from typing import Any, Callable, ClassVar, Dict, Final, List, NamedTuple, Optional, Self, Tuple, Type, TypeVar, Union, cast, overload
 import numpy as np
 import os.path
 from startrak.native.alias import RealDType, ValueType, ArrayLike
 from startrak.native.collections.native_array import Array
 from startrak.native.collections.position import Position, PositionArray, PositionLike
 
-from startrak.native.fits import _FITSBufferedReaderWrapper as FITSReader
-from startrak.native.fits import _bitsize
-from startrak.native.ext import AttrDict, STObject, spaces, __STObject_subclasses__
+from startrak.native.fits import _bound_reader, _get_header
+from startrak.native.ext import AttrDict, STObject, _register_class, spaces
 from startrak.native.matrices import Matrix2x2, Matrix3x3
 from startrak.native.numeric import average
 from startrak.native.utils.svdutils import SVD, outer
 
-#region File management
-_defaults : Final[Dict[str, Type[ValueType]]] = \
-		{'SIMPLE' : int, 'BITPIX' : int, 'NAXIS' : int, 'EXPTIME' : float, 'BSCALE' : float, 'BZERO' : float}
+_min_required : Final[Dict[str, Tuple[type, ...]]] = \
+		{'SIMPLE' : (bool,), 'BITPIX' : (int,), 'NAXIS' : (int,)}
+
+_EXPORT_PATH : str | None = None	# Canot use early bindign since its dynamic
+
+class RelativeContext:
+	def __init__(self, new_dir : str) -> None:
+		self.new_dir = new_dir
+	@staticmethod
+	def set(new_dir : str):
+		global _EXPORT_PATH
+		_EXPORT_PATH = new_dir
+	@staticmethod
+	def reset():
+		global _EXPORT_PATH
+		_EXPORT_PATH = None
+	def __enter__(self) -> Self:
+		RelativeContext.set(self.new_dir)
+		return self
+	def __exit__(self, *args):
+		RelativeContext.reset()
+
+# todo: Add support for ND Arrays
+TValue = TypeVar('TValue', bound= Union[ValueType, RealDType])
 class Header(STObject):
-	_items : Dict[str, ValueType]
-	bitsize : np.dtype[RealDType]
-	shape : Tuple[int, int]
-	bscale : np.uint
-	bzero : np.uint
-	def __init__(self, source : Dict[str, ValueType]):
-		self._items = {str(key) : value for key, value in  source.items() 
-			if type(value) in (int, bool, float, str)}
-		if not all((key in self._items for key in _defaults.keys())):
-			raise KeyError('Header not having mandatory keywords')
-		self.bitsize = _bitsize(cast(int, self._items['BITPIX']))
-		self.bscale = cast(np.uint,self._items['BSCALE'])
-		self.bzero = cast(np.uint,self._items['BZERO'])
-		
-		# todo: Add support for ND Arrays
-		if self._items['NAXIS'] != 2:
-			raise NotImplementedError('Only 2D data blocks are supported')
-		self.shape = cast(int, self._items['NAXIS2']),cast(int, self._items['NAXIS1'])
-	def contains_key(self, key : str):
-		return key in self._items.keys()
-	def __getitem__(self, key : str):
-		return self._items[key]
-	def __getattr__(self, __name: str):
-		return self._items[__name]
+	linked_file : str
+	__dict__ : dict[str, ValueType]
+
+	def __init__(self, linked_filepath : str, source : Dict[str, ValueType]):
+		assert all( [key in source and isinstance(source[key], cls)  for key, cls in _min_required.items()]), "FITS Header doesn't have the minimum required keywords"
+		assert source['NAXIS'] == 2, 'Only 2D data blocks are supported'
+		self.__dict__ = source
+		self.linked_file = linked_filepath
+		self.name = os.path.basename(linked_filepath)
+
 	
+	@property
+	def shape(self) -> Tuple[int, int]:
+		return cast(int, self['NAXIS2']),cast(int, self['NAXIS1'])
+	
+	def items(self):
+		return self.__dict__.items()
+	def keys(self):
+		return self.__dict__.keys()
+	def values(self):
+		return self.__dict__.values()
+	def copy(self):
+		return Header( self.__dict__.copy())
+	@overload
+	def __getitem__(self, __key: Tuple[str, Type[TValue], TValue]) -> TValue: ...
+	@overload
+	def __getitem__(self, __key: Tuple[str, Type[TValue]]) -> TValue: ...
+	@overload
+	def __getitem__(self, __key: str) -> ValueType: ...
+	def __getitem__(self, key: str | Tuple[str, Type[TValue]] | Tuple[str, Type[TValue], TValue]) -> ValueType | RealDType:
+		if isinstance(key, tuple):
+			if len(key) == 2:
+				key, cls = cast(Tuple[str, Type[TValue]] , key)
+				return cls(self.__dict__.__getitem__(key))
+			elif len(key) == 3:
+				key, cls, _def = cast(Tuple[str, Type[TValue], TValue], key)
+				return cls(self.__dict__.get(key, _def))
+			else:
+				raise ValueError()
+
+		return self.__dict__.__getitem__(key)
+	def __setitem__(self, __key : str, __value : ValueType):
+		return self.__dict__.__setitem__(__key, __value)
 	def __iter__(self):
-		return self._items.__iter__()
-
+		return self.__dict__.__iter__()
+	def __contains__(self, __key):
+		return self.__dict__.__contains__(__key)
+	
 	def __export__(self) -> AttrDict:
-		return self._items.copy()
-
+		return self.__dict__.copy()
+	
 class HeaderArchetype(Header):
 	_entries : ClassVar[Dict[str, Type[ValueType]]] = {}
 
 	def __init__(self, source : Header | Dict[str, ValueType]):
-		self._items = dict()
-		for key, _type in _defaults.items():
-			self._items[key] = _type(source[key])
+		super().__init__('', {key : source[key] for key in (_min_required | HeaderArchetype._entries).keys()} )
 		
-		for key, _type in HeaderArchetype._entries.items():
-			self._items[key] = _type(source[key])
-		
-		assert 'NAXIS' in self._items
-		_naxis = self._items['NAXIS']
-		assert type(_naxis) is int
-		_naxisn = tuple(int(source[f'NAXIS{n + 1}']) for n in range(_naxis))
-		for n in range(_naxis): self._items[f'NAXIS{n+1}'] = _naxisn[n]
+		axes = cast(int, self['NAXIS'])
+		axes_n = tuple(int(source[f'NAXIS{n + 1}']) for n in range(axes))
+		for n in range(axes):
+			self[f'NAXIS{n+1}'] = axes_n[n]
 	
 	def validate(self, header : Header, failed : Optional[Callable[[str, ValueType, ValueType], None]] = None) -> bool:
-		for key, value in self._items.items():
-			if (key not in header._items.keys()) or (header._items[key] != value):
-					if callable(failed): failed(key, value, header._items[key])
+		for key, value in self.items():
+			if (key not in header.keys()) or (header[key] != value):
+					if callable(failed): 
+						failed(key, value, header[key])
 					return False
 		return True
 
@@ -81,74 +115,90 @@ class HeaderArchetype(Header):
 		assert all([ type(key) is str  for key in user_keys])
 		assert all([ value in (int, bool, float, str) for value in user_keys.values()])
 		HeaderArchetype._entries = user_keys
-
-class FileInfo(STObject):
-	__path : str
-	__size : int
-	__file : FITSReader
-	__header : Header | None
-
-	def __init__(self, path : str):
-		assert path.lower().endswith(('.fit', '.fits')),\
-			'Input path is not a FITS file'
-		# self.closed = False
-		self.__file = FITSReader(path)
-		self.__path = os.path.abspath(path)
-		self.__size = os.path.getsize(path)
-		self.__header = None
-		self.name = os.path.basename(self.__path)
-	
-	@property
-	def path(self) -> str:
-		return self.__path
-	@property
-	def size(self) -> int:
-		return self.__size
-	
-	@property
-	def header(self) -> Header:
-		if self.__header is None:
-			_dict = {key.rstrip() : value for key, value in self.__file._read_header()}
-			self.__header = Header(_dict)
-			self.__header.name = self.name
-		retval = self.__header
-		return retval
-	
-	@lru_cache(maxsize=5)	# todo: Add parameter to config
-	def get_data(self, scale = True) -> np.ndarray[Any, np.dtype[RealDType]]:
-		_dtype = self.header.bitsize
-		_shape = self.header.shape
-		_raw = self.__file._read_data(_dtype.newbyteorder('>'), _shape[0] * _shape[1])
-		if scale:
-			_scale, _zero = self.header.bscale, self.header.bzero
-			if _scale != 1 or _zero != 0:
-				_raw = _zero + _scale * _raw
-		return _raw.reshape(_shape).astype(_dtype)
 	
 	@classmethod
-	def __import__(cls, attributes: AttrDict) -> Self:
-		return cls(attributes['path'])
-	
-	def __eq__(self, __value):
-		if not  isinstance(__value, type(self)): return False
-		return self.__path == __value.__path
-	def __hash__(self) -> int:
-		return hash(self.__path)
-	
-	def __setattr__(self, __name: str, __value: Any) -> None:
-		return super().__setattr__(__name, __value)
+	def __import__(cls, attributes: AttrDict, **cls_kw : Any) -> Self:
+		return cls(attributes)
 
-	def __repr__(self) -> str:
-		return super().__repr__()
+class FileInfo(NamedTuple, STObject):	#type: ignore[misc]
+	path : str
+	relative_path : bool
+	header : Header
+	get_data : _bound_reader
+
+	@classmethod
+	def new(cls, file_path : str, relative_path : bool | None = None) -> Self:
+		if relative_path is not None:
+			is_rel = relative_path
+		else:
+			is_rel = not os.path.isabs(file_path)
+		
+		if is_rel and _EXPORT_PATH:
+			abs_path = os.path.join(_EXPORT_PATH, file_path)
+		else:
+			abs_path = os.path.abspath(file_path)
+
+		norm_path = abs_path.replace('\\', '/')
+		_h_dict = {key.rstrip() : value for key, value in _get_header(abs_path)}
+		header_obj = Header(norm_path, _h_dict)
+		bound_reader = _bound_reader(abs_path, header_obj.shape, 
+											(header_obj['BSCALE', int, 0], header_obj['BZERO', int, 0]), header_obj['BITPIX', int]) 
+		
+		return cls(norm_path, is_rel, header_obj, bound_reader)
+	
+	@property
+	def name(self) -> str:
+		return os.path.basename(self.path)
+	
+	@property
+	def bytes(self) -> int:
+		return os.path.getsize(self.path)
+	
+	@classmethod
+	def __import__(cls, attributes: AttrDict, **cls_kw : Any) -> FileInfo:
+		return FileInfo.new(attributes['path'], attributes['relative_path'])
+	
+	def __export__(self) -> AttrDict:
+		if self.relative_path and _EXPORT_PATH:
+			path = os.path.relpath(self.path, _EXPORT_PATH)
+		else:
+			path = self.path
+		return {'path' : path.replace("\\", "/"), 'relative_path' : self.relative_path}
+	
+	def __pprint__(self, indent: int, fold: int) -> str:
+		if fold == 0:
+			return type(self).__name__ + f': {self.name}'
+		indentation = spaces * (2*indent + 1)
+		string = [spaces * (2*indent) + type(self).__name__ + f' {self.name}:']
+		string.append(indentation + f'path: "{self.path}"')
+
+		if self.bytes < 1024:
+			string.append(indentation + f'size: {self.bytes} bytes')
+		elif self.bytes < 1048576:
+			string.append(indentation + f'size: {self.bytes/1024:.2f} KB')
+		else:
+			string.append(indentation + f'size: {self.bytes/1048576:.2f} MB')
+		
+		if indent + 1 < fold:
+			string.append(indentation + 'header: ' + self.header.__pprint__(indent + 1, fold))
+		else:
+			string.append(indentation + 'header: Header')
+		if indent != 0:
+			string.insert(0, '')
+		return '\n'.join(string)
+	
 	def __str__(self) -> str:
-		return super().__str__()
-	
-#endregion
-
+		return self.__pprint__(0, 1)
+	def __repr__(self) -> str:
+		return self.__pprint__(0, 0)
+	def __eq__(self, __value):
+		if not isinstance(__value, FileInfo): 
+			return False
+		return self.path == __value.path
+	def __hash__(self) -> int:
+		return hash(self.path)
 
 #region Photometry
-	
-	
 class FluxInfo(NamedTuple):
 	value: float
 	sigma: float
@@ -241,19 +291,22 @@ class PhotometryResult(NamedTuple, STObject):	#type: ignore[misc]
 		return cls(attributes['phot_method'], flux, backg, apert, attributes.get('psf_params', None))
 	
 	def __str__(self) -> str:
-		return self.__pprint__()
+		return self.__pprint__(0, 1)
 	def __repr__(self) -> str:
-		return type(self).__name__ + f': {self.flux.value:.2f} ± {self.flux.sigma:.2f}'
+		return self.__pprint__(0, 0)
 	
-	def __pprint__(self, indent: int = 0, compact : bool = False) -> str:
-		if compact:
-			return self.__repr__()
-		indentation = spaces * (indent + 1)
-		return ( f'\n{spaces * indent}{type(self).__name__}: '
-					'\n' + indentation + f'method: {self.method}'
-					'\n' + indentation + f'flux: {self.flux.value:.2f} ± {self.flux.sigma:.2f}'
-					'\n' + indentation + f'background: {self.background.value:.2f} ± {self.background.sigma:.2f}'
-					'\n' + indentation + f'error:       {self.error:.3f}')
+	def __pprint__(self, indent: int, fold : int) -> str:
+		if fold == 0:
+			return type(self).__name__ + f' {self.flux.value:.2f} ± {self.flux.sigma:.2f}'
+		indentation = spaces * (2*indent + 1)
+		string = [spaces * (2*indent) + type(self).__name__ + ':'
+					,indentation + f'method:     {self.method}'
+					,indentation + f'flux:       {self.flux.value:.2f} ± {self.flux.sigma:.2f}'
+					,indentation + f'background: {self.background.value:.2f} ± {self.background.sigma:.2f}'
+					,indentation + f'error:      {self.error:.3f}']
+		if indent != 0:
+			string.insert(0, '')
+		return '\n'.join(string)
 	
 @mypyc_attr(allow_interpreted_subclasses=True)
 class Star(STObject):
@@ -278,7 +331,7 @@ class Star(STObject):
 		return super().__export__()
 	
 	@classmethod
-	def __import__(cls, attributes: AttrDict) -> Self:
+	def __import__(cls, attributes: AttrDict, **cls_kw : Any) -> Self:
 		params = ('name', 'position', 'aperture', 'photometry')
 		attributes = {k: attributes[k] for k in params if k in attributes}
 		return cls(**attributes)
@@ -395,23 +448,50 @@ class TrackingSolution(NamedTuple, STObject):	#type: ignore[misc]
 		return TrackingSolution.new(attributes['method'], translation, rot_rad, attributes['error'], attributes['lost_indices'])
 	
 	def __str__(self) -> str:
-		return self.__pprint__()
+		return self.__pprint__(0, 1)
 	def __repr__(self) -> str:
-		t = self.translation
-		return type(self).__name__ + f' ({t[0]:.1f} px, {t[1]:.1f} px, {self.rotation:.2f}°)'
+		return self.__pprint__(0, 0)
 	
-	def __pprint__(self, indent: int = 0, compact : bool = False) -> str:
-		if compact:
-			return self.__repr__()
+	def __pprint__(self, indent: int, fold : int) -> str:
+		translation = f'{self.translation.x:.1f} px, {self.translation.x:.1f} px'
+		if fold == 0:
+			return type(self).__name__ + f' {translation}, {self.rotation:.2f}°'
+		
 		indentation = spaces * (indent + 1)
-		t = self.translation
-		return ( f'\n{spaces * indent}{type(self).__name__}: '
-					'\n' + indentation + f'method:      {self.method}'
-					'\n' + indentation + f'translation: {t[0]:.1f} px, {t[1]:.1f} px'
-					'\n' + indentation + f'rotation:    {self.rotation:.2f}°'
-					'\n' + indentation + f'error:       {self.error:.3f} px')
+		string = [spaces * (2*indent) + type(self).__name__ +':'
+					,indentation + f'method:      {self.method}'
+					,indentation + f'translation: {translation}'
+					,indentation + f'rotation:    {self.rotation:.2f}°'
+					,indentation + f'error:       {self.error:.3f} px']
+		if indent != 0:
+			string.insert(0, '')
+		return '\n'.join(string)
 #endregion
 
-__STObject_subclasses__['TrackingSolution'] = TrackingSolution
-__STObject_subclasses__['PhotometryResult'] = PhotometryResult
+# Trick to communicate between Session and FileInfo during the Import process
+class SessionLocationBlock(NamedTuple, STObject): #type: ignore[misc]
+	session_path : str
+	uses_relative : bool
+
+	@classmethod
+	def __import__(cls, attributes: AttrDict, **cls_kw: Any) -> Self:
+		RelativeContext.set(attributes['session_path'])
+		return cls(attributes['session_path'], attributes['uses_relative'])
+	
+	def __export__(self) -> AttrDict:
+		return {'session_path': self.session_path, 'uses_relative': self.uses_relative}
+	
+	def __pprint__(self, indent: int, fold: int) -> str:
+		if fold == 0:
+			return self.session_path
+		string = ['',spaces * (2*indent + 1) + 'path: ' + self.session_path,
+					 spaces * (2*indent + 1) + 'uses_relative: ' + str(self.uses_relative)]
+		return '\n'.join(string)
+
+_register_class(FileInfo)
+_register_class(TrackingSolution)
+_register_class(PhotometryResult)
+_register_class(SessionLocationBlock)
+
+
 

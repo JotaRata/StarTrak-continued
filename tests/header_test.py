@@ -29,10 +29,10 @@ class HeaderTest(unittest.TestCase):
 				self.assertTrue(arch.validate(s.header))
 		
 		def test_session_archetype(self):
-			s = new_session('inspect', 'Test session')
-			s.add_item(list(load_folder(dir)))
+			s = new_session('Test session')
+			s.add_file( *load_folder(dir))
 
-			for f in s.included_items:
+			for f in s.included_files:
 				self.assertTrue(s.archetype.validate(f.header))
 
 if __name__ == '__main__':
