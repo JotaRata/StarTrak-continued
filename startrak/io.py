@@ -5,7 +5,7 @@ from os import  scandir
 
 from startrak.sessionutils import get_session
 
-__all__ = ['load_file', 'load_folder', 'retrieve_data', 'clear_cache']
+__all__ = ['load_file', 'load_folder', 'get_data', 'clear_cache']
 
 @cache
 def load_file(path: str | Path, append : bool = True) -> FileInfo:
@@ -19,8 +19,13 @@ def load_file(path: str | Path, append : bool = True) -> FileInfo:
         get_session().add_file(file)
     return file
 
-def retrieve_data(fileInfo : FileInfo):
-    return fileInfo.get_data()
+def get_data(file_name_or_idx : FileInfo | str | int):
+    ''' Retrieves the data from the specified file, this can be provided as the name of the file in the current session or its positional index, as well as just giving the FileInfo object directly.'''
+    if isinstance(file_name_or_idx, (str, int)):
+        fileinfo = get_session().included_files[file_name_or_idx]
+    else:
+        fileinfo = file_name_or_idx
+    return fileinfo.get_data()
 
 def load_folder(path: str | Path, append : bool = True):
     '''
