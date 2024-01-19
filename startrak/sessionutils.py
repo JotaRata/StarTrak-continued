@@ -1,6 +1,6 @@
 from pathlib import Path
-from typing import Literal, overload
-from startrak.native import Session
+from typing import Collection, Literal, overload
+from startrak.native import FileList, Session, Star
 from startrak.native.classes import RelativeContext
 from startrak.types.sessions import *
 from startrak.types.exporters import TextExporter
@@ -52,21 +52,60 @@ def get_session() -> Session:
 	'''Returns the current session'''
 	return __session__
 
-def load_session(file_path : str | Path, overwrite : bool = False) -> Session:
+def load_session(file_path : str | Path, overwrite : bool = True) -> Session:
+	''' Loads a session from disk and returns it, if overwrite is True then the current session is set to the loaded one'''
 	global __session__
-	if (__session__ and __session__.name != 'default') and not overwrite:
-		raise RuntimeError(f'A Session of type {type(__session__).__name__} already exists, to overwrite call this function again with overwrite= True')
-	with TextImporter(str(file_path) + '.session') as f:
+	extension = '' if str(file_path).endswith('.trak') else '.trak'
+	with TextImporter(str(file_path) + extension) as f:
 		obj = f.read()
 	if not isinstance(obj, Session):
 		raise TypeError('Read object is not of type Session.')
-	__session__ = obj
-	return __session__
+	
+	if overwrite:
+		__session__ = obj
+	return obj
 
 def save_session(output_path : str | Path):
-	with TextExporter(str(output_path) + '.session') as out:
+	''' Saves the current session to the specified path'''
+	extension = '' if str(output_path).endswith('.trak') else '.trak'
+	with TextExporter(str(output_path) + extension) as out:
 		directory = os.path.abspath(os.path.join(output_path, os.pardir)).replace('\\', '/') 
 		__session__.__on_saved__( directory )
 		
 		with RelativeContext(__session__.working_dir):
 			out.write(__session__)
+
+# Wrapper functions around current session methods
+def add_file(file : FileInfo | Collection[FileInfo]):
+	''' Adds a file or list of files to the current session '''
+	if type(file) is FileInfo:
+		__session__.add_file(file)
+	else:
+		__session__.add_file(**file)
+
+def remove_file(file : FileInfo | Collection[FileInfo] | str):
+	''' Removes a file or list of files to the current session'''
+	if type(file) is FileInfo:
+		__session__.remove_file(file)
+	elif type(file) is str:
+		_file = __session__.included_files[file]
+		__session__.remove_file(_file)
+	else:
+		__session__.remove_file(**file)
+
+def add_star(star : Star | Collection[Star]):
+	''' Adds a star or list of stars to the current session '''
+	if type(star) is Star:
+		__session__.add_star(star)
+	else:
+		__session__.add_star(**star)
+
+def remove_star(star : Star | Collection[Star] | str):
+	''' Removes a star or list of stars to the current session '''
+	if type(star) is Star:
+		__session__.remove_star(star)
+	elif type(star) is str:
+		_star = __session__.included_stars[star]
+		__session__.remove_star(_star)
+	else:
+		__session__.remove_star(**star)
