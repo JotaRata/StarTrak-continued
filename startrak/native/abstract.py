@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import Callable, List, Optional, Self, Sequence, Tuple, final
 from abc import ABC, ABCMeta, abstractmethod
-
+from startrak.native import VERSION
 from startrak.native.alias import ImageLike, ValueType
 from startrak.native.classes import SessionLocationBlock, FileInfo, Header, HeaderArchetype, PhotometryResult, RelativeContext, Star, TrackingSolution
 from startrak.native.collections.position import Position, PositionArray, PositionLike
@@ -159,7 +159,9 @@ class Session(STObject, metaclass= ABCMeta):
 			'archetype' : self.archetype,
 			'included_files': self.included_files, 
 			'included_stars': self.included_stars, 
-			'force_validation' : self.force_validation}
+			'force_validation' : self.force_validation,
+			'app_version' : VERSION
+			}
 	
 	def __pprint__(self, indent: int, expand_tree : int) -> str:
 		return super().__pprint__(indent, expand_tree)

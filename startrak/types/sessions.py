@@ -56,7 +56,7 @@ class ScanSession(Session):
 				if os.path.isfile(path) and not name.endswith(
 					('.fit', '.fits', '.FIT', '.FITS')):
 					continue
-				info = FileInfo(path)
+				info = FileInfo.new(path)
 				files.append(info)
 			Session.add_file(self._session, *files)
 			
