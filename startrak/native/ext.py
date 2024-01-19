@@ -251,8 +251,11 @@ class STCollection(STObject, Collection[TList]):
 	def reverse(self): 
 		self._internal.reverse()
 		self.__on_change__()
-	def copy(self) -> Self:
-		return type(self)(*self._internal.copy())
+	def copy(self, closed : bool = False) -> Self:
+		copy = type(self)(*self._internal.copy())
+		if closed:
+			copy.close()
+		return copy
 	
 	
 	def __pprint__(self, indent: int, fold: int) -> str:

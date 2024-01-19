@@ -1,12 +1,23 @@
 from pathlib import Path
 from typing import Collection, Literal, overload
-from startrak.native import FileList, Session, Star
+from startrak.native import FileList, Session, Star, StarList
 from startrak.native.classes import RelativeContext
 from startrak.types.sessions import *
 from startrak.types.exporters import TextExporter
 from startrak.types.importers import TextImporter
 
-__all__ = ['new_session', 'get_session', 'save_session', 'SessionType']
+__all__ = ['new_session', 
+				'get_session', 
+				'save_session', 
+				'SessionType',
+				'add_file',
+				'remove_file',
+				'add_star',
+				'remove_star',
+				'get_file',
+				'get_star',
+				'get_files',
+				'get_stars',]
 SessionType = Literal['inspect', 'scan']
 __session__ : Session = InspectionSession('default')
 
@@ -80,8 +91,10 @@ def add_file(file : FileInfo | Collection[FileInfo]):
 	''' Adds a file or list of files to the current session '''
 	if type(file) is FileInfo:
 		__session__.add_file(file)
+	elif isinstance(file, Collection):
+		__session__.add_file( *file)
 	else:
-		__session__.add_file(**file)
+		raise TypeError(type(file))
 
 def remove_file(file : FileInfo | Collection[FileInfo] | str):
 	''' Removes a file or list of files to the current session'''
@@ -90,15 +103,19 @@ def remove_file(file : FileInfo | Collection[FileInfo] | str):
 	elif type(file) is str:
 		_file = __session__.included_files[file]
 		__session__.remove_file(_file)
+	elif isinstance(file, Collection):
+		__session__.remove_file( *file)
 	else:
-		__session__.remove_file(**file)
+		raise TypeError(type(file))
 
 def add_star(star : Star | Collection[Star]):
 	''' Adds a star or list of stars to the current session '''
 	if type(star) is Star:
 		__session__.add_star(star)
+	elif isinstance(star, Collection):
+		__session__.add_star( *star)
 	else:
-		__session__.add_star(**star)
+		raise TypeError(type(star))
 
 def remove_star(star : Star | Collection[Star] | str):
 	''' Removes a star or list of stars to the current session '''
@@ -107,5 +124,23 @@ def remove_star(star : Star | Collection[Star] | str):
 	elif type(star) is str:
 		_star = __session__.included_stars[star]
 		__session__.remove_star(_star)
+	elif isinstance(star, Collection):
+		__session__.remove_star( *star)
 	else:
-		__session__.remove_star(**star)
+		raise TypeError(type(star))
+
+def get_file(name_or_index : str | int) -> FileInfo:
+	''' Returns a single file in the current session based on the provided name or positional index'''
+	return __session__.included_files[name_or_index]
+
+def get_star(name_or_index : str | int) -> Star:
+	''' Returns a single star in the current session based on the provided name or positional index'''
+	return __session__.included_stars[name_or_index]
+
+def get_files() -> FileList:
+	''' Returns a read-only copy of the current session included files list'''
+	return __session__.included_files.copy(closed= True)
+
+def get_stars() -> StarList:
+	''' Returns a read-only copy of the current session included stars list'''
+	return __session__.included_stars.copy(closed= True)
