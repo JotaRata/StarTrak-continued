@@ -1,3 +1,6 @@
+from typing import Final
+APPNAME : Final[str] = "StarTrak"
+VERSION : Final[str] = "1.0.0"
 
 try:
 	__compiled__ = False
