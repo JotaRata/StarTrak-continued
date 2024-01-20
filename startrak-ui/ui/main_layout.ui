@@ -594,15 +594,10 @@ color: rgb(212, 212, 212);</string>
               <number>0</number>
              </property>
              <item row="0" column="0">
-              <widget class="QListWidget" name="listWidget">
+              <widget class="QTreeView" name="session_view">
                <property name="frameShape">
                 <enum>QFrame::NoFrame</enum>
                </property>
-               <item>
-                <property name="text">
-                 <string>New Item</string>
-                </property>
-               </item>
               </widget>
              </item>
             </layout>
