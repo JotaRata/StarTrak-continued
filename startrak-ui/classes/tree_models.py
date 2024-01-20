@@ -1,10 +1,13 @@
 from __future__ import annotations
-from typing import List, NamedTuple, Optional, Union
+from typing import Any, List, NamedTuple, Optional, Union
 from PySide6 import QtCore
 from PySide6.QtCore import QAbstractItemModel, QModelIndex, QObject, QPersistentModelIndex, Qt
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QStyledItemDelegate
 import startrak
-from startrak.native.ext import STObject
+from startrak.native.ext import STCollection, STObject, is_stobj
 
+_excluded = ['SessionLocationBlock']
 class _TreeItem(NamedTuple):
 	name : str
 	ref : STObject
@@ -13,8 +16,22 @@ class _TreeItem(NamedTuple):
 
 	def add_child(self, node : _TreeItem):
 		self.children.append(node)
+		
 	def grow_tree(self):
-		export = [ (key, value) for key, value in self.ref.__export__().items() if isinstance(value, STObject)]
+		export = list[tuple[str, Any]]()
+		for key, value in self.ref.__export__().items():
+			if not isinstance(value, STObject):
+				continue
+			if type(value).__name__ in _excluded:
+				continue
+
+			if key.isdigit():
+				name = value.name
+			else:
+				name = key.replace('_', ' ').capitalize()
+
+			export.append((name, value))
+
 		if len(export) == 0:
 			return
 		for name, value in export:
@@ -87,7 +104,18 @@ class SessionTreeModel(QAbstractItemModel):
 					return f'{node.type()}'
 				case _:
 					return None
+		elif role == Qt.DecorationRole and index.column() == 0:
+			return self.get_icon(node)
 		return None
-		
-
-
+	
+	def get_icon(self, node : _TreeItem):
+		base_dir = 'startrak-ui/res/icons/'
+		icons_path = { 'InspectionSession' : 'session.png',
+							'ScanSession' : 'session.png',
+							'Header' : 'header.png',
+							'HeaderArchetype' : 'header.png',
+							'FileList' : 'filelist.png',
+							'StarList' : 'starlist.png'}
+		if node is not None:
+			icon_path = base_dir + icons_path.get(node.type(), '')
+			return QIcon(icon_path)

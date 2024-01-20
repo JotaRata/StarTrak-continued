@@ -6,8 +6,9 @@ from startrak.types.sessions import *
 from startrak.types.exporters import TextExporter
 from startrak.types.importers import TextImporter
 
-__all__ = ['new_session', 
+__all__ = [ 'new_session', 
 				'get_session', 
+				'load_session',
 				'save_session', 
 				'SessionType',
 				'add_file',
