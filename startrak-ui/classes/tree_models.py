@@ -79,9 +79,7 @@ class SessionTreeModel(QAbstractItemModel):
 			parentItem = parent_index.internalPointer()
 
 		childItem = parentItem[row]
-
 		return self.createIndex(row, column, childItem)
-		return QModelIndex()
 
 	def parent(self, child_index):
 		childItem = child_index.internalPointer()
@@ -107,6 +105,14 @@ class SessionTreeModel(QAbstractItemModel):
 		elif role == Qt.DecorationRole and index.column() == 0:
 			return self.get_icon(node)
 		return None
+	
+	def headerData(self, section, orientation, role=Qt.DisplayRole):
+		if role == Qt.DisplayRole and orientation == Qt.Horizontal:
+			if section == 0:
+					return "Element"
+			elif section == 1:
+					return "Type"
+		return super().headerData(section, orientation, role)
 	
 	def get_icon(self, node : _TreeItem):
 		base_dir = 'startrak-ui/res/icons/'
