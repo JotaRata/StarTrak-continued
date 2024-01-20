@@ -1,11 +1,9 @@
 from __future__ import annotations
-from typing import Any, List, NamedTuple, Optional, Union
-from PySide6 import QtCore
-from PySide6.QtCore import QAbstractItemModel, QModelIndex, QObject, QPersistentModelIndex, Qt
+from typing import Any, List, NamedTuple
+from PySide6.QtCore import QAbstractItemModel, QModelIndex, QObject, Qt
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QStyledItemDelegate
-import startrak
-from startrak.native.ext import STCollection, STObject, is_stobj
+from startrak.native import Session
+from startrak.native.ext import STObject
 
 _excluded = ['SessionLocationBlock']
 class _TreeItem(NamedTuple):
@@ -53,10 +51,9 @@ class _TreeItem(NamedTuple):
 
 
 class SessionTreeModel(QAbstractItemModel):
-	def __init__(self, parent: QObject | None = None):
+	def __init__(self, session : Session, parent: QObject | None = None):
 		super().__init__(parent)
-		current_session = startrak.get_session()	#type:ignore
-		self.rootItem = _TreeItem(current_session.name, current_session, None, [])
+		self.rootItem = _TreeItem(session.name, session, None, [])
 		self.rootItem.grow_tree()
 
 	def rowCount(self, parent):
