@@ -1,22 +1,29 @@
 from __future__ import annotations
 from PySide6 import QtCore, QtWidgets
 from PySide6.QtCore import Qt
-from typing import Any, List, NamedTuple, Optional, Self
+from typing import List, NamedTuple
 from PySide6.QtGui import QIcon
-import startrak
-from startrak.native import Session
+from PySide6.QtWidgets import QWidget
+from views.application import Application
 from startrak.native.ext import STObject
 
 class SessionTreeView(QtWidgets.QTreeView):
-	def setModel(self):
-		model = SessionTreeModel(startrak.get_session())
+	def __init__(self, parent: QWidget | None = None) -> None:
+		super().__init__(parent)
+
+		app = Application.instance()
+		app.on_sessionLoad.connect(self.setModel)
+		self.setModel(app.st_module.get_session())
+	
+	def setModel(self, session):
+		model = SessionTreeModel(session)
 		super().setModel(model)
 		self.expand(model.index(0, 0, QtCore.QModelIndex()))
 		
 _excluded = ['SessionLocationBlock']
 
 class SessionTreeModel(QtCore.QAbstractItemModel):
-	def __init__(self, session : Session, parent: QtCore.QObject | None = None):
+	def __init__(self, session, parent: QtCore.QObject | None = None):
 		super().__init__(parent)
 		self.rootItem = SessionTreeModel.TreeItem(session.name, session, None, [])
 		self.rootItem.grow_tree()
