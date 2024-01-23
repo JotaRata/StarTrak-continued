@@ -5,11 +5,14 @@ from PySide6.QtWidgets import QFileDialog, QMessageBox
 from qt.extensions import *
 from views.application import Application
 from views.session_view import SessionTreeView
+from views.inspectors import InspectorView
 
-UI_MainWindow, _ = load_class('main_layout.ui')
+UI_MainWindow, _ = load_class('main_layout')
 
 class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, misc]
 	session_view : SessionTreeView
+	inspector_view : InspectorView
+
 	def __init__(self,parent: QtWidgets.QWidget | None = None, flags = None) -> None:
 		super().__init__(parent)
 		# with read_layout('main_layout') as f:
@@ -18,6 +21,13 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 		view_frame = get_child(self, 'content_l', QtWidgets.QFrame)
 		self.session_view = SessionTreeView(view_frame)
 		view_frame.layout().addWidget(self.session_view)
+
+
+		sidebar_frame = get_child(self, 'widget_sidebar', QtWidgets.QFrame)
+		self.inspector_view = InspectorView(sidebar_frame)
+		sidebar_frame.layout().addWidget(self.inspector_view)
+
+		self.session_view.clicked.connect(self.inspector_view.on_sesionViewUpdate)
 
 		self.fix_splitterWidth() 
 		# self.show()
