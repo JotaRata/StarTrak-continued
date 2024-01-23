@@ -3,12 +3,10 @@ from PySide6 import QtCore, QtWidgets
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 from qt.extensions import *
-from qt.extensions.qt_loader import STUI_DIR
 from views.application import Application
 from views.session_view import SessionTreeView
-from PySide6.QtUiTools import loadUiType
 
-UI_MainWindow, _ = cast(tuple[type, type], loadUiType(str(STUI_DIR / 'main_layout.ui')))
+UI_MainWindow, _ = load_class('main_layout.ui')
 
 class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, misc]
 	session_view : SessionTreeView
