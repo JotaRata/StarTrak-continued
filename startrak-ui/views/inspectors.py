@@ -74,7 +74,14 @@ class AbstractInspector(QtWidgets.QFrame, metaclass=AbstractInspectorMeta):
 		raise KeyError(name)
 
 class AnyInspector(AbstractInspector, ref_type= 'Any', layout_name= 'insp_undef'):
-	pass
+	def __init__(self, value: object, parent: QtWidgets.QWidget) -> None:
+		super().__init__(value, parent)
+		name_field = get_child(self, 'nameField', QtWidgets.QLineEdit)
+		contnet_field = get_child(self, 'contentField', QtWidgets.QTextEdit)
+
+		name_field.setText(type(value).__name__)
+		contnet_field.setText(str(value))
+
 class StarInspector(AbstractInspector, ref_type= 'Star', layout_name= 'insp_star'): 
 	# on_nameChange = Signal(str)
 	# on_posXChange = Signal(int)
