@@ -82,7 +82,7 @@ class AbstractInspector(QtWidgets.QFrame, metaclass=AbstractInspectorMeta):
 class AnyInspector(AbstractInspector, ref_type= 'Any', layout_name= 'insp_undef'):
 	def __init__(self, value: object, parent: QtWidgets.QWidget) -> None:
 		super().__init__(value, parent)
-		name_field = get_child(self, 'nameField', QtWidgets.QLineEdit)
+		name_field = get_child(self, 'nameField', QtWidgets.QLabel)
 		contnet_field = get_child(self, 'contentField', QtWidgets.QTextEdit)
 
 		name_field.setText(type(value).__name__)
