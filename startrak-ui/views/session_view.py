@@ -1,4 +1,5 @@
 from __future__ import annotations
+from dataclasses import dataclass
 from PySide6 import QtCore, QtWidgets
 from PySide6.QtCore import Qt
 from typing import List, NamedTuple
@@ -10,7 +11,6 @@ from startrak.native.ext import STObject
 class SessionTreeView(QtWidgets.QTreeView):
 	def __init__(self, parent: QWidget | None = None) -> None:
 		super().__init__(parent)
-
 		app = Application.instance()
 		app.on_sessionLoad.connect(self.setModel)
 		self.setModel(app.st_module.get_session())
@@ -19,6 +19,13 @@ class SessionTreeView(QtWidgets.QTreeView):
 		model = SessionTreeModel(session)
 		super().setModel(model)
 		self.expand(model.index(0, 0, QtCore.QModelIndex()))
+
+	def updateItem(self, index, obj):
+		item = index.internalPointer()
+		if item:
+			item.name = obj.name
+			item.ref = obj
+		self.model().dataChanged.emit(index, index)
 		
 _excluded = ['SessionLocationBlock']
 
@@ -27,8 +34,9 @@ class SessionTreeModel(QtCore.QAbstractItemModel):
 		super().__init__(parent)
 		self.rootItem = SessionTreeModel.TreeItem(session.name, session, None, [])
 		self.rootItem.grow_tree()
-
-	class TreeItem(NamedTuple):
+	
+	@dataclass
+	class TreeItem:
 		name : str
 		ref : STObject
 		parent : SessionTreeModel.TreeItem | None

@@ -3,10 +3,13 @@ from __future__ import annotations
 from abc import ABC
 from typing import ClassVar, Optional
 from PySide6 import QtWidgets, QtCore
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal, Slot
 from qt.extensions import *
+from startrak.native import Position
 
 class InspectorView(QtWidgets.QScrollArea):
+	on_inspectorUpdate = Signal(QtCore.QModelIndex, object)
+
 	def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
 		super().__init__(parent)
 		self.setWidgetResizable(True)
@@ -16,21 +19,23 @@ class InspectorView(QtWidgets.QScrollArea):
 		self.lay = QtWidgets.QVBoxLayout(self.content)
 		self.lay.setContentsMargins(0, 0, 0, 0)
 
-		self.current_inspector : QtWidgets.QWidget | None = None
+		self.inspector : QtWidgets.QWidget | None = None
 
 	@QtCore.Slot(QtCore.QModelIndex)
-	def on_sesionViewUpdate(self, index : QtCore.QModelIndex):
+	def on_sesionViewUpdate(self, index):
+		if self.inspector:
+			self.inspector.destroy()
+			self.lay.removeWidget( self.inspector)
+		def emit_signal(value):
+			self.on_inspectorUpdate.emit(index, value)
+
 		pointer = index.internalPointer()
 		if pointer is not None:
-			self.inspect_obj(pointer.ref)	# type: ignore
+			ref = pointer.ref
+			self.inspector = AbstractInspector.instantiate(type(ref).__name__, ref, self.content)
+			self.inspector.on_change.connect(emit_signal)
+			self.lay.addWidget(self.inspector)
 
-	def inspect_obj(self, value):
-		if self.current_inspector:
-			self.lay.removeWidget( self.current_inspector)
-			self.current_inspector.destroy()
-		
-		self.current_inspector = AbstractInspector.instantiate(type(value).__name__, value, self.content)
-		self.lay.addWidget(self.current_inspector)
 
 # -------------------- Inspectors -------------------------------------
 class AbstractInspectorMeta(type(QtWidgets.QFrame)):	#type: ignore
@@ -51,6 +56,7 @@ class AbstractInspectorMeta(type(QtWidgets.QFrame)):	#type: ignore
 
 class AbstractInspector(QtWidgets.QFrame, metaclass=AbstractInspectorMeta):
 	ref: object
+	on_change = Signal(object)
 	def __init__(self, value : object, parent: QtWidgets.QWidget) -> None:
 		if type(self) is AbstractInspector:
 			raise TypeError('Cannot instantiate abstract class "AbstractInspector"')
@@ -83,11 +89,6 @@ class AnyInspector(AbstractInspector, ref_type= 'Any', layout_name= 'insp_undef'
 		contnet_field.setText(str(value))
 
 class StarInspector(AbstractInspector, ref_type= 'Star', layout_name= 'insp_star'): 
-	# on_nameChange = Signal(str)
-	# on_posXChange = Signal(int)
-	# on_posYChange = Signal(int)
-	# on_apertureChange = Signal(int)
-
 	def __init__(self, star, parent: QtWidgets.QWidget) -> None:
 		super().__init__(star, parent)
 
@@ -103,3 +104,20 @@ class StarInspector(AbstractInspector, ref_type= 'Star', layout_name= 'insp_star
 		apert_field.setValue(star.aperture)
 
 		label_phot.setText(star.photometry.__pprint__(0, 2) if star.photometry else '')
+
+	@Slot(str)
+	def name_changed(self, value):
+		self.ref.name = value
+		self.on_change.emit(self.ref)
+	@Slot(int)
+	def posx_changed(self, value):
+		self.ref.position = Position(value, self.ref.position.y)
+		self.on_change.emit(self.ref)
+	@Slot(int)
+	def posy_changed(self, value):
+		self.ref.position = Position(self.ref.position.x, value)
+		self.on_change.emit(self.ref)
+	@Slot(int)
+	def apert_changed(self, value):
+		self.ref.aperture = value
+		self.on_change.emit(self.ref)
