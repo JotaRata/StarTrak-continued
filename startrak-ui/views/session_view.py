@@ -46,6 +46,8 @@ class SessionTreeModel(QtCore.QAbstractItemModel):
 			export = [ (value.name if key.isdigit() else key.replace('_', ' ').capitalize(), value)
 							for key, value in self.ref.__export__().items()
 							if isinstance(value, STObject) and type(value).__name__ not in _excluded ]
+			if type(self.ref).__name__ == 'FileInfo':
+				export.append(('Header', self.ref.header))
 			if len(export) == 0: return
 			for name, value in export:
 				node = SessionTreeModel.TreeItem(name, value, self, [])

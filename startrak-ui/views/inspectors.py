@@ -139,3 +139,33 @@ class PhotometryInspector(AbstractInspector, ref_type= 'PhotometryResult', layou
 		aradius_line.setText(str(value.aperture_info.radius))
 		aoffset_line.setText(str(value.aperture_info.offset))
 		awidth_line.setText(str(value.aperture_info.width))
+
+class HeaderInspector(AbstractInspector, ref_type= 'Header', layout_name= 'insp_header'):
+	class HeaderEntry(QtWidgets.QFrame):
+		def __init__(self, parent, key, value) -> None:
+			super().__init__(parent)
+			self.setObjectName(str(id(self))[:7] + '_frame')
+			self.label = QtWidgets.QLabel(self)
+			self.line = QtWidgets.QLineEdit(self)
+			self.label.setText(key)
+			self.label.setMinimumWidth(64)
+			self.line.setText(str(value))
+			self.line.setReadOnly(True)
+			layout = QtWidgets.QHBoxLayout(self)
+			layout.addWidget(self.label)
+			layout.addWidget(self.line)
+
+	
+	def __init__(self, header, parent) -> None:
+		super().__init__(header, parent)
+
+		content_frame = get_child(self, 'content', QtWidgets.QFrame)
+		file = HeaderInspector.HeaderEntry(content_frame, 'File', header.linked_file)
+		content_frame.layout().insertWidget(0, file)		#type:ignore
+
+		header_frame = get_child(self, 'header_frame', QtWidgets.QFrame)
+		for key, value in header.items():
+			entry = HeaderInspector.HeaderEntry(header_frame, key, value)
+			header_frame.layout().addWidget(entry)
+
+
