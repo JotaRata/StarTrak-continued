@@ -121,3 +121,21 @@ class StarInspector(AbstractInspector, ref_type= 'Star', layout_name= 'insp_star
 	def apert_changed(self, value):
 		self.ref.aperture = value
 		self.on_change.emit(self.ref)
+
+class PhotometryInspector(AbstractInspector, ref_type= 'PhotometryResult', layout_name= 'insp_phot'):
+	def __init__(self, value, parent) -> None:
+		super().__init__(value, parent)
+
+		method_line = get_child(self, 'method_line', QtWidgets.QLineEdit)
+		flux_line = get_child(self, 'flux_line', QtWidgets.QLineEdit)
+		background_line = get_child(self, 'background_line', QtWidgets.QLineEdit)
+		aradius_line = get_child(self, 'aradius_line', QtWidgets.QLineEdit)
+		aoffset_line = get_child(self, 'aoffset_line', QtWidgets.QLineEdit)
+		awidth_line = get_child(self, 'awidth_line', QtWidgets.QLineEdit)
+
+		method_line.setText(value.method)
+		flux_line.setText(f'{value.flux.value:.3f} ± {value.flux.sigma:.3f}')
+		background_line.setText(f'{value.background.value:.3f} ± {value.background.sigma:.3f}')
+		aradius_line.setText(str(value.aperture_info.radius))
+		aoffset_line.setText(str(value.aperture_info.offset))
+		awidth_line.setText(str(value.aperture_info.width))
