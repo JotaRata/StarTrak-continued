@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 from abc import ABC
+import os
 from typing import ClassVar, Optional
 from PySide6 import QtWidgets, QtCore
 from PySide6.QtCore import Qt, Signal, Slot
@@ -156,12 +157,11 @@ class HeaderInspector(AbstractInspector, ref_type= 'Header', layout_name= 'insp_
 			layout.addWidget(self.label)
 			layout.addWidget(self.line)
 
-	
 	def __init__(self, header, parent, readOnly= True) -> None:
 		super().__init__(header, parent)
 
 		content_frame = get_child(self, 'content', QtWidgets.QFrame)
-		file = HeaderInspector.HeaderEntry(content_frame, 'File', header.linked_file)
+		file = HeaderInspector.HeaderEntry(content_frame, 'File', os.path.basename(header.linked_file))
 		content_frame.layout().insertWidget(0, file)		#type:ignore
 
 		header_frame = get_child(self, 'header_frame', QtWidgets.QFrame)
@@ -180,4 +180,22 @@ class HeaderArchetypeInspector(HeaderInspector, ref_type= 'HeaderArchetype', lay
 		add_button.setText('Add entry')
 		content_frame.layout().addWidget(add_button)
 
+class FileInspector(AbstractInspector, ref_type= 'FileInfo', layout_name= 'insp_file'):
+	def __init__(self, value, parent) -> None:
+		super().__init__(value, parent)
+		path_line = get_child(self, 'path_line', QtWidgets.QLineEdit)
+		size_line = get_child(self, 'size_line', QtWidgets.QLineEdit)
+		header_area = get_child(self, 'header_area', QtWidgets.QScrollArea)
 
+		if value.bytes < 1024:
+			size = f'{value.bytes} bytes'
+		elif value.bytes < 1048576:
+			size = f'{value.bytes/1024:.2f} KB'
+		else:
+			size = f'{value.bytes/1048576:.2f} MB'
+
+		path_line.setText(value.path)
+		size_line.setText(size)
+
+		header_wdg = HeaderInspector(value.header, header_area)
+		header_area.setWidget(header_wdg)
