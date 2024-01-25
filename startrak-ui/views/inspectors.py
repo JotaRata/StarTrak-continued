@@ -142,7 +142,7 @@ class PhotometryInspector(AbstractInspector, ref_type= 'PhotometryResult', layou
 
 class HeaderInspector(AbstractInspector, ref_type= 'Header', layout_name= 'insp_header'):
 	class HeaderEntry(QtWidgets.QFrame):
-		def __init__(self, parent, key, value) -> None:
+		def __init__(self, parent, key, value, readOnly = True) -> None:
 			super().__init__(parent)
 			self.setObjectName(str(id(self))[:7] + '_frame')
 			self.label = QtWidgets.QLabel(self)
@@ -150,13 +150,14 @@ class HeaderInspector(AbstractInspector, ref_type= 'Header', layout_name= 'insp_
 			self.label.setText(key)
 			self.label.setMinimumWidth(64)
 			self.line.setText(str(value))
-			self.line.setReadOnly(True)
+			if readOnly:
+				self.line.setReadOnly(True)
 			layout = QtWidgets.QHBoxLayout(self)
 			layout.addWidget(self.label)
 			layout.addWidget(self.line)
 
 	
-	def __init__(self, header, parent) -> None:
+	def __init__(self, header, parent, readOnly= True) -> None:
 		super().__init__(header, parent)
 
 		content_frame = get_child(self, 'content', QtWidgets.QFrame)
@@ -165,7 +166,18 @@ class HeaderInspector(AbstractInspector, ref_type= 'Header', layout_name= 'insp_
 
 		header_frame = get_child(self, 'header_frame', QtWidgets.QFrame)
 		for key, value in header.items():
-			entry = HeaderInspector.HeaderEntry(header_frame, key, value)
+			entry = HeaderInspector.HeaderEntry(header_frame, key, value, readOnly)
 			header_frame.layout().addWidget(entry)
+
+class HeaderArchetypeInspector(HeaderInspector, ref_type= 'HeaderArchetype', layout_name= 'insp_header'):
+	def __init__(self, header, parent) -> None:
+		super().__init__(header, parent, False)
+		label = get_child(self, 'type_label', QtWidgets.QLabel)
+		label.setText('Header Archetype')
+
+		content_frame = get_child(self, 'content', QtWidgets.QFrame)
+		add_button = QtWidgets.QPushButton(self)
+		add_button.setText('Add entry')
+		content_frame.layout().addWidget(add_button)
 
 
