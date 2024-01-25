@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from PySide6 import QtCore, QtWidgets
 from PySide6.QtCore import Qt
-from typing import List, NamedTuple
+from typing import List
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QWidget
 from views.application import Application
@@ -26,6 +26,9 @@ class SessionTreeView(QtWidgets.QTreeView):
 			item.name = obj.name
 			item.ref = obj
 		self.model().dataChanged.emit(index, index)
+
+	def expandParent(self, index : QtCore.QModelIndex):
+		self.expand(index.parent())
 		
 _excluded = ['SessionLocationBlock']
 
@@ -34,14 +37,12 @@ class SessionTreeModel(QtCore.QAbstractItemModel):
 		super().__init__(parent)
 		self.rootItem = SessionTreeModel.TreeItem(session.name, session, None, [])
 		self.rootItem.grow_tree()
-	
 	@dataclass
 	class TreeItem:
 		name : str
 		ref : STObject
 		parent : SessionTreeModel.TreeItem | None
 		children : List[SessionTreeModel.TreeItem]
-
 		def grow_tree(self):
 			export = [ (value.name if key.isdigit() else key.replace('_', ' ').capitalize(), value)
 							for key, value in self.ref.__export__().items()
@@ -53,13 +54,15 @@ class SessionTreeModel(QtCore.QAbstractItemModel):
 				node = SessionTreeModel.TreeItem(name, value, self, [])
 				self.children.append(node)
 				node.grow_tree()
-
 		def type(self) -> str:
 			return type(self.ref).__name__
 		def __getitem__(self, index : int) -> _TreeItem:	#type: ignore
 			if index == -1 and self.parent is not None:
 				return self.parent
 			return self.children[index]
+		def __repr__(self) -> str:
+			return f'TreeItem(name={self.name}, ref={self.ref.__class__.__name__}, parent= {self.parent.name if self.parent else "None"}, children= {len(self.children)})'
+		
 	def rowCount(self, parent):
 		if not parent.isValid():
 			return 1
@@ -79,12 +82,14 @@ class SessionTreeModel(QtCore.QAbstractItemModel):
 		return self.createIndex(row, column, childItem)
 
 	def parent(self, child_index):
-		childItem = child_index.internalPointer()
-		parentItem = childItem.parent
-
+		parentItem = child_index.internalPointer().parent
 		if parentItem is None:
 			return QtCore.QModelIndex()
-		return self.createIndex(parentItem.children.index(childItem), 0, parentItem)
+		grandParentItem = parentItem.parent
+		if grandParentItem is None:
+			return self.createIndex(0, 0, parentItem)
+		
+		return self.createIndex(grandParentItem.children.index(parentItem), 0, parentItem)
 
 	def data(self, index, role):
 		if not index.isValid():
