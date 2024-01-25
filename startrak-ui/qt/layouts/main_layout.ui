@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1382</width>
+    <width>1395</width>
     <height>907</height>
    </rect>
   </property>
@@ -488,6 +488,18 @@ color: rgb(212, 212, 212);</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
+    <property name="leftMargin">
+     <number>2</number>
+    </property>
+    <property name="topMargin">
+     <number>2</number>
+    </property>
+    <property name="rightMargin">
+     <number>2</number>
+    </property>
+    <property name="bottomMargin">
+     <number>2</number>
+    </property>
     <item row="0" column="0">
      <widget class="QSplitter" name="splitter_h">
       <property name="orientation">
@@ -674,6 +686,9 @@ color: rgb(212, 212, 212);</string>
         <enum>QFrame::NoFrame</enum>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
         <property name="topMargin">
          <number>0</number>
         </property>
@@ -713,8 +728,8 @@ color: rgb(212, 212, 212);</string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1382</width>
-     <height>22</height>
+     <width>1395</width>
+     <height>21</height>
     </rect>
    </property>
    <property name="nativeMenuBar">

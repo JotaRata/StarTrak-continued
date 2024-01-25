@@ -2,40 +2,62 @@
 from __future__ import annotations
 from abc import ABC
 import os
+import re
 from typing import ClassVar, Optional
 from PySide6 import QtWidgets, QtCore
 from PySide6.QtCore import Qt, Signal, Slot
 from qt.extensions import *
 from startrak.native import Position
 
-class InspectorView(QtWidgets.QScrollArea):
+class InspectorView(QtWidgets.QFrame):
 	on_inspectorUpdate = Signal(QtCore.QModelIndex, object)
 
 	def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
 		super().__init__(parent)
-		self.setWidgetResizable(True)
-		self.content = QtWidgets.QWidget(self)
-		self.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
-		self.setWidget(self.content)
-		self.lay = QtWidgets.QVBoxLayout(self.content)
-		self.lay.setContentsMargins(0, 0, 0, 0)
+		self.type_label = QtWidgets.QLabel(self)
+		layout = QtWidgets.QVBoxLayout(self)
+		layout.setContentsMargins(2, 8, 2, 8)
+		
+		self.scroll_area = QtWidgets.QScrollArea(self)
+		self.scroll_area.setWidgetResizable(True)
+		self.scroll_area.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
+		content = QtWidgets.QFrame(self)
+		self.scroll_area.setWidget(content)
+		scroll_layout = QtWidgets.QVBoxLayout(content)
+		scroll_layout.setContentsMargins(0, 0, 0, 0)
 
+		layout.addWidget(self.type_label)
+		layout.addWidget(self.scroll_area)
 		self.inspector : QtWidgets.QWidget | None = None
+
+		self.setStyleSheet('''
+				QFrame[objectName $= "frame"]{
+					background-color: rgba(255, 255, 255, 10);
+					border-radius: 8px
+				}
+
+				QLabel {
+					background-color: rgba(0,0,0,0)
+				}
+							''')
 
 	@QtCore.Slot(QtCore.QModelIndex)
 	def on_sesionViewUpdate(self, index):
 		if self.inspector:
 			self.inspector.destroy()
-			self.lay.removeWidget( self.inspector)
+			self.scroll_area.widget().layout().removeWidget( self.inspector)
 		def emit_signal(value):
 			self.on_inspectorUpdate.emit(index, value)
 
 		pointer = index.internalPointer()
 		if pointer is not None:
 			ref = pointer.ref
-			self.inspector = AbstractInspector.instantiate(type(ref).__name__, ref, self.content)
+			_type = type(ref).__name__
+			self.inspector = AbstractInspector.instantiate(_type, ref, self.scroll_area)
 			self.inspector.on_change.connect(emit_signal)
-			self.lay.addWidget(self.inspector)
+			self.scroll_area.widget().layout().addWidget(self.inspector)
+			type_label = re.sub(r'([a-z])([A-Z])', r'\1 \2', _type)
+			self.type_label.setText(type_label)
 
 
 # -------------------- Inspectors -------------------------------------
@@ -83,11 +105,8 @@ class AbstractInspector(QtWidgets.QFrame, metaclass=AbstractInspectorMeta):
 class AnyInspector(AbstractInspector, ref_type= 'Any', layout_name= 'insp_undef'):
 	def __init__(self, value: object, parent: QtWidgets.QWidget) -> None:
 		super().__init__(value, parent)
-		name_field = get_child(self, 'nameField', QtWidgets.QLabel)
-		contnet_field = get_child(self, 'contentField', QtWidgets.QTextEdit)
-
-		name_field.setText(type(value).__name__)
-		contnet_field.setText(str(value))
+		content = get_child(self, 'contentField', QtWidgets.QTextEdit)
+		content.setText(str(value))
 
 class StarInspector(AbstractInspector, ref_type= 'Star', layout_name= 'insp_star'): 
 	def __init__(self, star, parent: QtWidgets.QWidget) -> None:
@@ -172,9 +191,6 @@ class HeaderInspector(AbstractInspector, ref_type= 'Header', layout_name= 'insp_
 class HeaderArchetypeInspector(HeaderInspector, ref_type= 'HeaderArchetype', layout_name= 'insp_header'):
 	def __init__(self, header, parent) -> None:
 		super().__init__(header, parent, False)
-		label = get_child(self, 'type_label', QtWidgets.QLabel)
-		label.setText('Header Archetype')
-
 		content_frame = get_child(self, 'content', QtWidgets.QFrame)
 		add_button = QtWidgets.QPushButton(self)
 		add_button.setText('Add entry')
