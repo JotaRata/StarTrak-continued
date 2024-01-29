@@ -1,0 +1,31 @@
+:root
+{
+	primary: #1f1f1f
+	primary-dark: #1c1c1c
+	primary-light: #353535
+	secondary: #2a82da
+	secondary-dark: #163f68
+	panel-10: rgba(255, 255, 255, 10)
+	panel-20: rgba(255, 255, 255, 20)
+}
+
+QWidget{
+	border: 0px;
+	background-color: @primary;
+	color: white;
+}
+QHeaderView::section{
+	background-color: @primary;
+}
+
+InspectorView QFrame[objectName $= "_panel"]{
+	background-color: rgba(255, 255, 255, 10);
+	border-radius: 8px
+}
+InspectorView QFrame[objectName ^= "frame_"]{
+	background-color: transparent;
+}
+
+InspectorView QLabel {
+	background-color: transparent;
+}
