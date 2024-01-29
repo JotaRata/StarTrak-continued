@@ -36,9 +36,12 @@ class InspectorView(QtWidgets.QFrame):
 					background-color: rgba(255, 255, 255, 10);
 					border-radius: 8px
 				}
+				QFrame[objectName ^= "frame_"]{
+					background-color: transparent;
+				}
 
 				QLabel {
-					background-color: rgba(0,0,0,0)
+					background-color: transparent;
 				}
 							''')
 
@@ -199,6 +202,16 @@ class HeaderInspector(AbstractInspector, ref_type= 'Header', layout_name= 'insp_
 class HeaderArchetypeInspector(HeaderInspector, ref_type= 'HeaderArchetype', layout_name= 'insp_header'):
 	def __init__(self, header, index, parent) -> None:
 		super().__init__(header, index, parent, False)
+		
+		self.user_frame = QtWidgets.QFrame(self)
+		self.user_frame.setObjectName('user_frame')
+		user_frame = QtWidgets.QVBoxLayout(self.user_frame)
+		user_label = QtWidgets.QLabel(self.user_frame)
+		user_label.setText('User entries')
+		user_frame.addWidget(user_label)
+
+		self.layout().insertWidget(2, self.user_frame)	# type:ignore
+		
 		add_button = QtWidgets.QPushButton(self)
 		add_button.setText('Add entry')
 		self.layout().addWidget(add_button)
