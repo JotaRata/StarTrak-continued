@@ -127,14 +127,22 @@ class StarInspector(AbstractInspector, ref_type= 'Star', layout_name= 'insp_star
 		posX_field = get_child(self, 'posXField', QtWidgets.QSpinBox)
 		posY_field = get_child(self, 'posYField', QtWidgets.QSpinBox)
 		apert_field = get_child(self, 'apertField', QtWidgets.QSpinBox)
-		label_phot = get_child(self, 'label_phot', QtWidgets.QLabel)
 
 		name_field.setText(star.name)
 		posX_field.setValue(star.position.x)
 		posY_field.setValue(star.position.y)
 		apert_field.setValue(star.aperture)
 
-		label_phot.setText(star.photometry.__pprint__(0, 2) if star.photometry else '')
+		phot_frame = get_child(self, 'phot_frame', QtWidgets.QFrame)
+		flux_line = get_child(phot_frame, 'flux_line', QtWidgets.QLineEdit)
+		background_line = get_child(phot_frame, 'background_line', QtWidgets.QLineEdit)
+		flux_line.setText(f'{star.photometry.flux.value:.3f} ± {star.photometry.flux.sigma:.3f}')
+		background_line.setText(f'{star.photometry.background.value:.3f} ± {star.photometry.background.sigma:.3f}')
+
+		def phot_click(event):
+			index = self.index.model().index(0, 0, self.index)
+			self.on_select.emit(index, True)
+		phot_frame.mouseDoubleClickEvent = phot_click#type:ignore
 
 	@Slot(str)
 	def name_changed(self, value):
@@ -254,5 +262,4 @@ class FileInspector(AbstractInspector, ref_type= 'FileInfo', layout_name= 'insp_
 		def header_click(event):
 			index = self.index.model().index(0, 0, self.index)
 			self.on_select.emit(index, True)
-		header_frame.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
 		header_frame.mouseDoubleClickEvent = header_click#type:ignore

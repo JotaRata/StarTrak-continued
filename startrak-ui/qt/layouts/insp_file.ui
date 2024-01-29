@@ -292,6 +292,9 @@
    </item>
    <item>
     <widget class="QFrame" name="header_frame">
+     <property name="focusPolicy">
+      <enum>Qt::ClickFocus</enum>
+     </property>
      <property name="styleSheet">
       <string notr="true">QFrame#header_frame{
 	 border: 0px; 
