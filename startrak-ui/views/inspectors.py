@@ -187,10 +187,9 @@ class HeaderInspector(AbstractInspector, ref_type= 'Header', layout_name= 'insp_
 	def __init__(self, header, index, parent, readOnly= True, preview= False) -> None:
 		super().__init__(header, index, parent)
 
-		content_frame = get_child(self, 'content', QtWidgets.QFrame)
 		if not preview:
-			file = HeaderInspector.HeaderEntry(content_frame, 'File', os.path.basename(header.linked_file))
-			content_frame.layout().insertWidget(0, file)		#type:ignore
+			file = HeaderInspector.HeaderEntry(self, 'File', os.path.basename(header.linked_file))
+			self.layout().insertWidget(0, file)		#type:ignore
 
 		header_frame = get_child(self, 'header_frame', QtWidgets.QFrame)
 		for key, value in header.items():
@@ -200,10 +199,9 @@ class HeaderInspector(AbstractInspector, ref_type= 'Header', layout_name= 'insp_
 class HeaderArchetypeInspector(HeaderInspector, ref_type= 'HeaderArchetype', layout_name= 'insp_header'):
 	def __init__(self, header, index, parent) -> None:
 		super().__init__(header, index, parent, False)
-		content_frame = get_child(self, 'content', QtWidgets.QFrame)
 		add_button = QtWidgets.QPushButton(self)
 		add_button.setText('Add entry')
-		content_frame.layout().addWidget(add_button)
+		self.layout().addWidget(add_button)
 
 class FileInspector(AbstractInspector, ref_type= 'FileInfo', layout_name= 'insp_file'):
 	def __init__(self, value, index, parent) -> None:
