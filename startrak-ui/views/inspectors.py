@@ -213,6 +213,14 @@ class FileInspector(AbstractInspector, ref_type= 'FileInfo', layout_name= 'insp_
 		header_frame = get_child(self, 'header_frame', QtWidgets.QFrame)
 		header_label = get_child(header_frame, 'header_label', QtWidgets.QLabel)
 
+		date_line = get_child(self, 'date_line', QtWidgets.QLineEdit)
+		dimx_line = get_child(self, 'dimx_line', QtWidgets.QLineEdit)
+		dimy_line = get_child(self, 'dimy_line', QtWidgets.QLineEdit)
+		bitdepth_line = get_child(self, 'bitdepth_line', QtWidgets.QLineEdit)
+		exptime_line = get_child(self, 'exptime_line', QtWidgets.QLineEdit)
+		focal_line = get_child(self, 'focal_line', QtWidgets.QLineEdit)
+		filter_line = get_child(self, 'filter_line', QtWidgets.QLineEdit)
+
 		if value.bytes < 1024:
 			size = f'{value.bytes} bytes'
 		elif value.bytes < 1048576:
@@ -223,6 +231,14 @@ class FileInspector(AbstractInspector, ref_type= 'FileInfo', layout_name= 'insp_
 		path_line.setText(value.path)
 		size_line.setText(size)
 		header_label.setText(f'{len(value.header.keys())} elements.')
+
+		dimx_line.setText(value.header['NAXIS1', str])
+		dimy_line.setText(value.header['NAXIS2', str])
+		bitdepth_line.setText(value.header['BITPIX', str] + ' bytes')
+		date_line.setText(value.header['DATE-OBS', str, 'NA'])
+		exptime_line.setText(value.header['EXPTIME', str, 'NA'])
+		focal_line.setText(value.header['FOCALLEN', str, 'NA'])
+		filter_line.setText(value.header['FILTER', str, 'NA'])
 
 		def header_click(event):
 			index = self.index.model().index(0, 0, self.index)
