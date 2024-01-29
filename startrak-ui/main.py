@@ -8,7 +8,9 @@ from views import Application, MainView
 
 if __name__ == "__main__":
 	app = Application(startrak, [])
-	app.setStyle('Fusion')
+	style = load_style('startrak-dark')
+	app.setStyleSheet(style)
+	# app.setStyle('Fusion')
 
 	main_view = MainView()
 	main_view.show()
