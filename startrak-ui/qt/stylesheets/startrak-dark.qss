@@ -1,7 +1,7 @@
 :root
 {
 	primary: #1f1f1f
-	primary-dark: #1c1c1c
+	primary-dark: #1a1a1a
 	primary-light: #353535
 	secondary: #2a82da
 	secondary-dark: #163f68
@@ -11,21 +11,70 @@
 
 QWidget{
 	border: 0px;
-	background-color: @primary;
+	background: @primary;
 	color: white;
 }
-QHeaderView::section{
-	background-color: @primary;
+
+QToolBar,
+QMenuBar,
+QLabel[objectName$= "_title"]{
+	background: @primary-dark
 }
 
+QHeaderView::section{
+	background: @primary;
+}
+
+QSplitter::handle{
+	background: transparent;
+}
+QSplitter::handle:horizontal {
+	width: 1px;
+}
+
+QSplitter::handle:vertical {
+	height: 1px;
+}
+
+QSplitter > QFrame{
+	border: 1px solid @primary-dark;
+}
+
+QScrollBar{
+	background: @primary;
+	border-radius: 4px;
+}
+QScrollBar:horizontal{
+	height: 8px;
+}
+QScrollBar:vertical{
+	width: 8px;
+}
+QScrollBar::add-page, QScrollBar::sub-page {
+	background: none;
+}
+
+QScrollBar::handle{
+	background: @secondary-dark;
+	border-radius: 4px;
+}
+
+QScrollBar::handle:horizontal{
+	height: 8px;
+}
+QScrollBar::handle:vertical{
+	width: 8px;
+}
+
+
 InspectorView QFrame[objectName $= "_panel"]{
-	background-color: rgba(255, 255, 255, 10);
+	background: @panel-20;
 	border-radius: 8px
 }
 InspectorView QFrame[objectName ^= "frame_"]{
-	background-color: transparent;
+	background: transparent;
 }
 
 InspectorView QLabel {
-	background-color: transparent;
+	background: transparent;
 }
