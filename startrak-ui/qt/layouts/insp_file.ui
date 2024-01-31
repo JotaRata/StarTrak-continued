@@ -13,9 +13,6 @@
   <property name="windowTitle">
    <string>Frame</string>
   </property>
-  <property name="styleSheet">
-   <string notr="true"/>
-  </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <property name="leftMargin">
     <number>0</number>
@@ -30,7 +27,7 @@
     <number>0</number>
    </property>
    <item>
-    <widget class="QFrame" name="file_frame">
+    <widget class="QFrame" name="file_panel">
      <property name="frameShape">
       <enum>QFrame::StyledPanel</enum>
      </property>
@@ -82,7 +79,7 @@
     </widget>
    </item>
    <item>
-    <widget class="QFrame" name="details_frame">
+    <widget class="QFrame" name="details_panel">
      <property name="frameShape">
       <enum>QFrame::StyledPanel</enum>
      </property>
@@ -291,22 +288,9 @@
     </widget>
    </item>
    <item>
-    <widget class="QFrame" name="header_frame">
+    <widget class="QFrame" name="header_panel">
      <property name="focusPolicy">
       <enum>Qt::ClickFocus</enum>
-     </property>
-     <property name="styleSheet">
-      <string notr="true">QFrame#header_frame{
-	 border: 0px; 
-	 background-color: rgba(255, 255, 255, 10); 
-}
-QFrame#header_frame:hover{
-	 background-color: rgba(255, 255, 255, 20); 
-}
-QFrame#header_frame:focus{
-	 border: 1px solid rgb(20, 120, 200); 
-	 background-color: rgba(255, 255, 255, 20); 
-}</string>
      </property>
      <property name="frameShape">
       <enum>QFrame::StyledPanel</enum>

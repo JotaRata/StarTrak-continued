@@ -27,7 +27,7 @@
     <number>9</number>
    </property>
    <item>
-    <widget class="QFrame" name="header_frame">
+    <widget class="QFrame" name="header_panel">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
        <horstretch>0</horstretch>

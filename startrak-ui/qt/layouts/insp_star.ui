@@ -13,9 +13,6 @@
   <property name="windowTitle">
    <string>Frame</string>
   </property>
-  <property name="styleSheet">
-   <string notr="true"/>
-  </property>
   <property name="frameShape">
    <enum>QFrame::NoFrame</enum>
   </property>
@@ -109,7 +106,7 @@
         <number>0</number>
        </property>
        <item>
-        <widget class="QFrame" name="info_frame">
+        <widget class="QFrame" name="info_panel">
          <property name="styleSheet">
           <string notr="true">QCheckBox{
 	
@@ -243,7 +240,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QFrame" name="track_frame">
+        <widget class="QFrame" name="track_panel">
          <property name="frameShape">
           <enum>QFrame::NoFrame</enum>
          </property>
@@ -384,22 +381,9 @@
         </widget>
        </item>
        <item>
-        <widget class="QFrame" name="phot_frame">
+        <widget class="QFrame" name="phot_panel">
          <property name="focusPolicy">
           <enum>Qt::ClickFocus</enum>
-         </property>
-         <property name="styleSheet">
-          <string notr="true">QFrame#phot_frame{
-	 border: 0px; 
-	 background-color: rgba(255, 255, 255, 10); 
-}
-QFrame#phot_frame:hover{
-	 background-color: rgba(255, 255, 255, 20); 
-}
-QFrame#phot_frame:focus{
-	 border: 1px solid rgb(20, 120, 200); 
-	 background-color: rgba(255, 255, 255, 20); 
-}</string>
          </property>
          <property name="frameShape">
           <enum>QFrame::StyledPanel</enum>

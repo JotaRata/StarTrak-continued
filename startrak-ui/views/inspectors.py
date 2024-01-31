@@ -31,20 +31,6 @@ class InspectorView(QtWidgets.QFrame):
 		layout.addWidget(self.scroll_area)
 		self.inspector : QtWidgets.QWidget | None = None
 
-		self.setStyleSheet('''
-				QFrame[objectName $= "frame"]{
-					background-color: rgba(255, 255, 255, 10);
-					border-radius: 8px
-				}
-				QFrame[objectName ^= "frame_"]{
-					background-color: transparent;
-				}
-
-				QLabel {
-					background-color: transparent;
-				}
-							''')
-
 	@QtCore.Slot(QtCore.QModelIndex)
 	def on_sesionViewUpdate(self, index):
 		if self.inspector:
@@ -133,16 +119,16 @@ class StarInspector(AbstractInspector, ref_type= 'Star', layout_name= 'insp_star
 		posY_field.setValue(star.position.y)
 		apert_field.setValue(star.aperture)
 
-		phot_frame = get_child(self, 'phot_frame', QtWidgets.QFrame)
-		flux_line = get_child(phot_frame, 'flux_line', QtWidgets.QLineEdit)
-		background_line = get_child(phot_frame, 'background_line', QtWidgets.QLineEdit)
+		phot_panel = get_child(self, 'phot_panel', QtWidgets.QFrame)
+		flux_line = get_child(phot_panel, 'flux_line', QtWidgets.QLineEdit)
+		background_line = get_child(phot_panel, 'background_line', QtWidgets.QLineEdit)
 		flux_line.setText(f'{star.photometry.flux.value:.3f} ± {star.photometry.flux.sigma:.3f}')
 		background_line.setText(f'{star.photometry.background.value:.3f} ± {star.photometry.background.sigma:.3f}')
 
 		def phot_click(event):
 			index = self.index.model().index(0, 0, self.index)
 			self.on_select.emit(index, True)
-		phot_frame.mouseDoubleClickEvent = phot_click#type:ignore
+		phot_panel.mouseDoubleClickEvent = phot_click#type:ignore
 
 	@Slot(str)
 	def name_changed(self, value):
@@ -183,7 +169,7 @@ class HeaderInspector(AbstractInspector, ref_type= 'Header', layout_name= 'insp_
 	class HeaderEntry(QtWidgets.QFrame):
 		def __init__(self, parent, key, value, readOnly = True) -> None:
 			super().__init__(parent)
-			self.setObjectName(str(id(self))[:7] + '_frame')
+			self.setObjectName(str(id(self))[:7] + '_panel')
 			self.label = QtWidgets.QLabel(self)
 			self.line = QtWidgets.QLineEdit(self)
 			self.label.setText(key)
@@ -202,23 +188,23 @@ class HeaderInspector(AbstractInspector, ref_type= 'Header', layout_name= 'insp_
 			file = HeaderInspector.HeaderEntry(self, 'File', os.path.basename(header.linked_file))
 			self.layout().insertWidget(0, file)		#type:ignore
 
-		header_frame = get_child(self, 'header_frame', QtWidgets.QFrame)
+		header_panel = get_child(self, 'header_panel', QtWidgets.QFrame)
 		for key, value in header.items():
-			entry = HeaderInspector.HeaderEntry(header_frame, key, value, readOnly)
-			header_frame.layout().addWidget(entry)
+			entry = HeaderInspector.HeaderEntry(header_panel, key, value, readOnly)
+			header_panel.layout().addWidget(entry)
 
 class HeaderArchetypeInspector(HeaderInspector, ref_type= 'HeaderArchetype', layout_name= 'insp_header'):
 	def __init__(self, header, index, parent) -> None:
 		super().__init__(header, index, parent, False)
 		
-		self.user_frame = QtWidgets.QFrame(self)
-		self.user_frame.setObjectName('user_frame')
-		user_frame = QtWidgets.QVBoxLayout(self.user_frame)
-		user_label = QtWidgets.QLabel(self.user_frame)
+		self.user_panel = QtWidgets.QFrame(self)
+		self.user_panel.setObjectName('user_panel')
+		user_panel = QtWidgets.QVBoxLayout(self.user_panel)
+		user_label = QtWidgets.QLabel(self.user_panel)
 		user_label.setText('User entries')
-		user_frame.addWidget(user_label)
+		user_panel.addWidget(user_label)
 
-		self.layout().insertWidget(2, self.user_frame)	# type:ignore
+		self.layout().insertWidget(2, self.user_panel)	# type:ignore
 		
 		add_button = QtWidgets.QPushButton(self)
 		add_button.setText('Add entry')
@@ -229,8 +215,8 @@ class FileInspector(AbstractInspector, ref_type= 'FileInfo', layout_name= 'insp_
 		super().__init__(value, index, parent)
 		path_line = get_child(self, 'path_line', QtWidgets.QLineEdit)
 		size_line = get_child(self, 'size_line', QtWidgets.QLineEdit)
-		header_frame = get_child(self, 'header_frame', QtWidgets.QFrame)
-		header_label = get_child(header_frame, 'header_label', QtWidgets.QLabel)
+		header_panel = get_child(self, 'header_panel', QtWidgets.QFrame)
+		header_label = get_child(header_panel, 'header_label', QtWidgets.QLabel)
 
 		date_line = get_child(self, 'date_line', QtWidgets.QLineEdit)
 		dimx_line = get_child(self, 'dimx_line', QtWidgets.QLineEdit)
@@ -262,4 +248,4 @@ class FileInspector(AbstractInspector, ref_type= 'FileInfo', layout_name= 'insp_
 		def header_click(event):
 			index = self.index.model().index(0, 0, self.index)
 			self.on_select.emit(index, True)
-		header_frame.mouseDoubleClickEvent = header_click#type:ignore
+		header_panel.mouseDoubleClickEvent = header_click#type:ignore

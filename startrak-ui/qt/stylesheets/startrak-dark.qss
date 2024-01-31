@@ -20,6 +20,14 @@ QMenuBar,
 QLabel[objectName$= "_title"]{
 	background: @primary-dark
 }
+QMenu::item,
+QMenuBar::item{
+	background: @primary;
+}
+QMenu::item:selected,
+QMenuBar::item:selected{
+	background: @secondary;
+}
 
 QHeaderView::section{
 	background: @primary;
@@ -66,7 +74,6 @@ QScrollBar::handle:vertical{
 	width: 8px;
 }
 
-
 InspectorView QFrame[objectName $= "_panel"]{
 	background: @panel-20;
 	border-radius: 8px
@@ -77,4 +84,17 @@ InspectorView QFrame[objectName ^= "frame_"]{
 
 InspectorView QLabel {
 	background: transparent;
+}
+
+/* Clickable frames */
+.QFrame[focusPolicy= "2"]:enabled{
+	border: 0px; 
+	background: @panel-10; 
+}
+.QFrame[focusPolicy= "2"]:hover:enabled{
+	background: @panel-20; 
+}
+.QFrame[focusPolicy= "2"]:focus:enabled{
+	border: 1px solid @secondary; 
+	background: @panel-20; 
 }

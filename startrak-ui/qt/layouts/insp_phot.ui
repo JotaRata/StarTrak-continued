@@ -21,7 +21,7 @@
     <number>0</number>
    </property>
    <item>
-    <widget class="QFrame" name="flux_frame">
+    <widget class="QFrame" name="flux_panel">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
        <horstretch>0</horstretch>
@@ -102,7 +102,7 @@
     </widget>
    </item>
    <item>
-    <widget class="QFrame" name="apert_frame">
+    <widget class="QFrame" name="apert_panel">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
        <horstretch>0</horstretch>
@@ -139,7 +139,7 @@
        </widget>
       </item>
       <item>
-       <widget class="QFrame" name="values_frame">
+       <widget class="QFrame" name="values_panel">
         <property name="frameShape">
          <enum>QFrame::NoFrame</enum>
         </property>
