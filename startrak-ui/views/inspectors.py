@@ -249,3 +249,60 @@ class FileInspector(AbstractInspector, ref_type= 'FileInfo', layout_name= 'insp_
 			index = self.index.model().index(0, 0, self.index)
 			self.on_select.emit(index, True)
 		header_panel.mouseDoubleClickEvent = header_click#type:ignore
+
+class SessionInspector(AbstractInspector, ref_type= 'InspectionSession', layout_name= 'insp_session'):
+	def __init__(self, value, index, parent) -> None:
+		super().__init__(value, index, parent)
+		properties_panel = get_child(self, 'properties_panel', QtWidgets.QFrame)
+		validation_panel = get_child(self, 'validation_panel', QtWidgets.QFrame)
+		included_panel = get_child(self, 'included_panel', QtWidgets.QFrame)
+
+		self.set_propertiesPanel(value, properties_panel)
+		self.set_validationPanel(value, validation_panel)
+		self.set_includedPanel(value, included_panel)
+
+	def set_propertiesPanel(self, value, frame):
+		name_line = get_child(frame, 'name_line', QtWidgets.QLineEdit)
+		cwd_line = get_child(frame, 'cwd_line', QtWidgets.QLineEdit)
+		relPath_check = get_child(frame, 'relPath_check', QtWidgets.QCheckBox)
+
+		name_line.setText(value.name)
+		cwd_line.setText(value.working_dir)
+		relPath_check.setChecked(value.relative_paths)
+	
+	def set_validationPanel(self, value, frame):
+		strict_check = get_child(frame, 'strict_check', QtWidgets.QCheckBox)
+		strict_check.setChecked(value.force_validation)
+
+		def arch_panelBinder(event):
+			index = self.index.model().index(0, 0, self.index)
+			self.on_select.emit(index, True)
+
+		arch_panel = get_child(frame, 'arch_panel', QtWidgets.QFrame)
+		if value.archetype:
+			archCount_label = get_child(arch_panel, 'archCount_label', QtWidgets.QLabel)
+			archCount_label.setText(f'{len(value.archetype.keys())} entries')
+			arch_panel.mouseDoubleClickEvent = arch_panelBinder#type:ignore
+		else:
+			arch_panel.setHidden(True)
+		
+	def set_includedPanel(self, value, frame):
+		files_panel = get_child(frame, 'files_panel', QtWidgets.QFrame)
+		stars_panel = get_child(frame, 'stars_panel', QtWidgets.QFrame)
+
+		fileCount_label = get_child(frame, 'fileCount_label', QtWidgets.QLabel)
+		starCount_label = get_child(frame, 'starCount_label', QtWidgets.QLabel)
+
+		fileCount_label.setText(f'{len(value.included_files)} entries')
+		starCount_label.setText(f'{len(value.included_stars)} entries')
+
+		_rows = self.index.model().rowCount(self.index)
+		def files_panelBinder(event):
+			index = self.index.model().index(_rows - 2, 0, self.index)
+			self.on_select.emit(index, True)
+		def stars_panelBinder(event):
+			index = self.index.model().index(_rows - 1, 0, self.index)
+			self.on_select.emit(index, True)
+		
+		files_panel.mouseDoubleClickEvent = files_panelBinder#type:ignore
+		stars_panel.mouseDoubleClickEvent = stars_panelBinder#type:ignore

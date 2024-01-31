@@ -53,10 +53,10 @@ QScrollBar{
 	border-radius: 4px;
 }
 QScrollBar:horizontal{
-	height: 8px;
+	height: 4px;
 }
 QScrollBar:vertical{
-	width: 8px;
+	width: 4px;
 }
 QScrollBar::add-page, QScrollBar::sub-page {
 	background: none;
@@ -72,6 +72,9 @@ QScrollBar::handle:horizontal{
 }
 QScrollBar::handle:vertical{
 	width: 8px;
+}
+QScrollBar::handle:hover{
+	background: @secondary;
 }
 
 InspectorView QFrame[objectName $= "_panel"]{
