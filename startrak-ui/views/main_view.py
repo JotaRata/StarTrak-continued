@@ -6,21 +6,27 @@ from qt.extensions import *
 from views.application import Application
 from views.session_view import SessionTreeView
 from views.inspectors import InspectorView
+from views.image_view import ImageViewer
 
 UI_MainWindow, _ = load_class('main_layout')
 class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, misc]
+	image_view : ImageViewer
 	session_view : SessionTreeView
 	inspector_view : InspectorView
 
-	def __init__(self, parent: QtWidgets.QWidget) -> None:
-		super().__init__(parent)
+	def __init__(self) -> None:
+		super().__init__(None)
 		# with read_layout('main_layout') as f:
 		# 	self.main_window = create_widget(f)
 		self.setupUi(self)
-		view_frame = get_child(self, 'content_l', QtWidgets.QFrame)
-		self.session_view = SessionTreeView(view_frame)
-		view_frame.layout().addWidget(self.session_view)
 
+		frame_viewer = get_child(self, 'frame_viewer', QtWidgets.QFrame)
+		self.image_view = ImageViewer(frame_viewer)
+		frame_viewer.layout().addWidget(self.image_view)
+
+		content_left = get_child(self, 'content_left', QtWidgets.QFrame)
+		self.session_view = SessionTreeView(content_left)
+		content_left.layout().addWidget(self.session_view)
 
 		sidebar_frame = get_child(self, 'widget_sidebar', QtWidgets.QFrame)
 		self.inspector_view = InspectorView(sidebar_frame)
@@ -31,6 +37,7 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 		self.inspector_view.on_inspectorSelect.connect(self.session_view.setCurrentIndex)
 		self.inspector_view.on_inspectorSelect.connect(self.session_view.expandParent)
 		self.fix_splitterWidth() 
+
 		# self.show()
 	
 	@QtCore.Slot(QAction)

@@ -101,3 +101,11 @@ InspectorView QLabel {
 	border: 1px solid @secondary; 
 	background: @panel-20; 
 }
+
+QRangeSlider{
+	height: 10px;
+}
+QRangeSlider::groove{
+	height:4px;
+	background: @panel-20;
+}
