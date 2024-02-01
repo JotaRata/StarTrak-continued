@@ -8,12 +8,11 @@ from views.session_view import SessionTreeView
 from views.inspectors import InspectorView
 
 UI_MainWindow, _ = load_class('main_layout')
-
 class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, misc]
 	session_view : SessionTreeView
 	inspector_view : InspectorView
 
-	def __init__(self,parent: QtWidgets.QWidget | None = None, flags = None) -> None:
+	def __init__(self, parent: QtWidgets.QWidget) -> None:
 		super().__init__(parent)
 		# with read_layout('main_layout') as f:
 		# 	self.main_window = create_widget(f)
