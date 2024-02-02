@@ -113,14 +113,11 @@ QRangeSlider::handle{
 	top: -4px;
 	bottom: -4px;
 	width: 12px;
-	background: @secondary;
+	background: @secondary-dark;
 	border-radius: 4px;
 }
 
 
 QRangeSlider::handle:hover{
-	border: 1px solid white;
-}
-QRangeSlider::handle:pressed{
-	background: @secondary-dark;
+	background: @secondary;
 }
