@@ -17,8 +17,10 @@ class QRangeSlider(QtWidgets.QSlider):
 		self.opt.minimum = 0
 		self.opt.maximum = 100
 
-		self.setOrientation(QtCore.Qt.Orientation.Horizontal)
+		self.press_state = -1
+		self.hover_state = -1
 
+		self.setOrientation(QtCore.Qt.Orientation.Horizontal)
 		self.setTickPosition(QtWidgets.QSlider.TicksAbove)
 		self.setTickInterval(1)
 
@@ -45,13 +47,8 @@ class QRangeSlider(QtWidgets.QSlider):
 		self.opt.tickInterval = ti
 
 	def paintEvent(self, event):
-
 		painter = QtGui.QPainter(self)
 		style = self.style()
-		# Draw rule
-		# self.opt.initFrom(self)
-		# self.opt.rect = self.rect()
-		# self.opt.sliderPosition = 0
 		self.initStyleOption(self.opt)
 		self.opt.subControls = QtWidgets.QStyle.SubControl.SC_SliderGroove | QtWidgets.QStyle.SubControl.SC_SliderTickmarks
 
@@ -63,25 +60,21 @@ class QRangeSlider(QtWidgets.QSlider):
 		color.setAlpha(160)
 		painter.setBrush(QtGui.QBrush(color))
 		painter.setPen(QtCore.Qt.NoPen)
-
 		self.opt.sliderPosition = self.first_position
 		x_left_handle = (
 			style
-			.subControlRect(QtWidgets.QStyle.ComplexControl.CC_Slider, self.opt, QtWidgets.QStyle.SubControl.SC_SliderHandle)
+			.subControlRect(QtWidgets.QStyle.ComplexControl.CC_Slider, self.opt, QtWidgets.QStyle.SubControl.SC_SliderHandle, self)
 			.right()
 		)
-
 		self.opt.sliderPosition = self.second_position
 		x_right_handle = (
 			style
-			.subControlRect(QtWidgets.QStyle.ComplexControl.CC_Slider, self.opt, QtWidgets.QStyle.SubControl.SC_SliderHandle)
+			.subControlRect(QtWidgets.QStyle.ComplexControl.CC_Slider, self.opt, QtWidgets.QStyle.SubControl.SC_SliderHandle, self)
 			.left()
 		)
-
 		groove_rect = style.subControlRect(
 			QtWidgets.QStyle.ComplexControl.CC_Slider, self.opt, QtWidgets.QStyle.SubControl.SC_SliderGroove, self
 		)
-
 		selection = QtCore.QRect(
 			x_left_handle,
 			groove_rect.y(),
@@ -90,32 +83,73 @@ class QRangeSlider(QtWidgets.QSlider):
 		).adjusted(-1, 1, 1, -1)
 		painter.drawRect(selection)
 
+		def_state = QtWidgets.QStyle.State_Enabled | QtWidgets.QStyle.State_Horizontal | QtWidgets.QStyle.State_Active
 		# Draw first handle
 		self.initStyleOption(self.opt)
 		self.opt.subControls = QtWidgets.QStyle.SubControl.SC_SliderHandle
 		self.opt.sliderPosition = self.first_position
-		style.drawComplexControl(QtWidgets.QStyle.ComplexControl.CC_Slider, self.opt, painter)
+		self.opt.state = def_state
+		self.opt.state |= QtWidgets.QStyle.State_MouseOver
+		# self.opt.state |= QtWidgets.QStyle.State_Sunken if self.press_state == 0 else def_state
+		self.opt.rect =	style.subControlRect(QtWidgets.QStyle.ComplexControl.CC_Slider, 
+											self.opt, QtWidgets.QStyle.SubControl.SC_SliderHandle, self)
+		style.drawComplexControl(QtWidgets.QStyle.ComplexControl.CC_Slider, self.opt, painter, self)
 		
 		# Draw second handle
 		self.initStyleOption(self.opt)
 		self.opt.subControls = QtWidgets.QStyle.SubControl.SC_SliderHandle
 		self.opt.sliderPosition = self.second_position
-		style.drawComplexControl(QtWidgets.QStyle.ComplexControl.CC_Slider, self.opt, painter)
+		self.opt.state = def_state
+		self.opt.state |= QtWidgets.QStyle.State_MouseOver
+		# self.opt.state |= QtWidgets.QStyle.State_Sunken if self.press_state == 1 else def_state
+		self.opt.rect =	style.subControlRect(QtWidgets.QStyle.ComplexControl.CC_Slider, 
+											self.opt, QtWidgets.QStyle.SubControl.SC_SliderHandle, self)
+		style.drawComplexControl(QtWidgets.QStyle.ComplexControl.CC_Slider, self.opt, painter, self)
+		self.initStyleOption(self.opt)
 
 	def mousePressEvent(self, event):
 		self.opt.sliderPosition = self.first_position
 		self._first_sc = self.style().hitTestComplexControl(
-			QtWidgets.QStyle.CC_Slider, self.opt, event.pos()
+			QtWidgets.QStyle.CC_Slider, self.opt, event.pos(), self
 		)
 
 		self.opt.sliderPosition = self.second_position
 		self._second_sc = self.style().hitTestComplexControl(
-			QtWidgets.QStyle.CC_Slider, self.opt, event.pos()
+			QtWidgets.QStyle.CC_Slider, self.opt, event.pos(), self
 		)
 
-	def mouseMoveEvent(self, event):
-		distance = self.opt.maximum - self.opt.minimum
+		if self._first_sc == QtWidgets.QStyle.SC_SliderHandle:
+			self.press_state = 0
+		elif self._second_sc == QtWidgets.QStyle.SC_SliderHandle:
+			self.press_state = 1
+		else:
+			self.press_state = -1
+		self.update()
 
+	def mouseReleaseEvent(self, event) -> None:
+		self.press_state = -1
+		self.update()
+
+	def mouseMoveEvent(self, event):
+		if self.press_state == -1:
+			self.opt.sliderPosition = self.first_position
+			first_sc = self.style().hitTestComplexControl(
+			QtWidgets.QStyle.CC_Slider, self.opt, event.pos(), self )
+
+			self.opt.sliderPosition = self.second_position
+			second_sc = self.style().hitTestComplexControl(
+				QtWidgets.QStyle.CC_Slider, self.opt, event.pos(), self )
+			
+			if first_sc == QtWidgets.QStyle.SC_SliderHandle:
+				self.hover_state = 0
+			elif second_sc == QtWidgets.QStyle.SC_SliderHandle:
+				self.hover_state = 1
+			else:
+				self.hover_state = -1
+			self.update()
+			return
+
+		distance = self.opt.maximum - self.opt.minimum
 		pos = self.style().sliderValueFromPosition(
 			0, distance, event.pos().x(), self.rect().width()
 		)
@@ -132,15 +166,14 @@ class QRangeSlider(QtWidgets.QSlider):
 
 	def update(self):
 		super().update()
-		self.valueChanged.emit(self.first_position, self.second_position)
-		
+		# self.valueChanged.emit(self.first_position, self.second_position)
+
 	def sizeHint(self):
 		SliderLength = 84
-		TickSpace = 2
+		TickSpace = 5
 
 		w = SliderLength
-		h = self.style().pixelMetric(QtWidgets.QStyle.PM_SliderThickness, self.opt, self)
-
+		h = self.style().pixelMetric(QtWidgets.QStyle.PM_SliderControlThickness, self.opt, self)
 		if (
 			self.opt.tickPosition.value & QtWidgets.QSlider.TickPosition.TicksAbove.value
 			or self.opt.tickPosition.value & QtWidgets.QSlider.TickPosition.TicksBelow.value

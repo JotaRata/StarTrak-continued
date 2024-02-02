@@ -103,9 +103,24 @@ InspectorView QLabel {
 }
 
 QRangeSlider{
-	height: 10px;
+	height: 32px;
 }
 QRangeSlider::groove{
-	height:4px;
+	height: 4px;
 	background: @panel-20;
+}
+QRangeSlider::handle{
+	top: -4px;
+	bottom: -4px;
+	width: 12px;
+	background: @secondary;
+	border-radius: 4px;
+}
+
+
+QRangeSlider::handle:hover{
+	border: 1px solid white;
+}
+QRangeSlider::handle:pressed{
+	background: @secondary-dark;
 }
