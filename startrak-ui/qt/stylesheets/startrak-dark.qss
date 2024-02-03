@@ -4,9 +4,12 @@
 	primary-dark: #1a1a1a
 	primary-light: #353535
 	secondary: #2a82da
+	secondary-light: #519eeb
 	secondary-dark: #163f68
-	panel-10: rgba(255, 255, 255, 10)
-	panel-20: rgba(255, 255, 255, 20)
+	panel-5: rgba(255, 255, 255, 12)
+	panel-10: rgba(255, 255, 255, 25)
+	panel-20: rgba(255, 255, 255, 50)
+	panel-50: rgba(255, 255, 255, 125)
 }
 
 QWidget{
@@ -78,7 +81,7 @@ QScrollBar::handle:hover{
 }
 
 InspectorView QFrame[objectName $= "_panel"]{
-	background: @panel-20;
+	background: @panel-10;
 	border-radius: 8px
 }
 InspectorView QFrame[objectName ^= "frame_"]{
@@ -103,20 +106,20 @@ InspectorView QLabel {
 }
 
 QRangeSlider{
+	background: transparent;
 	height: 32px;
 }
 QRangeSlider::groove{
 	height: 4px;
-	background: @panel-20;
+	background: @panel-10;
 }
 QRangeSlider::handle{
 	top: -4px;
 	bottom: -4px;
-	width: 12px;
-	background: @secondary-dark;
-	border-radius: 4px;
+	width: 8px;
+	background: @secondary;
+	border-radius: 2px;
 }
-
 
 QRangeSlider::handle:hover{
 	background: @secondary;

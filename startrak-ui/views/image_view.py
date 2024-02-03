@@ -23,6 +23,7 @@ class ImageViewer(QtWidgets.QWidget):
 		slider.valueChanged.connect(self.on_levelChange)
 
 		layout = QtWidgets.QVBoxLayout(panel)
+		layout.setContentsMargins(0, 0, 0, 0)
 		layout.addWidget(label)
 		layout.addWidget(slider)
 

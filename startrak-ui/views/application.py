@@ -1,7 +1,7 @@
 from __future__ import annotations
 from PySide6 import QtWidgets, QtCore
 from typing import Sequence, cast
-
+from qt.extensions import QStyleSheet
 
 class Application(QtWidgets.QApplication):
 	on_sessionLoad = QtCore.Signal(object, arguments= ['session'])
@@ -15,4 +15,10 @@ class Application(QtWidgets.QApplication):
 		app = QtWidgets.QApplication.instance()
 		assert app is not None
 		return cast(Application, app)
-		
+	
+	def setStyleSheet(self, stylesheet : QStyleSheet):	#type: ignore[override]
+		self.styleShee_obj = stylesheet
+		super().setStyleSheet(stylesheet.sheet)
+
+	def styleSheet(self):
+		return self.styleShee_obj
