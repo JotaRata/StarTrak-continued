@@ -23,7 +23,7 @@ class ImageViewer(QtWidgets.QWidget):
 
 		layout.addWidget(self.view)
 		layout.addWidget(level_panel)
-
+		layout.setSpacing(1)
 		self.scene.addText('Double click on a file to preview it').setDefaultTextColor(QtCore.Qt.GlobalColor.white)
 
 	def set_levels(self):
@@ -34,8 +34,8 @@ class ImageViewer(QtWidgets.QWidget):
 		slider = QRangeSlider(panel)
 		slider.valueChanged.connect(self.on_levelChange)
 
-		layout = QtWidgets.QVBoxLayout(panel)
-		layout.setContentsMargins(0, 0, 0, 0)
+		layout = QtWidgets.QHBoxLayout(panel)
+		layout.setContentsMargins(9, 0, 9, 0)
 		layout.addWidget(label)
 		layout.addWidget(slider)
 
