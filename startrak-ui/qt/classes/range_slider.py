@@ -10,11 +10,13 @@ class QRangeSlider(QtWidgets.QSlider):
 	def __init__(self, parent=None):
 		super().__init__(parent)
 
-		self.first_position = 1
-		self.second_position = 8
 
 		self.opt = QtWidgets.QStyleOptionSlider()
-		self.setMaximum(100)
+		self.setMinimum(1)
+		self.setMaximum(255)
+
+		self.first_position = self.minimum()
+		self.second_position = self.maximum()
 
 		self.hover_state = -1
 		self.initStyleOption(self.opt)
@@ -26,12 +28,7 @@ class QRangeSlider(QtWidgets.QSlider):
 
 		self.setSizePolicy(
 			QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Maximum,
-										QtWidgets.QSizePolicy.ControlType.Slider)
-		)
-
-	def setRangeLimit(self, minimum: int, maximum: int):
-		self.opt.minimum = minimum
-		self.opt.maximum = maximum
+										QtWidgets.QSizePolicy.ControlType.Slider) )
 
 	def setRange(self, start: int, end: int):
 		self.first_position = start
@@ -93,20 +90,20 @@ class QRangeSlider(QtWidgets.QSlider):
 			text_painter.setFont(font)
 
 			margins = QtCore.QMargins(2,2,2,2)
-			text_painter.drawText(left_handle.translated(0, -12).marginsAdded(margins), QtGui.Qt.AlignCenter, str(self.first_position))
-			text_painter.drawText(right_handle.translated(0, -12).marginsAdded(margins), QtGui.Qt.AlignCenter, str(self.second_position))
+			text_painter.drawText(left_handle.translated(0, -12).marginsAdded(margins), QtGui.Qt.AlignCenter, 
+							str(100 * self.first_position // self.maximum()))
+			text_painter.drawText(right_handle.translated(0, -12).marginsAdded(margins), QtGui.Qt.AlignCenter, 
+							str(100 * self.second_position // self.maximum()))
 
 	def mousePressEvent(self, event):
 		opt = QtWidgets.QStyleOptionSlider()
 		self.initStyleOption(opt, 0)
 		self._first_sc = self.style().hitTestComplexControl(
-			QtWidgets.QStyle.CC_Slider, opt, event.pos(), self
-		)
+			QtWidgets.QStyle.CC_Slider, opt, event.pos(), self )
 
 		self.initStyleOption(opt, 1)
 		self._second_sc = self.style().hitTestComplexControl(
-			QtWidgets.QStyle.CC_Slider, opt, event.pos(), self
-		)
+			QtWidgets.QStyle.CC_Slider, opt, event.pos(), self )
 
 		if self._first_sc == QtWidgets.QStyle.SC_SliderHandle:
 			self.press_state = 0
@@ -153,6 +150,8 @@ class QRangeSlider(QtWidgets.QSlider):
 			if pos > self.first_position:
 					self.second_position = pos
 		self.update()
+		self.valueChanged.emit(self.first_position, self.second_position)
+
 
 	def initStyleOption(self, option, handle= -1):
 		super().initStyleOption(option)
@@ -174,7 +173,6 @@ class QRangeSlider(QtWidgets.QSlider):
 
 	def update(self):
 		super().update()
-		# self.valueChanged.emit(self.first_position, self.second_position)
 
 	def sizeHint(self):
 		SliderLength = 84

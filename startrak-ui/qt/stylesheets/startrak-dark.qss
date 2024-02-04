@@ -124,3 +124,7 @@ QRangeSlider::handle{
 QRangeSlider::handle:hover{
 	background: @secondary;
 }
+
+QGraphicsView{
+	background: black;
+}

@@ -33,6 +33,7 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 		sidebar_frame.layout().addWidget(self.inspector_view)
 
 		self.session_view.clicked.connect(self.inspector_view.on_sesionViewUpdate)
+		self.session_view.doubleClicked.connect(self.image_view.on_itemSelected)
 		self.inspector_view.on_inspectorUpdate.connect(self.session_view.updateItem)
 		self.inspector_view.on_inspectorSelect.connect(self.session_view.setCurrentIndex)
 		self.inspector_view.on_inspectorSelect.connect(self.session_view.expandParent)
