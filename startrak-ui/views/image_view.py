@@ -1,46 +1,28 @@
 from typing import Any
 import numpy as np
+from qt.extensions import load_class, get_child
 from qt.classes.range_slider import QRangeSlider
 from PySide6 import QtWidgets, QtCore, QtGui
 
+UI_ImageViewer, _ = load_class('image_viewer')
+class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
+	view : QtWidgets.QGraphicsView
+	level_slider : QRangeSlider
+	current_file : Any | None
 
-class ImageViewer(QtWidgets.QWidget):
 	def __init__(self, parent: QtWidgets.QWidget) -> None:
-		super().__init__(parent)
-		self.view = QtWidgets.QGraphicsView(self)
-		self.scene = QtWidgets.QGraphicsScene()
-		self.view.setScene(self.scene)
-		self.view.setOptimizationFlags(QtWidgets.QGraphicsView.OptimizationFlag.IndirectPainting | QtWidgets.QGraphicsView.OptimizationFlag.DontAdjustForAntialiasing)
+		QtWidgets.QWidget.__init__(self, parent)
+		self.setupUi(self)
+
+		self.view = get_child(self, 'graphicsView', QtWidgets.QGraphicsView)
 		self.view.setViewportUpdateMode(QtWidgets.QGraphicsView.ViewportUpdateMode.SmartViewportUpdate)
+		self.view.setScene(QtWidgets.QGraphicsScene())
 
-		self.level_min = 0.
-		self.level_max = 1.
-		self.current_file : Any | None = None
-
-		level_panel, self.level_slider = self.set_levels()
-		self.level_slider.setMaximum(1000)
-		layout = QtWidgets.QVBoxLayout(self)
-
-		layout.addWidget(self.view)
-		layout.addWidget(level_panel)
-		layout.setSpacing(1)
-		self.scene.addText('Double click on a file to preview it').setDefaultTextColor(QtCore.Qt.GlobalColor.white)
-
-	def set_levels(self):
-		panel = QtWidgets.QFrame(self)
-		panel.setObjectName('lvl_panel')
-		label = QtWidgets.QLabel(panel)
-		label.setText('Levels')
-		slider = QRangeSlider(panel)
-		slider.valueChanged.connect(self.on_levelChange)
-
-		layout = QtWidgets.QHBoxLayout(panel)
-		layout.setContentsMargins(9, 0, 9, 0)
-		layout.addWidget(label)
-		layout.addWidget(slider)
-
-		return panel, slider
+		self.range_slider = get_child(self, 'level_slider', QRangeSlider)
+		self.current_file = None
+		self.view.scene().addText('Double click on a file to preview it').setDefaultTextColor(QtCore.Qt.GlobalColor.white)
 	
+	@QtCore.Slot(int, int)
 	def on_levelChange(self, min_value, max_value):
 		self.level_min = min_value / self.level_slider.maximum()
 		self.level_max = max_value / self.level_slider.maximum()
@@ -63,12 +45,13 @@ class ImageViewer(QtWidgets.QWidget):
 		_m, _M = array.min(), array.max()
 		_min, _max = _m + _M * self.level_min, _m + _M * self.level_max
 		array = np.clip((array - _min) / (_max - _min) * 255, 0, 255).astype(np.uint8)
-		self.scene.clear()
+		scene = self.view.scene()
+		scene.clear()
 		qimage = QtGui.QImage(array.data, array.shape[1], array.shape[0], QtGui.QImage.Format_Grayscale8)
 		
 		pixmap = QtGui.QPixmap.fromImage(qimage)
-		pixmap_item = self.scene.addPixmap(pixmap)
+		pixmap_item = scene.addPixmap(pixmap)
 		pixmap_item.setTransformationMode(QtCore.Qt.TransformationMode.SmoothTransformation)
-		self.scene.setSceneRect(QtCore.QRectF(pixmap.rect()))
+		scene.setSceneRect(QtCore.QRectF(pixmap.rect()))
 		self.view.fitInView(pixmap_item, QtCore.Qt.AspectRatioMode.KeepAspectRatio)
 
