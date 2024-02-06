@@ -3,10 +3,10 @@ from PySide6 import QtCore, QtWidgets
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 from qt.extensions import *
-from views.application import Application
-from views.session_view import SessionTreeView
-from views.inspectors import InspectorView
-from views.image_view import ImageViewer
+from .application import Application
+from .session_view import SessionTreeView
+from .inspectors import InspectorView
+from .image_view import ImageViewer
 
 UI_MainWindow, _ = load_class('main_layout')
 class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, misc]

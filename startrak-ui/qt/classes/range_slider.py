@@ -12,8 +12,6 @@ class QRangeSlider(QtWidgets.QSlider):
 
 
 		self.opt = QtWidgets.QStyleOptionSlider()
-		self.setMinimum(1)
-		self.setMaximum(255)
 
 		self.first_position = self.minimum()
 		self.second_position = self.maximum()
