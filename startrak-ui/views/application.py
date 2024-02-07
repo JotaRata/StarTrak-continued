@@ -16,6 +16,11 @@ class Application(QtWidgets.QApplication):
 		assert app is not None
 		return cast(Application, app)
 	
+	@staticmethod
+	def get_session():
+		app = Application.instance()
+		return app.st_module.get_session()
+	
 	def setStyleSheet(self, stylesheet : QStyleSheet):	#type: ignore[override]
 		self.styleShee_obj = stylesheet
 		super().setStyleSheet(stylesheet.sheet)

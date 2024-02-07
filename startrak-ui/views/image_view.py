@@ -1,9 +1,11 @@
 from typing import Callable
+from PySide6.QtWidgets import QStyleOptionGraphicsItem, QWidget
 import numpy as np
 from qt.extensions import load_class, get_child
 from qt.classes.range_slider import QRangeSlider
 from PySide6 import QtWidgets, QtCore, QtGui
-from startrak.native import FileInfo
+from views.application import Application
+from startrak.native import FileInfo, StarList
 from startrak.native.alias import ImageLike
 
 UI_ImageViewer, _ = load_class('image_viewer')
@@ -23,6 +25,8 @@ class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
 		self.level_slider = get_child(self, 'level_slider', QRangeSlider)
 		self.current_file = None
 		self.view.scene().addText('Double click on a file to preview it').setDefaultTextColor(QtCore.Qt.GlobalColor.white)
+
+		self.pointSize = 1
 
 		self.on_levelChange(0, 255)
 		self.on_colormapChange('linear')
@@ -75,4 +79,38 @@ class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
 		pixmap_item.setTransformationMode(QtCore.Qt.TransformationMode.SmoothTransformation)
 		scene.setSceneRect(QtCore.QRectF(pixmap.rect()))
 		self.view.fitInView(pixmap_item, QtCore.Qt.AspectRatioMode.KeepAspectRatio)
+		self.pointSize = 1
+		self.draw_stars()
+	
+	class StarLabelItem(QtWidgets.QGraphicsTextItem):
+		def __init__(self, text: str, position: tuple, color: QtGui.QColor, size: int):
+			super().__init__(text, None)
 
+			self.setDefaultTextColor(color)
+			self.setFont(QtGui.QFont('Calibri', size))
+			self.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations)
+			self.setPos(*position)
+
+		def paint(self, painter, option, widget=None):
+			painter.setFont(self.font())
+			painter.setPen(self.defaultTextColor())
+			painter.setOpacity(0.5)
+			rect = QtCore.QRect(
+				self.boundingRect().x() - self.boundingRect().width()  / 2,
+				self.boundingRect().y() - self.boundingRect().height() - 2,
+				self.boundingRect().width(),
+				self.boundingRect().height()
+			)
+			painter.drawText(rect, QtCore.Qt.AlignmentFlag.AlignCenter, self.toPlainText())
+
+	def draw_stars(self,):
+		session = Application.get_session()
+		stars : StarList = session.included_stars
+		scene = self.view.scene()
+		color = Application.instance().styleSheet().get_color('secondary')
+
+		for star in stars:
+			size = star.aperture 
+			scene.addEllipse(star.position.x - size, star.position.y - size, size * 2, size * 2, QtGui.QPen(color, 3))
+			text = ImageViewer.StarLabelItem(star.name, star.position, color, 8)
+			scene.addItem(text)
