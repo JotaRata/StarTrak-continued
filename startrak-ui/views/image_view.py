@@ -1,11 +1,10 @@
 from typing import Callable
-from PySide6.QtWidgets import QStyleOptionGraphicsItem, QWidget
 import numpy as np
 from qt.extensions import load_class, get_child
 from qt.classes.range_slider import QRangeSlider
 from PySide6 import QtWidgets, QtCore, QtGui
 from views.application import Application
-from startrak.native import FileInfo, StarList
+from startrak.native import FileInfo, Star
 from startrak.native.alias import ImageLike
 
 UI_ImageViewer, _ = load_class('image_viewer')
@@ -25,7 +24,6 @@ class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
 		self.level_slider = get_child(self, 'level_slider', QRangeSlider)
 		self.current_file = None
 		self.view.scene().addText('Double click on a file to preview it').setDefaultTextColor(QtCore.Qt.GlobalColor.white)
-
 		self.pointSize = 1
 
 		self.on_levelChange(0, 255)
@@ -81,36 +79,70 @@ class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
 		self.view.fitInView(pixmap_item, QtCore.Qt.AspectRatioMode.KeepAspectRatio)
 		self.pointSize = 1
 		self.draw_stars()
+		setup_itemColors(np.mean(array) > 128)
 	
-	class StarLabelItem(QtWidgets.QGraphicsTextItem):
-		def __init__(self, text: str, position: tuple, color: QtGui.QColor, size: int):
-			super().__init__(text, None)
-
-			self.setDefaultTextColor(color)
-			self.setFont(QtGui.QFont('Calibri', size))
-			self.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations)
-			self.setPos(*position)
-
-		def paint(self, painter, option, widget=None):
-			painter.setFont(self.font())
-			painter.setPen(self.defaultTextColor())
-			painter.setOpacity(0.5)
-			rect = QtCore.QRect(
-				self.boundingRect().x() - self.boundingRect().width()  / 2,
-				self.boundingRect().y() - self.boundingRect().height() - 2,
-				self.boundingRect().width(),
-				self.boundingRect().height()
-			)
-			painter.drawText(rect, QtCore.Qt.AlignmentFlag.AlignCenter, self.toPlainText())
-
 	def draw_stars(self,):
 		session = Application.get_session()
-		stars : StarList = session.included_stars
+		stars = session.included_stars
 		scene = self.view.scene()
-		color = Application.instance().styleSheet().get_color('secondary')
-
+		self.view.setMouseTracking(True)
 		for star in stars:
-			size = star.aperture 
-			scene.addEllipse(star.position.x - size, star.position.y - size, size * 2, size * 2, QtGui.QPen(color, 3))
-			text = ImageViewer.StarLabelItem(star.name, star.position, color, 8)
-			scene.addItem(text)
+			item = _StarLabelItem(star)
+			scene.addItem(item)
+
+class _StarLabelItem(QtWidgets.QGraphicsItem):
+	def __init__(self, star : Star):
+		super().__init__()
+		self.text = star.name
+		self.position = star.position
+		self.radius = star.aperture
+		self.hovered = False
+		self.setFlags(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsFocusable | QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+		self.setAcceptHoverEvents(True)
+		self._bbox = QtCore.QRectF(self.position[0] - self.radius * 2, self.position[1] - self.radius * 2,
+							4 * self.radius, 4 * self.radius)
+
+	def boundingRect(self):
+		return self._bbox
+
+	def paint(self, painter, option, widget):
+		scale = 1.0 / painter.transform().m22()
+		color = hover_color if self.hovered else normal_color
+		alpha = 1 if self.hovered else 0.5 if self.radius >= 8 else 0
+		pad = 2 if self.hovered else 0
+
+		painter.setPen(QtGui.QPen(color, scale + 2))
+		crect = QtCore.QRectF(self.position[0] - self.radius, self.position[1] - self.radius,
+									2 * self.radius, 2 * self.radius).marginsAdded(QtCore.QMargins(pad, pad, pad, pad))
+		painter.drawEllipse(crect)
+		
+		font = QtGui.QFont("Calibri", 10 * scale)
+		painter.setFont(font)
+		painter.setOpacity(alpha)
+		rect = painter.boundingRect(crect, QtCore.Qt.AlignCenter, self.text)
+		rect.translate(0, - self.radius - scale * 10)
+		painter.drawText(rect, QtCore.Qt.AlignCenter, self.text)
+		self._bbox = rect.united(crect)
+
+	def hoverEnterEvent(self, event):
+		super().hoverEnterEvent(event)
+		print("Mouse entered", self.text)
+		self.hovered = True
+		self.update()
+
+	def hoverLeaveEvent(self, event):
+		super().hoverLeaveEvent(event)
+		print("Mouse left", self.text)
+		self.hovered = False
+		self.update()
+
+def setup_itemColors(inverted):
+	global normal_color, hover_color, selected_color
+	if inverted:
+		normal_color = Application.instance().styleSheet().get_color('secondary')
+		hover_color = Application.instance().styleSheet().get_color('secondary-dark')
+		selected_color = Application.instance().styleSheet().get_color('secondary-dark')
+	else:
+		normal_color = Application.instance().styleSheet().get_color('secondary')
+		hover_color = Application.instance().styleSheet().get_color('secondary-light')
+		selected_color = Application.instance().styleSheet().get_color('secondary-light')

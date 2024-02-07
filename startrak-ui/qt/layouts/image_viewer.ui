@@ -32,7 +32,7 @@
    <item>
     <widget class="QGraphicsView" name="graphicsView">
      <property name="interactive">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="cacheMode">
       <set>QGraphicsView::CacheBackground</set>

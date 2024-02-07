@@ -4,7 +4,7 @@
 	primary-dark: #1a1a1a
 	primary-light: #353535
 	secondary: #2a82da
-	secondary-light: #519eeb
+	secondary-light: #6fb7ff
 	secondary-dark: #163f68
 	panel-5: rgba(255, 255, 255, 12)
 	panel-10: rgba(255, 255, 255, 25)
