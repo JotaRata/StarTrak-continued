@@ -133,11 +133,9 @@ class _StarLabelItem(QtWidgets.QGraphicsItem):
 		self.radius = star.aperture
 		self.hovered = False
 		self.selected = False
-		self.setFlags(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsFocusable | QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
-		self.setAcceptHoverEvents(True)
-		self._bbox = QtCore.QRectF(self.position[0] - self.radius * 2, self.position[1] - self.radius * 2,
-							4 * self.radius, 4 * self.radius)
+		self._bbox = QtCore.QRectF(0,0,0,0)
 		self.on_mouseClick = None
+		self.setAcceptHoverEvents(True)
 
 	def boundingRect(self):
 		return self._bbox
@@ -181,10 +179,11 @@ class _StarLabelItem(QtWidgets.QGraphicsItem):
 def setup_itemColors(inverted):
 	global normal_color, hover_color, selected_color, highlighted_color
 	normal_color = Application.instance().styleSheet().get_color('secondary')
-	highlighted_color = Application.instance().styleSheet().get_color('highlighted')
 	if inverted:
 		hover_color = Application.instance().styleSheet().get_color('secondary-dark')
 		selected_color = Application.instance().styleSheet().get_color('secondary-dark')
+		highlighted_color = Application.instance().styleSheet().get_color('highlighted-dark')
 	else:
 		hover_color = Application.instance().styleSheet().get_color('secondary-light')
 		selected_color = Application.instance().styleSheet().get_color('secondary-light')
+		highlighted_color = Application.instance().styleSheet().get_color('highlighted')

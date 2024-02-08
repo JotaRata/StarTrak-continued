@@ -37,7 +37,7 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 		self.inspector_view.on_inspectorUpdate.connect(self.session_view.updateItem)
 		self.inspector_view.on_inspectorSelect.connect(self.session_view.setCurrentIndex)
 		self.inspector_view.on_inspectorSelect.connect(self.session_view.expandParent)
-		self.image_view.on_starSelected.connect(self.session_view.setCurrentIndex)
+		# self.image_view.on_starSelected.connect(self.session_view.setCurrentIndex)
 		self.image_view.on_starSelected.connect(self.inspector_view.on_sesionViewUpdate)
 		self.fix_splitterWidth() 
 
