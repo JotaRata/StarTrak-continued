@@ -6,6 +6,7 @@
 	secondary: #2a82da
 	secondary-light: #6fb7ff
 	secondary-dark: #163f68
+	highlighted: #f4d62b
 	panel-5: rgba(255, 255, 255, 12)
 	panel-10: rgba(255, 255, 255, 25)
 	panel-20: rgba(255, 255, 255, 50)

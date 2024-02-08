@@ -189,7 +189,11 @@
               <number>0</number>
              </property>
              <item>
-              <widget class="QSpinBox" name="posXField"/>
+              <widget class="QSpinBox" name="posXField">
+               <property name="maximum">
+                <number>9999999</number>
+               </property>
+              </widget>
              </item>
              <item>
               <widget class="QLabel" name="label_3">
@@ -205,7 +209,11 @@
               </widget>
              </item>
              <item>
-              <widget class="QSpinBox" name="posYField"/>
+              <widget class="QSpinBox" name="posYField">
+               <property name="maximum">
+                <number>9999999</number>
+               </property>
+              </widget>
              </item>
              <item>
               <widget class="QLabel" name="label_4">
