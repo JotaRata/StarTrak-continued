@@ -35,14 +35,18 @@ class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
 		self.on_levelChange(0, 255)
 		self.on_colormapChange('linear')
 	
+	def update_image(self, index=None, obj=None):
+		if not (obj is None or type(obj) is Star):
+			return
+		if self.current_file is not None:
+			array = self.current_file.get_data()
+			self.set_image(array)
+
 	@QtCore.Slot(int, int)
 	def on_levelChange(self, min_value : int, max_value : int):
 		self.level_min = min_value / self.level_slider.maximum()
 		self.level_max = max_value / self.level_slider.maximum()
-
-		if self.current_file is not None:
-			array = self.current_file.get_data()
-			self.set_image(array)
+		self.update_image()
 	
 	@QtCore.Slot(QtCore.QModelIndex)
 	def on_itemSelected(self, index):
@@ -52,8 +56,7 @@ class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
 		if type(pointer.ref) is FileInfo:
 			self.current_file = pointer.ref
 			self.current_index = index
-			array = self.current_file.get_data()
-			self.set_image(array)
+			self.update_image()
 
 		elif type(pointer.ref) is Star:
 			for i, item in enumerate(self.star_labels):
@@ -73,9 +76,7 @@ class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
 				self.mapping_func = lambda x: np.max(x) - x
 			case _:
 				raise KeyError(value)
-		if self.current_file is not None:
-				array = self.current_file.get_data()
-				self.set_image(array)
+		self.update_image()
 			
 	def set_image(self, array):
 		array = self.mapping_func(array)
