@@ -6,8 +6,13 @@ import re
 from typing import ClassVar, Optional
 from PySide6 import QtWidgets, QtCore
 from PySide6.QtCore import QEvent, QModelIndex, Qt, Signal, Slot
+from PySide6.QtGui import QShowEvent
+import numpy as np
 from qt.extensions import *
+from startrak.imageutils import sigma_stretch
 from startrak.native import Position
+from startrak.types.phot import _get_cropped
+from views.application import Application
 
 class InspectorView(QtWidgets.QFrame):
 	on_inspectorUpdate = Signal(QtCore.QModelIndex, object)
@@ -124,6 +129,7 @@ class StarInspector(AbstractInspector, ref_type= 'Star', layout_name= 'insp_star
 		background_line = get_child(phot_panel, 'background_line', QtWidgets.QLineEdit)
 		flux_line.setText(f'{star.photometry.flux.value:.3f} ± {star.photometry.flux.sigma:.3f}')
 		background_line.setText(f'{star.photometry.background.value:.3f} ± {star.photometry.background.sigma:.3f}')
+		self.draw_preview(star)
 
 		def phot_click(event):
 			index = self.index.model().index(0, 0, self.index)
@@ -146,6 +152,28 @@ class StarInspector(AbstractInspector, ref_type= 'Star', layout_name= 'insp_star
 	def apert_changed(self, value):
 		self.ref.aperture = value
 		self.on_change.emit(self.ref)
+
+	#todo: Use reference file in session
+	def draw_preview(self, star):
+		fileList = Application.get_session().included_files
+		if not fileList or len(fileList) == 0:
+			return
+		self.view = get_child(self, 'graphicsView', QtWidgets.QGraphicsView)
+		self.view.setScene(QtWidgets.QGraphicsScene())
+
+		array = fileList[0].get_data()
+		array = sigma_stretch(array, 4)
+		array = _get_cropped(array, star.position, star.aperture * 2, 16)
+		array = np.nan_to_num(array).astype(np.uint8)
+
+		scene = self.view.scene()
+		scene.clear()
+		qimage = QtGui.QImage(array.data, array.shape[1], array.shape[0], QtGui.QImage.Format_Grayscale8)
+		pixmap = QtGui.QPixmap.fromImage(qimage)
+		pixmap_item = scene.addPixmap(pixmap)
+	
+	def showEvent(self, event) -> None:
+		self.view.fitInView(self.view.sceneRect(), QtCore.Qt.AspectRatioMode.KeepAspectRatio)
 
 class PhotometryInspector(AbstractInspector, ref_type= 'PhotometryResult', layout_name= 'insp_phot'):
 	def __init__(self, value, index, parent) -> None:

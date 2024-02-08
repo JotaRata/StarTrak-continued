@@ -82,17 +82,16 @@ class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
 		array = self.mapping_func(array)
 		_min, _max = array.min() + array.max() * self.level_min, array.min() + array.max() * self.level_max
 		array = np.clip((array - _min) / (_max - _min) * 255, 0, 255).astype(np.uint8)
+		setup_itemColors(np.mean(array) > 128)
 
 		scene = self.view.scene()
 		scene.clear()
 		qimage = QtGui.QImage(array.data, array.shape[1], array.shape[0], QtGui.QImage.Format_Grayscale8)
-		
 		pixmap = QtGui.QPixmap.fromImage(qimage)
 		pixmap_item = scene.addPixmap(pixmap)
 		pixmap_item.setTransformationMode(QtCore.Qt.TransformationMode.SmoothTransformation)
 		scene.setSceneRect(QtCore.QRectF(pixmap.rect()))
 		self.view.fitInView(pixmap_item, QtCore.Qt.AspectRatioMode.KeepAspectRatio)
-		setup_itemColors(np.mean(array) > 128)
 		self.draw_stars()
 
 	def draw_stars(self,):
