@@ -151,12 +151,15 @@ class STCollection(STObject, Collection[TList]):
 		return { str(index): value for index, value in enumerate(self.__iter__())}
 	@classmethod
 	def __import__(cls, attributes : AttrDict, **cls_kw : Any) -> Self:
-		obj = cls(**cls_kw)
+		values = list[TList]()
+		is_closed = False
 		for attr, value in attributes.items():
 			if attr.isdigit():
-				obj._internal.append(value)
+				values.append(value)
 			if attr == 'is_closed':
-				obj._closed = value
+				is_closed = value
+		obj = cls(*values, **cls_kw)
+		obj._closed = is_closed
 		return obj
 
 	def __len__(self) -> int:

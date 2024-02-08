@@ -10,8 +10,8 @@ from startrak.native.ext import STCollection
 class FileList(STCollection[FileInfo]):
 	_dict : Dict[str, int]
 	def __init__(self, *values: FileInfo):
-		setval = set(values)
-		super().__init__(*setval)
+		oset = dict.fromkeys(values).keys()
+		super().__init__(*oset)
 
 	def __post_init__(self):
 		self._dict = {s.name : i for i, s in enumerate(self._internal)}
