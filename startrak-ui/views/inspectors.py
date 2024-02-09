@@ -6,7 +6,7 @@ import re
 from typing import ClassVar, Optional
 from PySide6 import QtWidgets, QtCore
 from PySide6.QtCore import QEvent, QModelIndex, Qt, Signal, Slot
-from PySide6.QtGui import QShowEvent
+from PySide6.QtGui import QResizeEvent, QShowEvent
 import numpy as np
 from qt.extensions import *
 from startrak.imageutils import sigma_stretch
@@ -111,24 +111,35 @@ class AnyInspector(AbstractInspector, ref_type= 'Any', layout_name= 'insp_undef'
 		content.setText(str(value))
 
 class StarInspector(AbstractInspector, ref_type= 'Star', layout_name= 'insp_star'): 
+	prev_height = 0
+	auto_exposure = False
+
 	def __init__(self, star, index, parent: QtWidgets.QWidget) -> None:
 		super().__init__(star, index, parent)
+		self.draw_ready = False
 
+		splitter = get_child(self, 'splitter', QtWidgets.QSplitter)
 		name_field = get_child(self, 'nameField', QtWidgets.QLineEdit)
 		posX_field = get_child(self, 'posXField', QtWidgets.QSpinBox)
 		posY_field = get_child(self, 'posYField', QtWidgets.QSpinBox)
 		apert_field = get_child(self, 'apertField', QtWidgets.QSpinBox)
+		autoexp_check = get_child(self, 'auto_exp', QtWidgets.QCheckBox)
 
 		name_field.setText(star.name)
 		posX_field.setValue(star.position.x)
 		posY_field.setValue(star.position.y)
 		apert_field.setValue(star.aperture)
+		autoexp_check.setChecked(StarInspector.auto_exposure)
+
+		splitter.setSizes([StarInspector.prev_height, 1])
 
 		phot_panel = get_child(self, 'phot_panel', QtWidgets.QFrame)
 		flux_line = get_child(phot_panel, 'flux_line', QtWidgets.QLineEdit)
 		background_line = get_child(phot_panel, 'background_line', QtWidgets.QLineEdit)
 		flux_line.setText(f'{star.photometry.flux.value:.3f} ± {star.photometry.flux.sigma:.3f}')
 		background_line.setText(f'{star.photometry.background.value:.3f} ± {star.photometry.background.sigma:.3f}')
+		
+		self.draw_ready = True
 		self.draw_preview(star)
 
 		def phot_click(event):
@@ -144,35 +155,70 @@ class StarInspector(AbstractInspector, ref_type= 'Star', layout_name= 'insp_star
 	def posx_changed(self, value):
 		self.ref.position = Position(value, self.ref.position.y)
 		self.on_change.emit(self.ref)
+		self.draw_preview(self.ref)
 	@Slot(int)
 	def posy_changed(self, value):
 		self.ref.position = Position(self.ref.position.x, value)
 		self.on_change.emit(self.ref)
+		self.draw_preview(self.ref)
 	@Slot(int)
 	def apert_changed(self, value):
 		self.ref.aperture = value
 		self.on_change.emit(self.ref)
+		self.draw_preview(self.ref)
+	@Slot(bool)
+	def set_autoexp(self, state):
+		StarInspector.auto_exposure = state
+		self.draw_preview(self.ref)
+	@Slot(int, int)
+	def splitter_changed(self, upper, lower):
+		self.draw_ready = upper > 0
+		if self.draw_ready and StarInspector.prev_height == 0:
+			self.draw_preview(self.ref)
+		self.showEvent(None)
+		StarInspector.prev_height = upper
 
 	#todo: Use reference file in session
 	def draw_preview(self, star):
+		if not self.draw_ready:	# avoid extra calls to this emthod when initializing
+			return
+		
 		fileList = Application.get_session().included_files
 		if not fileList or len(fileList) == 0:
 			return
+		circle_color = Application.instance().styleSheet().get_color('secondary')
+		cross_color = Application.instance().styleSheet().get_color('primary')
+
 		self.view = get_child(self, 'graphicsView', QtWidgets.QGraphicsView)
 		self.view.setScene(QtWidgets.QGraphicsScene())
-
-		array = fileList[0].get_data()
-		array = sigma_stretch(array, 4)
-		array = _get_cropped(array, star.position, star.aperture * 2, 16)
-		array = np.nan_to_num(array).astype(np.uint8)
-
 		scene = self.view.scene()
 		scene.clear()
-		qimage = QtGui.QImage(array.data, array.shape[1], array.shape[0], QtGui.QImage.Format_Grayscale8)
+
+		orig_array = fileList[0].get_data()
+		array = _get_cropped(orig_array, star.position, star.aperture * 2, 16)
+		p1, p99 = np.nanpercentile(array if StarInspector.auto_exposure else orig_array, (0.1, 99.9))
+		array = np.clip((array - p1) / (p99 - p1), 0, 1) * 255
+		array = np.nan_to_num(array).astype(np.uint8)
+
+		qimage = QtGui.QImage(array.data, array.shape[1], array.shape[0], QtGui.QImage.Format_Grayscale8)\
+							.scaledToWidth(100)
+		xcenter, ycenter = qimage.width()/2, qimage.height()/2
+		scaled_apert = star.aperture * qimage.width() / array.shape[0]
+
 		pixmap = QtGui.QPixmap.fromImage(qimage)
-		pixmap_item = scene.addPixmap(pixmap)
+		scene.addPixmap(pixmap)
+		scene.addEllipse(xcenter - scaled_apert, ycenter - scaled_apert, scaled_apert * 2, scaled_apert * 2
+						,	circle_color)
+		scene.addLine(xcenter, ycenter - 4, xcenter, ycenter + 4, cross_color)
+		scene.addLine(xcenter - 4, ycenter, xcenter + 4, ycenter, cross_color)
+		self.showEvent(None)
 	
+	def resizeEvent(self, event: QResizeEvent) -> None:
+		super().resizeEvent(event)
+		self.showEvent(None)
 	def showEvent(self, event) -> None:
+		if StarInspector.prev_height == 0:
+			return
 		self.view.fitInView(self.view.sceneRect(), QtCore.Qt.AspectRatioMode.KeepAspectRatio)
 
 class PhotometryInspector(AbstractInspector, ref_type= 'PhotometryResult', layout_name= 'insp_phot'):
