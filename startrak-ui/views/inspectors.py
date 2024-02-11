@@ -224,20 +224,25 @@ class StarInspector(AbstractInspector, ref_type= 'Star', layout_name= 'insp_star
 class PhotometryInspector(AbstractInspector, ref_type= 'PhotometryResult', layout_name= 'insp_phot'):
 	def __init__(self, value, index, parent) -> None:
 		super().__init__(value, index, parent)
+		aperture = value.aperture_info
+		flux_area = f"{np.pi * aperture.radius ** 2:.2f}"
+		get_child(self, 'method_line', QtWidgets.QLineEdit).setText(value.method)
+		get_child(self, 'flux_int', QtWidgets.QLineEdit).setText(f"{value.flux.value:.2f}")
+		get_child(self, 'flux_area', QtWidgets.QLineEdit).setText(flux_area)
+		get_child(self, 'flux_sigma', QtWidgets.QLineEdit).setText(f"{value.flux.sigma:.2f}")
+		get_child(self, 'flux_max', QtWidgets.QLineEdit).setText(f"{value.flux.max:.2f}")
+		get_child(self, 'flux_raw', QtWidgets.QLineEdit).setText(f"{value.flux.raw:.2f}")
 
-		method_line = get_child(self, 'method_line', QtWidgets.QLineEdit)
-		flux_line = get_child(self, 'flux_line', QtWidgets.QLineEdit)
-		background_line = get_child(self, 'background_line', QtWidgets.QLineEdit)
-		aradius_line = get_child(self, 'aradius_line', QtWidgets.QLineEdit)
-		aoffset_line = get_child(self, 'aoffset_line', QtWidgets.QLineEdit)
-		awidth_line = get_child(self, 'awidth_line', QtWidgets.QLineEdit)
+		bkg_area = f"{np.pi * (2*(aperture.radius+aperture.offset) * aperture.width + aperture.width**2):.2f}"
+		get_child(self, 'bkg_int', QtWidgets.QLineEdit).setText(f"{value.background.value:.2f}")
+		get_child(self, 'bkg_area', QtWidgets.QLineEdit).setText(bkg_area)
+		get_child(self, 'bkg_sigma', QtWidgets.QLineEdit).setText(f"{value.background.sigma:.2f}")
+		get_child(self, 'bkg_max', QtWidgets.QLineEdit).setText(f"{value.background.max:.2f}")
 
-		method_line.setText(value.method)
-		flux_line.setText(f'{value.flux.value:.3f} ± {value.flux.sigma:.3f}')
-		background_line.setText(f'{value.background.value:.3f} ± {value.background.sigma:.3f}')
-		aradius_line.setText(str(value.aperture_info.radius))
-		aoffset_line.setText(str(value.aperture_info.offset))
-		awidth_line.setText(str(value.aperture_info.width))
+		# todo: Replace with per-Photometry method properties
+		get_child(self, 'aoffset_line', QtWidgets.QLineEdit).setText(f"{aperture.offset:.2f} px")
+		get_child(self, 'aradius_line', QtWidgets.QLineEdit).setText(f"{aperture.radius:.2f} px")
+		get_child(self, 'awidth_line', QtWidgets.QLineEdit).setText(f"{aperture.width:.2f} px")
 
 class HeaderInspector(AbstractInspector, ref_type= 'Header', layout_name= 'insp_header'):
 	class HeaderEntry(QtWidgets.QFrame):
