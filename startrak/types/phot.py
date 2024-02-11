@@ -38,21 +38,30 @@ class AperturePhot(PhotometryBase):
 		circle_mask = _sqdst < _sqapert
 		annulus_mask = (_sqdst >= _sqapert + self.offset) & (_sqdst < _sqapert + _offset)
 		
-		flux_raw = crop[circle_mask]
-		bg_flux = crop[annulus_mask]
+		flux_array = crop[circle_mask]
+		bkg_array = crop[annulus_mask]
 		if self.sigma != 0:
-			sigma_mask = np.abs(bg_flux - np.nanmean(bg_flux)) < np.nanstd(bg_flux) * self.sigma
-			bg_flux = bg_flux[sigma_mask]
+			sigma_mask = np.abs(bkg_array - np.nanmean(bkg_array)) < np.nanstd(bkg_array) * self.sigma
+			bkg_array = bkg_array[sigma_mask]
 		
-		return PhotometryResult.new(flux= float(np.nanmean(flux_raw) - np.nanmean(bg_flux)),
-										flux_raw= float(np.nanmean(flux_raw)),
-										flux_sigma= float(np.nanstd(flux_raw)),
-										flux_max= float(np.nanmax(flux_raw)),
-										background= float(np.nanmean(bg_flux)),
-										background_sigma= float(np.nanstd(bg_flux)),
-										background_max= float(np.nanmax(bg_flux)),
-										method= 'aperture',
-										aperture_radius= aperture,
-										annulus_width= self.width,
-										annulus_offset= self.offset
-										)
+		# NaN functions used
+		flux_mean = float(np.nanmean(flux_array))
+		flux_sigma= float(np.nanstd(flux_array))
+		flux_max= float(np.nanmax(flux_array))
+
+		bkg_mean = float(np.nanmean(bkg_array))
+		bkg_sigma = float(np.nanstd(bkg_array))
+		bkg_max = float(np.nanmax(bkg_array))
+
+		return PhotometryResult.new(flux= 				flux_mean - bkg_mean,
+											flux_sigma= 		flux_sigma,
+											flux_raw= 			flux_mean,
+											flux_max= 			flux_max,
+											background= 		bkg_mean,
+											background_sigma= bkg_sigma,
+											background_max= 	bkg_max,
+											method= 'aperture',
+											aperture_radius= aperture,
+											annulus_width= self.width,
+											annulus_offset= self.offset
+											)

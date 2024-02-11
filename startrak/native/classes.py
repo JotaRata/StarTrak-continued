@@ -254,11 +254,10 @@ class PhotometryResult(NamedTuple, STObject):	#type: ignore[misc]
 		psf_parameters: Optional[Tuple[float, float, float]] = None,
 	):
 		return cls(method, FluxInfo(flux, flux_sigma, flux_raw, flux_max),
-						FluxInfo(background, background_sigma, background_max), ApertureInfo(aperture_radius, annulus_width, annulus_offset), psf_parameters)
+						FluxInfo(background, background_sigma, max= background_max), ApertureInfo(aperture_radius, annulus_width, annulus_offset), psf_parameters)
 	@classmethod
 	def zero(cls):
 		return cls('None', FluxInfo(0, 0, 0, 0), FluxInfo(0, 0), ApertureInfo(0, 0, 0))
-	
 
 	@property
 	def snr(self) -> float:
@@ -285,8 +284,8 @@ class PhotometryResult(NamedTuple, STObject):	#type: ignore[misc]
 	
 	@classmethod
 	def __import__(cls, attributes: AttrDict) -> Self:
-		flux = FluxInfo(attributes['flux'], attributes['flux_raw'], attributes['flux_sigma'], attributes['flux_max'])
-		backg = FluxInfo(attributes['background'], attributes['background_sigma'], attributes['background_max'])
+		flux = FluxInfo(attributes['flux'], attributes['flux_sigma'], attributes['flux_raw'], attributes['flux_max'])
+		backg = FluxInfo(attributes['background'], attributes['background_sigma'], max= attributes['background_max'])
 		apert = ApertureInfo(*attributes['aperture_params'])
 		return cls(attributes['phot_method'], flux, backg, apert, attributes.get('psf_params', None))
 	
