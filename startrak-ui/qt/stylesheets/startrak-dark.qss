@@ -138,3 +138,16 @@ ImageViewer QFrame#lvl_panel{
 ImageViewer QFrame#lvl_panel > *{
 	background: transparent;
 }
+
+QBreadCrumb{
+	background: @panel-10;
+	border-radius: 4px;
+	padding: 4px;
+}
+QBreadCrumb:hover{
+	background: @panel-50;
+}
+QBreadCrumb:disabled{
+	background: @panel-20;
+	border: 1px solid @secondary;
+}

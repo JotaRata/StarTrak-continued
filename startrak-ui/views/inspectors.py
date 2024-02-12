@@ -1,15 +1,13 @@
 
 from __future__ import annotations
-from abc import ABC
+from functools import partial
 import os
 import re
-from typing import ClassVar, Optional
 from PySide6 import QtWidgets, QtCore
-from PySide6.QtCore import QEvent, QModelIndex, Qt, Signal, Slot
-from PySide6.QtGui import QResizeEvent, QShowEvent
+from PySide6.QtCore import QModelIndex, Qt, Signal, Slot
+from PySide6.QtGui import QResizeEvent
 import numpy as np
 from qt.extensions import *
-from startrak.imageutils import sigma_stretch
 from startrak.native import Position
 from startrak.types.phot import _get_cropped
 from views.application import Application
@@ -17,10 +15,17 @@ from views.application import Application
 class InspectorView(QtWidgets.QFrame):
 	on_inspectorUpdate = Signal(QtCore.QModelIndex, object)
 	on_inspectorSelect = Signal(QtCore.QModelIndex)
+	current_index : QtCore.QModelIndex
 
 	def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
 		super().__init__(parent)
-		self.type_label = QtWidgets.QLabel(self)
+		
+		self.current_index = QtCore.QModelIndex()
+		self.header_frame = QtWidgets.QFrame(self)
+		header_layout = QtWidgets.QHBoxLayout(self.header_frame)
+		header_layout.addStretch()
+		header_layout.setContentsMargins(0, 0, 0, 0)
+	
 		layout = QtWidgets.QVBoxLayout(self)
 		layout.setContentsMargins(2, 8, 2, 8)
 		
@@ -32,7 +37,7 @@ class InspectorView(QtWidgets.QFrame):
 		scroll_layout = QtWidgets.QVBoxLayout(content)
 		scroll_layout.setContentsMargins(0, 0, 0, 0)
 
-		layout.addWidget(self.type_label)
+		layout.addWidget(self.header_frame)
 		layout.addWidget(self.scroll_area)
 		self.inspector : QtWidgets.QWidget | None = None
 
@@ -50,15 +55,48 @@ class InspectorView(QtWidgets.QFrame):
 
 		pointer = index.internalPointer()
 		if pointer is not None:
-			ref = pointer.ref
-			_type = type(ref).__name__
-			self.inspector = AbstractInspector.instantiate(_type, ref, index, self.scroll_area)
+			self.current_index = index
+			self.inspector = AbstractInspector.instantiate(type(pointer.ref).__name__, pointer.ref, index, self.scroll_area)
 			self.inspector.on_change.connect(emit_update)
 			self.inspector.on_select.connect(emit_select)
 			self.scroll_area.widget().layout().addWidget(self.inspector)
-			type_label = re.sub(r'([a-z])([A-Z])', r'\1 \2', _type)
-			self.type_label.setText(type_label)
+		self.setup_breadCrumbs(index)
 	
+	def setup_breadCrumbs(self, index):
+		layout = self.header_frame.layout()
+		for i in reversed(range(layout.count())): 
+			wdg = layout.itemAt(i).widget()
+			if wdg:
+				wdg.deleteLater()
+
+		count = 1
+		current_index = index
+		while current_index.isValid():
+			if count > 4:
+				break
+			parent = current_index.parent()
+			
+			# type_label = ' ' + type(current_index.internalPointer().ref).__name__ + ' '
+			btn = QBreadCrumb(current_index, self.header_frame)
+			btn.clicked.connect(partial(self.on_sesionViewUpdate, current_index))
+			if current_index == index:
+				btn.setDisabled(True)
+			else:
+				if not parent.isValid():
+					btn.setText('Session')
+			layout.insertWidget(0, btn)
+			current_index = parent
+			count += 1
+
+class QBreadCrumb(QtWidgets.QPushButton):
+	def __init__(self, index, parent):
+		ref = index.internalPointer().ref
+		label = re.sub(r'([a-z])([A-Z])', r'\1 \2', type(ref).__name__)
+		super().__init__(label, None)
+
+		name = getattr(ref, 'name', None)
+		self.setToolTip(type(ref).__name__ + f': "{name}"' if name else '')
+
 # -------------------- Inspectors -------------------------------------
 class AbstractInspectorMeta(type(QtWidgets.QFrame)):	#type: ignore
 	supported: dict[str, tuple[type['AbstractInspector'], str]] = {}
