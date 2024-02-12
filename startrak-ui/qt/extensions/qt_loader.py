@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import cast
 from PySide6.QtUiTools import QUiLoader, loadUiType
-from PySide6.QtCore import QFile, QIODevice
+from PySide6.QtCore import QDir, QFile, QIODevice
 from .qt_ext import QStyleSheet
 
 BASE_DIR = Path(__file__).parent.parent
@@ -27,6 +27,7 @@ def load_class(name : str):
 
 def load_style(name : str):
 	ui_file = str(STSS_DIR / name) + '.qss'
+	QDir.addSearchPath('res', STSS_DIR / 'res' )
 	return QStyleSheet(ui_file)
 	
 def create_widget(ui_file : QFile):

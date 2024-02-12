@@ -12,6 +12,7 @@
 	panel-10: rgba(255, 255, 255, 25)
 	panel-20: rgba(255, 255, 255, 50)
 	panel-50: rgba(255, 255, 255, 125)
+	shadow-5: rgba(0, 0, 0, 12)
 }
 
 QWidget{
@@ -35,23 +36,28 @@ QMenuBar::item:selected{
 }
 
 QHeaderView::section{
-	background: @primary;
+	background: @primary-light;
 }
 
 QSplitter::handle{
-	background: transparent;
+	background: @shadow-5;
 }
 QSplitter::handle:horizontal {
-	width: 1px;
+	image: url("res:splitter_h.png");
+	width: 4px;
 }
 
 QSplitter::handle:vertical {
-	height: 1px;
+	image: url("res:splitter_v.png");
+	height: 4px;
 }
 
-QSplitter > QFrame{
-	border: 1px solid @primary-dark;
+QStatusBar{
+	background: @primary-dark;
 }
+/* QSplitter > QFrame{
+	border: 1px solid @primary-dark;
+} */
 
 QScrollBar{
 	background: @primary;
@@ -142,7 +148,8 @@ ImageViewer QFrame#lvl_panel > *{
 QBreadCrumb{
 	background: @panel-10;
 	border-radius: 4px;
-	padding: 4px;
+	padding-left: 4px;
+	padding-right: 4px;
 }
 QBreadCrumb:hover{
 	background: @panel-50;
