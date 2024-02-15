@@ -3,13 +3,16 @@ from __future__ import annotations
 from functools import partial
 import os
 import re
-from PySide6 import QtWidgets, QtCore
+from typing import Any, Generic
 from PySide6.QtCore import QModelIndex, Qt, Signal, Slot
+from PySide6 import QtWidgets, QtCore
 from PySide6.QtGui import QResizeEvent
 import numpy as np
 from qt.extensions import *
-from startrak.native import Position
+from startrak.native import FileInfo, Header, HeaderArchetype, PhotometryResult, Position, Star
+from startrak.native.ext import STObject
 from startrak.types.phot import _get_cropped
+from startrak.types.sessions import InspectionSession
 from views.application import Application
 
 class InspectorView(QtWidgets.QFrame):
@@ -17,7 +20,7 @@ class InspectorView(QtWidgets.QFrame):
 	on_inspectorSelect = Signal(QtCore.QModelIndex)
 	current_index : QtCore.QModelIndex
 
-	def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+	def __init__(self, parent: QtWidgets.QWidget = None) -> None:
 		super().__init__(parent)
 		
 		self.current_index = QtCore.QModelIndex()
@@ -42,7 +45,7 @@ class InspectorView(QtWidgets.QFrame):
 		self.inspector : QtWidgets.QWidget | None = None
 
 	@QtCore.Slot(QtCore.QModelIndex)
-	def on_sesionViewUpdate(self, index):
+	def on_sesionViewUpdate(self, index : QtCore.QModelIndex):
 		if self.inspector:
 			self.inspector.destroy()
 			self.scroll_area.widget().layout().removeWidget( self.inspector)
@@ -62,8 +65,8 @@ class InspectorView(QtWidgets.QFrame):
 			self.scroll_area.widget().layout().addWidget(self.inspector)
 		self.setup_breadCrumbs(index)
 	
-	def setup_breadCrumbs(self, index):
-		layout = self.header_frame.layout()
+	def setup_breadCrumbs(self, index : QtCore.QModelIndex):
+		layout = cast(QtWidgets.QHBoxLayout, self.header_frame.layout())
 		for i in reversed(range(layout.count())): 
 			wdg = layout.itemAt(i).widget()
 			if wdg:
@@ -100,7 +103,7 @@ class QBreadCrumb(QtWidgets.QPushButton):
 # -------------------- Inspectors -------------------------------------
 class AbstractInspectorMeta(type(QtWidgets.QFrame)):	#type: ignore
 	supported: dict[str, tuple[type['AbstractInspector'], str]] = {}
-	def __new__(cls, name, bases, namespace, ref_type='', layout_name='', **kwargs):
+	def __new__(cls, name, bases, namespace, layout_name='', **kwargs):
 		if name == 'AbstractInspector':
 			klass = super().__new__(cls, name, bases, namespace)
 			return klass
@@ -108,18 +111,25 @@ class AbstractInspectorMeta(type(QtWidgets.QFrame)):	#type: ignore
 		UI_Layout, _ = load_class(layout_name)
 		bases += (UI_Layout, )
 		klass = super().__new__(cls, name, bases, namespace)
-		klass.ref_type = ref_type
+		
+		for base in klass.__orig_bases__:
+			if hasattr(base, '__args__'):
+				generic_type = base.__args__[0]
+				break
+		klass.ref_type = generic_type.__name__
 		klass.layout_name = layout_name
 
-		AbstractInspectorMeta.supported[ref_type] = klass, layout_name
+		AbstractInspectorMeta.supported[klass.ref_type] = klass, klass.layout_name
 		return klass
 
-class AbstractInspector(QtWidgets.QFrame, metaclass=AbstractInspectorMeta):
-	ref: object
-	index : QModelIndex
+TInspectorRef = TypeVar('TInspectorRef')
+class AbstractInspector(QtWidgets.QFrame, Generic[TInspectorRef], metaclass=AbstractInspectorMeta):
+	ref: TInspectorRef
+	index : QtCore.QModelIndex
 	on_change = Signal(object)
-	on_select = Signal(QModelIndex, bool)
-	def __init__(self, value, index, parent) -> None:
+	on_select = Signal(QtCore.QModelIndex, bool)
+
+	def __init__(self, value : TInspectorRef, index : QModelIndex, parent : QtWidgets.QWidget = None) -> None:
 		if type(self) is AbstractInspector:
 			raise TypeError('Cannot instantiate abstract class "AbstractInspector"')
 		
@@ -131,7 +141,7 @@ class AbstractInspector(QtWidgets.QFrame, metaclass=AbstractInspectorMeta):
 	def setupUi(self):
 		super().setupUi(self)
 	@staticmethod
-	def instantiate(type_name : str, value : object, index: QModelIndex, parent : QtWidgets.QWidget) -> AbstractInspector:
+	def instantiate(type_name : str, value : TInspectorRef, index: QtCore.QModelIndex, parent : QtWidgets.QWidget) -> AbstractInspector:
 		if type_name in AbstractInspectorMeta.supported:
 			return AbstractInspectorMeta.supported[type_name][0](value, index, parent)
 		return AnyInspector(value, index, parent)
@@ -142,18 +152,17 @@ class AbstractInspector(QtWidgets.QFrame, metaclass=AbstractInspectorMeta):
 			return AbstractInspectorMeta.supported[name][1]
 		raise KeyError(name)
 
-class AnyInspector(AbstractInspector, ref_type= 'Any', layout_name= 'insp_undef'):
+class AnyInspector(AbstractInspector[Any], layout_name= 'insp_undef'):
 	def __init__(self, value, index, parent: QtWidgets.QWidget) -> None:
 		super().__init__(value, index, parent)
 		content = get_child(self, 'contentField', QtWidgets.QTextEdit)
 		content.setText(str(value))
 
-class StarInspector(AbstractInspector, ref_type= 'Star', layout_name= 'insp_star'): 
+class StarInspector(AbstractInspector[Star], layout_name= 'insp_star'): 
 	prev_height = 0
 	auto_exposure = False
-
-	def __init__(self, star, index, parent: QtWidgets.QWidget) -> None:
-		super().__init__(star, index, parent)
+	def __init__(self, value: Star, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
+		super().__init__(value, index, parent)
 		self.draw_ready = False
 
 		splitter = get_child(self, 'splitter', QtWidgets.QSplitter)
@@ -163,10 +172,10 @@ class StarInspector(AbstractInspector, ref_type= 'Star', layout_name= 'insp_star
 		apert_field = get_child(self, 'apertField', QtWidgets.QSpinBox)
 		autoexp_check = get_child(self, 'auto_exp', QtWidgets.QCheckBox)
 
-		name_field.setText(star.name)
-		posX_field.setValue(star.position.x)
-		posY_field.setValue(star.position.y)
-		apert_field.setValue(star.aperture)
+		name_field.setText(value.name)
+		posX_field.setValue( int(value.position.x))
+		posY_field.setValue( int(value.position.y))
+		apert_field.setValue(value.aperture)
 		autoexp_check.setChecked(StarInspector.auto_exposure)
 
 		splitter.setSizes([StarInspector.prev_height, 1])
@@ -174,11 +183,11 @@ class StarInspector(AbstractInspector, ref_type= 'Star', layout_name= 'insp_star
 		phot_panel = get_child(self, 'phot_panel', QtWidgets.QFrame)
 		flux_line = get_child(phot_panel, 'flux_line', QtWidgets.QLineEdit)
 		background_line = get_child(phot_panel, 'background_line', QtWidgets.QLineEdit)
-		flux_line.setText(f'{star.photometry.flux.value:.3f} ± {star.photometry.flux.sigma:.3f}')
-		background_line.setText(f'{star.photometry.background.value:.3f} ± {star.photometry.background.sigma:.3f}')
+		flux_line.setText(f'{value.photometry.flux.value:.3f} ± {value.photometry.flux.sigma:.3f}')
+		background_line.setText(f'{value.photometry.background.value:.3f} ± {value.photometry.background.sigma:.3f}')
 		
 		self.draw_ready = True
-		self.draw_preview(star)
+		self.draw_preview(value)
 
 		def phot_click(event):
 			index = self.index.model().index(0, 0, self.index)
@@ -259,8 +268,8 @@ class StarInspector(AbstractInspector, ref_type= 'Star', layout_name= 'insp_star
 			return
 		self.view.fitInView(self.view.sceneRect(), QtCore.Qt.AspectRatioMode.KeepAspectRatio)
 
-class PhotometryInspector(AbstractInspector, ref_type= 'PhotometryResult', layout_name= 'insp_phot'):
-	def __init__(self, value, index, parent) -> None:
+class PhotometryInspector(AbstractInspector[PhotometryResult], layout_name= 'insp_phot'):
+	def __init__(self, value: PhotometryResult, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
 		super().__init__(value, index, parent)
 		aperture = value.aperture_info
 		flux_area = f"{np.pi * aperture.radius ** 2:.2f}"
@@ -282,37 +291,42 @@ class PhotometryInspector(AbstractInspector, ref_type= 'PhotometryResult', layou
 		get_child(self, 'aradius_line', QtWidgets.QLineEdit).setText(f"{aperture.radius:.2f} px")
 		get_child(self, 'awidth_line', QtWidgets.QLineEdit).setText(f"{aperture.width:.2f} px")
 
-class HeaderInspector(AbstractInspector, ref_type= 'Header', layout_name= 'insp_header'):
-	class HeaderEntry(QtWidgets.QFrame):
-		def __init__(self, parent, key, value, readOnly = True) -> None:
-			super().__init__(parent)
-			self.setObjectName(str(id(self))[:7] + '_panel')
-			self.label = QtWidgets.QLabel(self)
-			self.line = QtWidgets.QLineEdit(self)
-			self.label.setText(key)
-			self.label.setMinimumWidth(64)
-			self.line.setText(str(value))
-			if readOnly:
-				self.line.setReadOnly(True)
-			layout = QtWidgets.QHBoxLayout(self)
-			layout.addWidget(self.label)
-			layout.addWidget(self.line)
+class _HeaderEntry(QtWidgets.QFrame):
+	def __init__(self, key : str, value : Any, readOnly : bool = True,  parent : QtWidgets.QWidget = None) -> None:
+		super().__init__(parent)
+		self.setObjectName(str(id(self))[:7] + '_panel')
+		self.label = QtWidgets.QLabel(self)
+		self.line = QtWidgets.QLineEdit(self)
+		self.label.setText(key)
+		self.label.setMinimumWidth(64)
+		self.line.setText(str(value))
+		if readOnly:
+			self.line.setReadOnly(True)
+		layout = QtWidgets.QHBoxLayout(self)
+		layout.addWidget(self.label)
+		layout.addWidget(self.line)
 
-	def __init__(self, header, index, parent, readOnly= True, preview= False) -> None:
-		super().__init__(header, index, parent)
-
-		if not preview:
-			file = HeaderInspector.HeaderEntry(self, 'File', os.path.basename(header.linked_file))
-			self.layout().insertWidget(0, file)		#type:ignore
+class HeaderInspector(AbstractInspector[Header], layout_name= 'insp_header'):
+	def __init__(self, value: Header, index: QModelIndex, readOnly= True, parent: QtWidgets.QWidget = None) -> None:
+		super().__init__(value, index, parent)
+		file = _HeaderEntry('File', os.path.basename(value.linked_file), parent= self)
+		self.layout().insertWidget(0, file)		#type:ignore
 
 		header_panel = get_child(self, 'header_panel', QtWidgets.QFrame)
-		for key, value in header.items():
-			entry = HeaderInspector.HeaderEntry(header_panel, key, value, readOnly)
+		for key, value in value.items():
+			entry = _HeaderEntry(key, value, readOnly, header_panel)
 			header_panel.layout().addWidget(entry)
 
-class HeaderArchetypeInspector(HeaderInspector, ref_type= 'HeaderArchetype', layout_name= 'insp_header'):
-	def __init__(self, header, index, parent) -> None:
-		super().__init__(header, index, parent, False)
+class HeaderArchetypeInspector(AbstractInspector[HeaderArchetype], layout_name= 'insp_header'):
+	def __init__(self, value: HeaderArchetype, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
+		super().__init__(value, index, parent)
+		file = _HeaderEntry('File', os.path.basename(value.linked_file), parent= self)
+		self.layout().insertWidget(0, file)		#type:ignore
+
+		header_panel = get_child(self, 'header_panel', QtWidgets.QFrame)
+		for key, value in value.items():
+			entry = _HeaderEntry(key, value, parent= header_panel)
+			header_panel.layout().addWidget(entry)
 		
 		self.user_panel = QtWidgets.QFrame(self)
 		self.user_panel.setObjectName('user_panel')
@@ -320,15 +334,14 @@ class HeaderArchetypeInspector(HeaderInspector, ref_type= 'HeaderArchetype', lay
 		user_label = QtWidgets.QLabel(self.user_panel)
 		user_label.setText('User entries')
 		user_panel.addWidget(user_label)
-
 		self.layout().insertWidget(2, self.user_panel)	# type:ignore
 		
 		add_button = QtWidgets.QPushButton(self)
 		add_button.setText('Add entry')
 		self.layout().addWidget(add_button)
 
-class FileInspector(AbstractInspector, ref_type= 'FileInfo', layout_name= 'insp_file'):
-	def __init__(self, value, index, parent) -> None:
+class FileInspector(AbstractInspector[FileInfo], layout_name= 'insp_file'):
+	def __init__(self, value: FileInfo, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
 		super().__init__(value, index, parent)
 		path_line = get_child(self, 'path_line', QtWidgets.QLineEdit)
 		size_line = get_child(self, 'size_line', QtWidgets.QLineEdit)
@@ -367,8 +380,8 @@ class FileInspector(AbstractInspector, ref_type= 'FileInfo', layout_name= 'insp_
 			self.on_select.emit(index, True)
 		header_panel.mouseDoubleClickEvent = header_click#type:ignore
 
-class SessionInspector(AbstractInspector, ref_type= 'InspectionSession', layout_name= 'insp_session'):
-	def __init__(self, value, index, parent) -> None:
+class SessionInspector(AbstractInspector[InspectionSession], layout_name= 'insp_session'):
+	def __init__(self, value: InspectionSession, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
 		super().__init__(value, index, parent)
 		properties_panel = get_child(self, 'properties_panel', QtWidgets.QFrame)
 		validation_panel = get_child(self, 'validation_panel', QtWidgets.QFrame)
