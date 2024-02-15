@@ -9,10 +9,9 @@ from PySide6 import QtWidgets, QtCore
 from PySide6.QtGui import QResizeEvent
 import numpy as np
 from qt.extensions import *
-from startrak.native import FileInfo, Header, HeaderArchetype, PhotometryResult, Position, Star
-from startrak.native.ext import STObject
+
+import startrak
 from startrak.types.phot import _get_cropped
-from startrak.types.sessions import InspectionSession
 from views.application import Application
 
 class InspectorView(QtWidgets.QFrame):
@@ -158,10 +157,10 @@ class AnyInspector(AbstractInspector[Any], layout_name= 'insp_undef'):
 		content = get_child(self, 'contentField', QtWidgets.QTextEdit)
 		content.setText(str(value))
 
-class StarInspector(AbstractInspector[Star], layout_name= 'insp_star'): 
+class StarInspector(AbstractInspector[startrak.native.Star], layout_name= 'insp_star'): 
 	prev_height = 0
 	auto_exposure = False
-	def __init__(self, value: Star, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
+	def __init__(self, value: startrak.native.Star, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
 		super().__init__(value, index, parent)
 		self.draw_ready = False
 
@@ -268,8 +267,8 @@ class StarInspector(AbstractInspector[Star], layout_name= 'insp_star'):
 			return
 		self.view.fitInView(self.view.sceneRect(), QtCore.Qt.AspectRatioMode.KeepAspectRatio)
 
-class PhotometryInspector(AbstractInspector[PhotometryResult], layout_name= 'insp_phot'):
-	def __init__(self, value: PhotometryResult, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
+class PhotometryInspector(AbstractInspector[startrak.native.PhotometryResult], layout_name= 'insp_phot'):
+	def __init__(self, value: startrak.native.PhotometryResult, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
 		super().__init__(value, index, parent)
 		aperture = value.aperture_info
 		flux_area = f"{np.pi * aperture.radius ** 2:.2f}"
@@ -306,8 +305,8 @@ class _HeaderEntry(QtWidgets.QFrame):
 		layout.addWidget(self.label)
 		layout.addWidget(self.line)
 
-class HeaderInspector(AbstractInspector[Header], layout_name= 'insp_header'):
-	def __init__(self, value: Header, index: QModelIndex, readOnly= True, parent: QtWidgets.QWidget = None) -> None:
+class HeaderInspector(AbstractInspector[startrak.native.Header], layout_name= 'insp_header'):
+	def __init__(self, value: startrak.native.Header, index: QModelIndex, readOnly= True, parent: QtWidgets.QWidget = None) -> None:
 		super().__init__(value, index, parent)
 		file = _HeaderEntry('File', os.path.basename(value.linked_file), parent= self)
 		self.layout().insertWidget(0, file)		#type:ignore
@@ -317,8 +316,8 @@ class HeaderInspector(AbstractInspector[Header], layout_name= 'insp_header'):
 			entry = _HeaderEntry(key, value, readOnly, header_panel)
 			header_panel.layout().addWidget(entry)
 
-class HeaderArchetypeInspector(AbstractInspector[HeaderArchetype], layout_name= 'insp_header'):
-	def __init__(self, value: HeaderArchetype, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
+class HeaderArchetypeInspector(AbstractInspector[startrak.native.HeaderArchetype], layout_name= 'insp_header'):
+	def __init__(self, value: startrak.native.HeaderArchetype, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
 		super().__init__(value, index, parent)
 		file = _HeaderEntry('File', os.path.basename(value.linked_file), parent= self)
 		self.layout().insertWidget(0, file)		#type:ignore
@@ -340,8 +339,8 @@ class HeaderArchetypeInspector(AbstractInspector[HeaderArchetype], layout_name= 
 		add_button.setText('Add entry')
 		self.layout().addWidget(add_button)
 
-class FileInspector(AbstractInspector[FileInfo], layout_name= 'insp_file'):
-	def __init__(self, value: FileInfo, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
+class FileInspector(AbstractInspector[startrak.native.FileInfo], layout_name= 'insp_file'):
+	def __init__(self, value: startrak.native.FileInfo, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
 		super().__init__(value, index, parent)
 		path_line = get_child(self, 'path_line', QtWidgets.QLineEdit)
 		size_line = get_child(self, 'size_line', QtWidgets.QLineEdit)
@@ -380,8 +379,8 @@ class FileInspector(AbstractInspector[FileInfo], layout_name= 'insp_file'):
 			self.on_select.emit(index, True)
 		header_panel.mouseDoubleClickEvent = header_click#type:ignore
 
-class SessionInspector(AbstractInspector[InspectionSession], layout_name= 'insp_session'):
-	def __init__(self, value: InspectionSession, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
+class SessionInspector(AbstractInspector[startrak.sessionutils.InspectionSession], layout_name= 'insp_session'): #type: ignore
+	def __init__(self, value: startrak.sessionutils.InspectionSession, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
 		super().__init__(value, index, parent)
 		properties_panel = get_child(self, 'properties_panel', QtWidgets.QFrame)
 		validation_panel = get_child(self, 'validation_panel', QtWidgets.QFrame)
