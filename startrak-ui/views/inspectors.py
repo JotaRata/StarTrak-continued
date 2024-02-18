@@ -4,13 +4,14 @@ from functools import partial
 import os
 import re
 from typing import Any, Generic
-from PySide6.QtCore import QModelIndex, Qt, Signal, Slot
+from PySide6.QtCore import QModelIndex, Signal, Slot
 from PySide6 import QtWidgets, QtCore
 from PySide6.QtGui import QResizeEvent
 import numpy as np
 from qt.extensions import *
 
 import startrak
+from startrak.internals.exceptions import InstantiationError
 from startrak.types.phot import _get_cropped
 from views.application import Application
 
@@ -102,11 +103,19 @@ class QBreadCrumb(QtWidgets.QPushButton):
 # -------------------- Inspectors -------------------------------------
 class AbstractInspectorMeta(type(QtWidgets.QFrame)):	#type: ignore
 	supported: dict[str, tuple[type['AbstractInspector'], str]] = {}
-	def __new__(cls, name, bases, namespace, layout_name='', **kwargs):
-		if name == 'AbstractInspector':
+	
+	def __new__(cls, name, bases, namespace, layout_name= '', **kwargs):
+		if name == "AbstractInspector":
 			klass = super().__new__(cls, name, bases, namespace)
 			return klass
 		
+		if not layout_name:
+			for base in bases:
+				i_layout = getattr(base, '__layout__', None)
+			if not i_layout:
+				raise TypeError('Layout file not set for class: ' + name)
+			layout_name = i_layout
+
 		UI_Layout, _ = load_class(layout_name)
 		bases += (UI_Layout, )
 		klass = super().__new__(cls, name, bases, namespace)
@@ -115,10 +124,10 @@ class AbstractInspectorMeta(type(QtWidgets.QFrame)):	#type: ignore
 			if hasattr(base, '__args__'):
 				generic_type = base.__args__[0]
 				break
-		klass.ref_type = generic_type.__name__
-		klass.layout_name = layout_name
+		klass.__target__ = generic_type.__name__
+		klass.__layout__ = layout_name
 
-		AbstractInspectorMeta.supported[klass.ref_type] = klass, klass.layout_name
+		AbstractInspectorMeta.supported[klass.__target__] = klass, klass.__layout__
 		return klass
 
 TInspectorRef = TypeVar('TInspectorRef')
@@ -199,12 +208,12 @@ class StarInspector(AbstractInspector[startrak.native.Star], layout_name= 'insp_
 		self.on_change.emit(self.ref)
 	@Slot(int)
 	def posx_changed(self, value):
-		self.ref.position = Position(value, self.ref.position.y)
+		self.ref.position = startrak.native.Position(value, self.ref.position.y)
 		self.on_change.emit(self.ref)
 		self.draw_preview(self.ref)
 	@Slot(int)
 	def posy_changed(self, value):
-		self.ref.position = Position(self.ref.position.x, value)
+		self.ref.position = startrak.native.Position(self.ref.position.x, value)
 		self.on_change.emit(self.ref)
 		self.draw_preview(self.ref)
 	@Slot(int)
@@ -290,54 +299,58 @@ class PhotometryInspector(AbstractInspector[startrak.native.PhotometryResult], l
 		get_child(self, 'aradius_line', QtWidgets.QLineEdit).setText(f"{aperture.radius:.2f} px")
 		get_child(self, 'awidth_line', QtWidgets.QLineEdit).setText(f"{aperture.width:.2f} px")
 
-class _HeaderEntry(QtWidgets.QFrame):
-	def __init__(self, key : str, value : Any, readOnly : bool = True,  parent : QtWidgets.QWidget = None) -> None:
-		super().__init__(parent)
-		self.setObjectName(str(id(self))[:7] + '_panel')
-		self.label = QtWidgets.QLabel(self)
-		self.line = QtWidgets.QLineEdit(self)
-		self.label.setText(key)
-		self.label.setMinimumWidth(64)
-		self.line.setText(str(value))
-		if readOnly:
-			self.line.setReadOnly(True)
-		layout = QtWidgets.QHBoxLayout(self)
-		layout.addWidget(self.label)
-		layout.addWidget(self.line)
 
-class HeaderInspector(AbstractInspector[startrak.native.Header], layout_name= 'insp_header'):
-	def __init__(self, value: startrak.native.Header, index: QModelIndex, readOnly= True, parent: QtWidgets.QWidget = None) -> None:
-		super().__init__(value, index, parent)
-		file = _HeaderEntry('File', os.path.basename(value.linked_file), parent= self)
-		self.layout().insertWidget(0, file)		#type:ignore
-
-		header_panel = get_child(self, 'header_panel', QtWidgets.QFrame)
-		for key, value in value.items():
-			entry = _HeaderEntry(key, value, readOnly, header_panel)
-			header_panel.layout().addWidget(entry)
-
-class HeaderArchetypeInspector(AbstractInspector[startrak.native.HeaderArchetype], layout_name= 'insp_header'):
-	def __init__(self, value: startrak.native.HeaderArchetype, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
-		super().__init__(value, index, parent)
-		file = _HeaderEntry('File', os.path.basename(value.linked_file), parent= self)
-		self.layout().insertWidget(0, file)		#type:ignore
-
-		header_panel = get_child(self, 'header_panel', QtWidgets.QFrame)
-		for key, value in value.items():
-			entry = _HeaderEntry(key, value, parent= header_panel)
-			header_panel.layout().addWidget(entry)
+_THeader = TypeVar('_THeader', bound= startrak.native.Header)
+class AbstractHeaderInspector(AbstractInspector[_THeader], layout_name= 'insp_header'):
+	def __init__(self, value: _THeader, index: QModelIndex, readOnly= True, parent: QtWidgets.QWidget = None) -> None:
+		if type(self) is AbstractHeaderInspector:
+			raise InstantiationError(self)
 		
+		super().__init__(value, index, parent)
+		self.container = get_child(self, 'header_panel', QtWidgets.QFrame)
+		
+		self.draw_element('File', os.path.basename(value.linked_file))
+		for key, entry in value.items():
+			self.draw_element(key, entry, readOnly)
+	
+	class _HeaderEntry(QtWidgets.QFrame):
+		def __init__(self, key : str, value : Any, readOnly : bool = True,  parent : QtWidgets.QWidget = None) -> None:
+			super().__init__(parent)
+			self.setObjectName(str(id(self))[:7] + '_panel')
+			self.label = QtWidgets.QLabel(self)
+			self.line = QtWidgets.QLineEdit(self)
+			self.label.setText(key)
+			self.label.setMinimumWidth(64)
+			self.line.setText(str(value))
+			if readOnly:
+				self.line.setReadOnly(True)
+			layout = QtWidgets.QHBoxLayout(self)
+			layout.addWidget(self.label)
+			layout.addWidget(self.line)
+			
+	def draw_element(self, key : str, value : Any, readOnly= True):
+		entry = self._HeaderEntry(key, value, readOnly, self.container)
+		self.container.layout().addWidget(entry)
+		return entry
+
+class HeaderInspector(AbstractHeaderInspector[startrak.native.Header]):
+	pass
+
+class HeaderArchetypeInspector(AbstractHeaderInspector[startrak.native.HeaderArchetype]):
+	def __init__(self, value: startrak.native.HeaderArchetype, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
+		super().__init__(value, index, False, parent)
 		self.user_panel = QtWidgets.QFrame(self)
 		self.user_panel.setObjectName('user_panel')
 		user_panel = QtWidgets.QVBoxLayout(self.user_panel)
 		user_label = QtWidgets.QLabel(self.user_panel)
 		user_label.setText('User entries')
 		user_panel.addWidget(user_label)
-		self.layout().insertWidget(2, self.user_panel)	# type:ignore
+		self.layout().insertWidget(1, self.user_panel)	# type:ignore
 		
 		add_button = QtWidgets.QPushButton(self)
 		add_button.setText('Add entry')
 		self.layout().addWidget(add_button)
+
 
 class FileInspector(AbstractInspector[startrak.native.FileInfo], layout_name= 'insp_file'):
 	def __init__(self, value: startrak.native.FileInfo, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
