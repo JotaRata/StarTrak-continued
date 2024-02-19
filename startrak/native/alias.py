@@ -6,11 +6,12 @@ from numpy.typing import NDArray as _NDArray
 
 ValueType = Union[int, float, str, bool]
 RealNumber = float | int
-RealDType = Union[np.int_, np.float_, np.uint]
+RealDType = Union[np.integer, np.floating, np.unsignedinteger]
 
 _TReal = TypeVar('_TReal', bound= RealNumber)
+_DReal = TypeVar('_DReal', np.integer, np.floating, np.unsignedinteger)
 
-ImageLike = _NDArray[RealDType]
+ImageLike = _NDArray[_DReal]
 NDArray = _NDArray[RealDType]
 
 
