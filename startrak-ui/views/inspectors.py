@@ -456,13 +456,9 @@ class AbstractCollectionInspector(AbstractInspector[_TCollection]):
 		super().__init__(value, index, parent)
 		layout= QtWidgets.QVBoxLayout(self)
 		layout.addWidget(QtWidgets.QLabel(f'{type(value).__name__}: {len(value)} elements'))
-		model = self.index.model()
+		
 		for i in range(len(value)):
 			entry= self.create_element(i)
-			child_idx = model.index(i, 0, self.index)
-			def click_binder(event):
-				self.on_select.emit(child_idx, True)
-			entry.mouseDoubleClickEvent = click_binder 	#type: ignore
 			self.layout().addWidget(entry)
 		layout.addStretch()
 
@@ -476,8 +472,16 @@ class AbstractCollectionInspector(AbstractInspector[_TCollection]):
 			self.desc_label = QtWidgets.QLabel(description, self)
 			layout.addWidget(self.name_label)
 			layout.addWidget(self.desc_label)
-	def _create_entry(self, label= 'Element', desc= ''):
-		return AbstractCollectionInspector._CollectionEntry(label, desc, parent= self)
+	
+	def _create_entry(self, index: int, label= 'Element', desc= ''):
+		'''Internal function, Do not override'''
+		model = self.index.model()
+		child_idx = model.index(index, 0, self.index)
+		entry= AbstractCollectionInspector._CollectionEntry(label, desc, parent= self)
+		def click_binder(event):
+				self.on_select.emit(child_idx, True)
+		entry.mouseDoubleClickEvent = click_binder 	#type: ignore
+		return entry
 			
 	def create_element(self, index : int):
 		match index:
@@ -485,11 +489,11 @@ class AbstractCollectionInspector(AbstractInspector[_TCollection]):
 			case 2: _th = 'nd'
 			case 3: _th = 'rd'
 			case _: _th = 'th'
-		entry = self._create_entry(f'{index}{_th} Element')
+		entry = self._create_entry(index, f'{index}{_th} Element')
 		return entry
 
 class FileListInspector(AbstractCollectionInspector[startrak.native.FileList]):
 	def create_element(self, index: int):
 		ref = self.ref[index]
-		entry= self._create_entry(f'File: {ref.name}', f'Size: {ref.bytes} bytes')
+		entry= self._create_entry(index, f'File: {ref.name}', f'Size: {ref.size}')
 		return entry
