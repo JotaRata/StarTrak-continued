@@ -154,6 +154,15 @@ class FileInfo(NamedTuple, STObject):	#type: ignore[misc]
 	def bytes(self) -> int:
 		return os.path.getsize(self.path)
 	
+	@property
+	def size(self) -> str:
+		if self.bytes < 1024:
+			return f'{self.bytes} bytes'
+		elif self.bytes < 1048576:
+			return f'{self.bytes/1024:.2f} KB'
+		else:
+			return f'{self.bytes/1048576:.2f} MB'
+	
 	@classmethod
 	def __import__(cls, attributes: AttrDict, **cls_kw : Any) -> FileInfo:
 		return FileInfo.new(attributes['path'], attributes['relative_path'])
@@ -171,13 +180,7 @@ class FileInfo(NamedTuple, STObject):	#type: ignore[misc]
 		indentation = spaces * (2*indent + 1)
 		string = [spaces * (2*indent) + type(self).__name__ + f' {self.name}:']
 		string.append(indentation + f'path: "{self.path}"')
-
-		if self.bytes < 1024:
-			string.append(indentation + f'size: {self.bytes} bytes')
-		elif self.bytes < 1048576:
-			string.append(indentation + f'size: {self.bytes/1024:.2f} KB')
-		else:
-			string.append(indentation + f'size: {self.bytes/1048576:.2f} MB')
+		string.append(indentation + f'size: {self.size}')
 		
 		if indent + 1 < fold:
 			string.append(indentation + 'header: ' + self.header.__pprint__(indent + 1, fold))
