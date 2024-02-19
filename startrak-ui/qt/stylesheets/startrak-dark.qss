@@ -101,14 +101,14 @@ InspectorView QLabel {
 }
 
 /* Clickable frames */
-.QFrame[focusPolicy= "2"]:enabled{
+QFrame[focusPolicy= "2"]:enabled{
 	border: 0px; 
 	background: @panel-10; 
 }
-.QFrame[focusPolicy= "2"]:hover:enabled{
+QFrame[focusPolicy= "2"]:hover:enabled{
 	background: @panel-20; 
 }
-.QFrame[focusPolicy= "2"]:focus:enabled{
+QFrame[focusPolicy= "2"]:focus:enabled{
 	border: 1px solid @secondary; 
 	background: @panel-20; 
 }

@@ -6,7 +6,7 @@ import re
 from typing import Any, Generic
 from PySide6.QtCore import QModelIndex, Signal, Slot
 from PySide6 import QtWidgets, QtCore
-from PySide6.QtGui import QResizeEvent
+from PySide6.QtGui import QMouseEvent, QResizeEvent
 import numpy as np
 from qt.extensions import *
 
@@ -111,13 +111,11 @@ class AbstractInspectorMeta(type(QtWidgets.QFrame)):	#type: ignore
 		
 		if not layout_name:
 			for base in bases:
-				i_layout = getattr(base, '__layout__', None)
-			if not i_layout:
-				raise TypeError('Layout file not set for class: ' + name)
-			layout_name = i_layout
-
-		UI_Layout, _ = load_class(layout_name)
-		bases += (UI_Layout, )
+				layout_name = getattr(base, '__layout__', None)
+		
+		if layout_name:
+			UI_Layout, _ = load_class(layout_name)
+			bases += (UI_Layout, )
 		klass = super().__new__(cls, name, bases, namespace)
 		
 		for base in klass.__orig_bases__:
@@ -147,7 +145,10 @@ class AbstractInspector(QtWidgets.QFrame, Generic[TInspectorRef], metaclass=Abst
 		self.index = index
 
 	def setupUi(self):
+		if not self.__layout__:
+			return
 		super().setupUi(self)
+
 	@staticmethod
 	def instantiate(type_name : str, value : TInspectorRef, index: QtCore.QModelIndex, parent : QtWidgets.QWidget) -> AbstractInspector:
 		if type_name in AbstractInspectorMeta.supported:
@@ -448,3 +449,47 @@ class SessionInspector(AbstractInspector[startrak.sessionutils.InspectionSession
 		
 		files_panel.mouseDoubleClickEvent = files_panelBinder#type:ignore
 		stars_panel.mouseDoubleClickEvent = stars_panelBinder#type:ignore
+
+_TCollection = TypeVar('_TCollection', bound= startrak.native.ext.STCollection)
+class AbstractCollectionInspector(AbstractInspector[_TCollection]):
+	def __init__(self, value: _TCollection, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
+		super().__init__(value, index, parent)
+		layout= QtWidgets.QVBoxLayout(self)
+		layout.addWidget(QtWidgets.QLabel(f'{type(value).__name__}: {len(value)} elements'))
+		model = self.index.model()
+		for i in range(len(value)):
+			entry= self.create_element(i)
+			child_idx = model.index(i, 0, self.index)
+			def click_binder(event):
+				self.on_select.emit(child_idx, True)
+			entry.mouseDoubleClickEvent = click_binder 	#type: ignore
+			self.layout().addWidget(entry)
+		layout.addStretch()
+
+	class _CollectionEntry(QtWidgets.QFrame):
+		def __init__(self, label: str, description: str= '', parent: QtWidgets.QWidget = None):
+			super().__init__(parent)
+			self.setObjectName(str(id(self))[:7] + '_panel')
+			self.setFocusPolicy(QtCore.Qt.FocusPolicy.ClickFocus)
+			layout = QtWidgets.QVBoxLayout(self)
+			self.name_label = QtWidgets.QLabel(label, self)
+			self.desc_label = QtWidgets.QLabel(description, self)
+			layout.addWidget(self.name_label)
+			layout.addWidget(self.desc_label)
+	def _create_entry(self, label= 'Element', desc= ''):
+		return AbstractCollectionInspector._CollectionEntry(label, desc, parent= self)
+			
+	def create_element(self, index : int):
+		match index:
+			case 1: _th = 'st'
+			case 2: _th = 'nd'
+			case 3: _th = 'rd'
+			case _: _th = 'th'
+		entry = self._create_entry(f'{index}{_th} Element')
+		return entry
+
+class FileListInspector(AbstractCollectionInspector[startrak.native.FileList]):
+	def create_element(self, index: int):
+		ref = self.ref[index]
+		entry= self._create_entry(f'File: {ref.name}', f'Size: {ref.bytes} bytes')
+		return entry
