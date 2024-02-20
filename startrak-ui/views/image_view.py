@@ -56,7 +56,7 @@ class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
 		self.update_image()
 	
 	@QtCore.Slot(QtCore.QModelIndex)
-	def on_itemSelected(self, index):
+	def view_file(self, index):
 		pointer = index.internalPointer()
 		if not pointer:
 			return

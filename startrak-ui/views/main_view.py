@@ -17,8 +17,6 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 
 	def __init__(self) -> None:
 		super().__init__(None)
-		# with read_layout('main_layout') as f:
-		# 	self.main_window = create_widget(f)
 		self.setupUi(self)
 
 		frame_viewer = get_child(self, 'frame_viewer', QtWidgets.QFrame)
@@ -33,24 +31,16 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 		self.inspector_view = InspectorView(sidebar_frame)
 		sidebar_frame.layout().addWidget(self.inspector_view)
 
-		# self.session_view.clicked.connect(self.inspector_view.on_sesionViewUpdate)
-		# self.session_view.doubleClicked.connect(self.image_view.on_itemSelected)
 		self.session_view.session_event += self.on_sessionEvent
 		self.inspector_view.inspector_event += self.on_inspectorEvent
 		self.image_view.viewer_event += self.on_viewerEvent
-		#todo: replace all signals by a single event handler
-		# self.inspector_view.on_inspectorUpdate.connect(self.session_view.updateItem)
-		# self.inspector_view.on_inspectorUpdate.connect(self.image_view.update_image)
-		# self.inspector_view.on_inspectorSelect.connect(self.session_view.setCurrentIndex)
-		# self.inspector_view.on_inspectorSelect.connect(self.session_view.expandParent)
-		# self.image_view.on_starSelected.connect(self.session_view.setCurrentIndex)
-		# self.image_view.on_starSelected.connect(self.inspector_view.on_sesionViewUpdate)
 		self.fix_splitterWidth() 
 
 	def on_inspectorEvent(self, code : EventCode, value : Any):
 		match code:
 			case 'update_image':
-				self.image_view.on_itemSelected(value)
+				self.image_view.view_file(value)
+				self.inspector_view.set_previewIndex(value)
 			case 'session_focus':
 				self.session_view.setCurrentIndex(value)
 				self.session_view.expandParent(value)
@@ -66,7 +56,8 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 			case 'session_focus':
 				self.inspector_view.create_inspector(value)
 			case 'update_image':
-				self.image_view.on_itemSelected(value)
+				self.image_view.view_file(value)
+				self.inspector_view.set_previewIndex(value)
 			case _:
 				print('Invalid code', code)
 
