@@ -164,7 +164,9 @@ class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
 			self._bbox = rect.united(crect)
 
 		def mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent) -> None:
-			super().mouseDoubleClickEvent(event)
+			if self.selected:
+				return
+			# super().mouseDoubleClickEvent(event)
 			self.selected = True
 			self.update()
 			self.parent.set_selectedStar(self.index)

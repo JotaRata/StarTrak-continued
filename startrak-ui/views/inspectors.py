@@ -19,7 +19,6 @@ from views.application import Application
 
 class InspectorView(QtWidgets.QFrame):
 	inspector_event : UIEvent
-
 	current_index : QtCore.QModelIndex
 
 	def __init__(self, parent: QtWidgets.QWidget = None) -> None:
@@ -48,7 +47,7 @@ class InspectorView(QtWidgets.QFrame):
 		layout.addWidget(self.container)
 
 	@QtCore.Slot(QtCore.QModelIndex)
-	def on_sesionViewUpdate(self, index : QtCore.QModelIndex):
+	def create_inspector(self, index : QtCore.QModelIndex):
 		self.destroy_inspector()
 		
 		pointer = index.internalPointer()
@@ -80,7 +79,7 @@ class InspectorView(QtWidgets.QFrame):
 			
 			# type_label = ' ' + type(current_index.internalPointer().ref).__name__ + ' '
 			btn = QBreadCrumb(current_index, self.header_frame)
-			btn.clicked.connect(partial(self.on_sesionViewUpdate, current_index))
+			btn.clicked.connect(partial(self.create_inspector, current_index))
 			if current_index == index:
 				btn.setDisabled(True)
 			else:
@@ -177,27 +176,28 @@ class StarInspector(AbstractInspector[startrak.native.Star], layout_name= 'insp_
 		super().__init__(value, index, parent)
 		self.draw_ready = False
 
-		splitter = get_child(self, 'splitter', QtWidgets.QSplitter)
-		name_field = get_child(self, 'nameField', QtWidgets.QLineEdit)
-		posX_field = get_child(self, 'posXField', QtWidgets.QSpinBox)
-		posY_field = get_child(self, 'posYField', QtWidgets.QSpinBox)
-		apert_field = get_child(self, 'apertField', QtWidgets.QSpinBox)
-		autoexp_check = get_child(self, 'auto_exp', QtWidgets.QCheckBox)
+		with self.inspector_event.blocked():
+			splitter = get_child(self, 'splitter', QtWidgets.QSplitter)
+			name_field = get_child(self, 'nameField', QtWidgets.QLineEdit)
+			posX_field = get_child(self, 'posXField', QtWidgets.QSpinBox)
+			posY_field = get_child(self, 'posYField', QtWidgets.QSpinBox)
+			apert_field = get_child(self, 'apertField', QtWidgets.QSpinBox)
+			autoexp_check = get_child(self, 'auto_exp', QtWidgets.QCheckBox)
 
-		name_field.setText(value.name)
-		posX_field.setValue( int(value.position.x))
-		posY_field.setValue( int(value.position.y))
-		apert_field.setValue(value.aperture)
-		autoexp_check.setChecked(StarInspector.auto_exposure)
+			name_field.setText(value.name)
+			posX_field.setValue( int(value.position.x))
+			posY_field.setValue( int(value.position.y))
+			apert_field.setValue(value.aperture)
+			autoexp_check.setChecked(StarInspector.auto_exposure)
 
-		splitter.setSizes([StarInspector.prev_height, 1])
+			splitter.setSizes([StarInspector.prev_height, 1])
 
-		phot_panel = get_child(self, 'phot_panel', QtWidgets.QFrame)
-		flux_line = get_child(phot_panel, 'flux_line', QtWidgets.QLineEdit)
-		background_line = get_child(phot_panel, 'background_line', QtWidgets.QLineEdit)
-		flux_line.setText(f'{value.photometry.flux.value:.3f} ± {value.photometry.flux.sigma:.3f}')
-		background_line.setText(f'{value.photometry.background.value:.3f} ± {value.photometry.background.sigma:.3f}')
-		
+			phot_panel = get_child(self, 'phot_panel', QtWidgets.QFrame)
+			flux_line = get_child(phot_panel, 'flux_line', QtWidgets.QLineEdit)
+			background_line = get_child(phot_panel, 'background_line', QtWidgets.QLineEdit)
+			flux_line.setText(f'{value.photometry.flux.value:.3f} ± {value.photometry.flux.sigma:.3f}')
+			background_line.setText(f'{value.photometry.background.value:.3f} ± {value.photometry.background.sigma:.3f}')
+			
 		self.draw_ready = True
 		self.draw_preview(value)
 

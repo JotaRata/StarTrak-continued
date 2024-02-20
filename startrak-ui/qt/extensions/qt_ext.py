@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from enum import StrEnum
 import re
 from typing import Any, List, Literal, Type, TypeVar, cast, overload
@@ -96,4 +97,9 @@ class UIEvent(QtCore.QObject):
 	def __iadd__(self, slot: object):
 		self.__int.connect(slot)
 		return self
+	
+	@contextmanager
+	def blocked(self):
+		yield self.blockSignals(True)
+		self.blockSignals(False)
 	

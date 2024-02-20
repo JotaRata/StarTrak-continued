@@ -54,7 +54,7 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 			case 'session_focus':
 				self.session_view.setCurrentIndex(value)
 				self.session_view.expandParent(value)
-				self.inspector_view.on_sesionViewUpdate(value)
+				self.inspector_view.create_inspector(value)
 			case 'inspector_update':
 				self.session_view.updateItem(value[0], value[1])
 				self.image_view.update_image(value[0], value[1])
@@ -64,7 +64,7 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 	def on_sessionEvent(self, code : EventCode, value : Any):
 		match code:
 			case 'session_focus':
-				self.inspector_view.on_sesionViewUpdate(value)
+				self.inspector_view.create_inspector(value)
 			case 'update_image':
 				self.image_view.on_itemSelected(value)
 			case _:
@@ -73,9 +73,8 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 	def on_viewerEvent(self, code : EventCode, value : Any):
 		match code:
 			case 'session_focus':
-				self.session_view.setCurrentIndex(value)
-				self.session_view.expandParent(value)
-				self.inspector_view.on_sesionViewUpdate(value)
+				self.inspector_view.create_inspector(value)
+				# self.session_view.setCurrentIndex(value)
 			case _:
 				print('Invalid code', code)
 
