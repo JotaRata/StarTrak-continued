@@ -33,8 +33,9 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 		self.inspector_view = InspectorView(sidebar_frame)
 		sidebar_frame.layout().addWidget(self.inspector_view)
 
-		self.session_view.clicked.connect(self.inspector_view.on_sesionViewUpdate)
-		self.session_view.doubleClicked.connect(self.image_view.on_itemSelected)
+		# self.session_view.clicked.connect(self.inspector_view.on_sesionViewUpdate)
+		# self.session_view.doubleClicked.connect(self.image_view.on_itemSelected)
+		self.session_view.session_event += self.on_sessionEvent
 		self.inspector_view.inspector_event += self.on_inspectorEvent
 
 		#todo: replace all signals by a single event handler
@@ -46,7 +47,6 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 		self.image_view.on_starSelected.connect(self.inspector_view.on_sesionViewUpdate)
 		self.fix_splitterWidth() 
 
-	#todo: improve event codes (i.e. a StrEnum)
 	def on_inspectorEvent(self, code : EventCode, value : Any):
 		match code:
 			case 'update_image':
@@ -54,9 +54,19 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 			case 'session_focus':
 				self.session_view.setCurrentIndex(value)
 				self.session_view.expandParent(value)
+				self.inspector_view.on_sesionViewUpdate(value)
 			case 'inspector_update':
 				self.session_view.updateItem(value[0], value[1])
 				self.image_view.update_image(value[0], value[1])
+			case _:
+				print('Invalid code', code)
+	
+	def on_sessionEvent(self, code : EventCode, value : Any):
+		match code:
+			case 'session_focus':
+				self.inspector_view.on_sesionViewUpdate(value)
+			case 'update_image':
+				self.image_view.on_itemSelected(value)
 			case _:
 				print('Invalid code', code)
 

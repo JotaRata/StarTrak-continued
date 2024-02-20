@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from PySide6 import QtCore, QtWidgets
 from PySide6.QtCore import Qt, Signal
 from typing import List
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QMouseEvent
 from PySide6.QtWidgets import QWidget
 from views.application import Application
 from qt.extensions import *
@@ -17,6 +17,7 @@ class SessionTreeView(QtWidgets.QTreeView):
 		self.session_event = UIEvent(self)
 		app = Application.instance()
 		app.on_sessionLoad.connect(self.setModel)
+
 		self.setModel(app.st_module.get_session())
 	
 	def setModel(self, session):
@@ -33,6 +34,16 @@ class SessionTreeView(QtWidgets.QTreeView):
 
 	def expandParent(self, index : QtCore.QModelIndex):
 		self.expand(index.parent())
+
+	def mousePressEvent(self, event: QMouseEvent) -> None:
+		super().mousePressEvent(event)
+		index = self.currentIndex()
+		self.session_event('session_focus', index)()
+	
+	def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
+		super().mouseDoubleClickEvent(event)
+		index = self.currentIndex()
+		self.session_event('update_image', index)()
 		
 _excluded = ['SessionLocationBlock']
 
