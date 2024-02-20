@@ -1,14 +1,19 @@
 from __future__ import annotations
 import enum
-from typing import Callable
-from PySide6.QtWidgets import QGraphicsSceneMouseEvent
+from typing import Any, Callable
+from PySide6.QtWidgets import QGraphicsSceneMouseEvent, QWidget
 import numpy as np
-from qt.extensions import load_class, get_child
+from qt.extensions import *
 from qt.classes.range_slider import QRangeSlider
 from PySide6 import QtWidgets, QtCore, QtGui
 from views.application import Application
 from startrak.native import FileInfo, Star, StarList
 from startrak.native.alias import ImageLike
+
+normal_color =  None
+hover_color =  None
+selected_color =  None
+highlighted_color =  None
 
 UI_ImageViewer, _ = load_class('image_viewer')
 class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
@@ -18,11 +23,13 @@ class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
 	current_index : QtCore.QModelIndex
 	mapping_func : Callable[[ImageLike], ImageLike]
 	star_labels : list[_StarLabelItem]
-	on_starSelected = QtCore.Signal(QtCore.QModelIndex)
+
+	viewer_event : UIEvent
 
 	def __init__(self, parent: QtWidgets.QWidget) -> None:
-		QtWidgets.QWidget.__init__(self, parent)
+		super().__init__(parent)
 		self.setupUi(self)
+		self.viewer_event = UIEvent(self)
 
 		self.view = get_child(self, 'graphicsView', QtWidgets.QGraphicsView)
 		self.view.setScene(QtWidgets.QGraphicsScene())
@@ -97,84 +104,81 @@ class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
 	def draw_stars(self,):
 		session = Application.get_session()
 		stars = session.included_stars
-		scene = self.view.scene()
 		self.star_labels.clear()
 
-		def emit_starSelected(index):
-				model = self.current_index.model()
-				session_idx = model.index(0, 0, QtCore.QModelIndex())
-				parent_idx = model.index(model.rowCount(session_idx) - 1, 0, session_idx)
-				model_index = model.index(index, 0, parent_idx)
-				self.selected_star = index
-				
-				for item in self.star_labels:
-					if item.index == index:
-						continue
-					if item.selected:
-						item.selected = False
-						item.update()
-				self.on_starSelected.emit(model_index)
+		model = self.current_index.model()
+		session_idx = model.index(0, 0, QtCore.QModelIndex())
+		parent_idx = model.index(model.rowCount(session_idx) - 1, 0, session_idx)
 
 		for i, star in enumerate(stars):
-			item = _StarLabelItem(i, star)
+			star_index = model.index(i, 0, parent_idx)
+			item = ImageViewer._StarLabelItem(star_index, star, self)
 			item.selected = self.selected_star == i
-			# todo: Add method to StarList to retrieve indices by name
-			item.on_mouseClick = emit_starSelected
-			scene.addItem(item)
+			self.view.scene().addItem(item)
 			self.star_labels.append(item)
-	
-
-class _StarLabelItem(QtWidgets.QGraphicsItem):
-	def __init__(self, index : int, star : Star):
-		super().__init__()
-		self.index = index
-		self.text = star.name
-		self.position = star.position
-		self.radius = star.aperture
-		self.hovered = False
-		self.selected = False
-		self._bbox = QtCore.QRectF(0,0,0,0)
-		self.on_mouseClick = None
-		self.setAcceptHoverEvents(True)
-
-	def boundingRect(self):
-		return self._bbox
-
-	def paint(self, painter, option, widget):
-		scale = 1.0 / painter.transform().m22()
-		color = highlighted_color if self.selected  else hover_color if self.hovered else normal_color
-		alpha = 1 if self.hovered or self.selected else 0.5 if self.radius >= 8 else 0
-		pad = 2 if self.hovered or self.selected else 0
-
-		painter.setPen(QtGui.QPen(color, scale + 2))
-		crect = QtCore.QRectF(self.position[0] - self.radius, self.position[1] - self.radius,
-									2 * self.radius, 2 * self.radius).marginsAdded(QtCore.QMargins(pad, pad, pad, pad))
-		painter.drawEllipse(crect)
 		
-		font = QtGui.QFont("Calibri", 10 * scale)
-		painter.setFont(font)
-		painter.setOpacity(alpha)
-		rect = painter.boundingRect(crect, QtCore.Qt.AlignCenter, self.text)
-		rect.translate(0, - self.radius - scale * 10)
-		painter.drawText(rect, QtCore.Qt.AlignCenter, self.text)
-		self._bbox = rect.united(crect)
+	def set_selectedStar(self, index : QtCore.QModelIndex):
+		self.selected_star = index.row()
+		for item in self.star_labels:
+			if item.index == index:
+				continue
+			if item.selected:
+				item.selected = False
+				item.update()
 
-	def mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent) -> None:
-		super().mouseDoubleClickEvent(event)
-		self.selected = True
-		if self.on_mouseClick:
-			self.on_mouseClick(self.index)
-		self.update()
-	
-	def hoverEnterEvent(self, event):
-		super().hoverEnterEvent(event)
-		self.hovered = True
-		self.update()
+	class _StarLabelItem(QtWidgets.QGraphicsItem):
+		def __init__(self, index : QtCore.QModelIndex, star : Star, parent: ImageViewer):
+			super().__init__()
+			self.index = index
+			self.star = star
+			self.parent = parent
+			
+			self.hovered = False
+			self.selected = False
+			self._bbox = QtCore.QRectF(0,0,0,0)
+			self.on_mouseClick = None
+			self.setAcceptHoverEvents(True)
 
-	def hoverLeaveEvent(self, event):
-		super().hoverLeaveEvent(event)
-		self.hovered = False
-		self.update()
+		def boundingRect(self) -> QtCore.QRectF:
+			return self._bbox
+
+		def paint(self, painter: QtGui.QPainter, option: QtWidgets.QStyleOptionGraphicsItem, widget: QWidget = None):
+			global normal_color, hover_color, selected_color, highlighted_color
+			scale = 1.0 / painter.transform().m22()
+			
+			color = highlighted_color if self.selected  else hover_color if self.hovered else normal_color
+			alpha = 1 if self.hovered or self.selected else 0.5 if self.star.aperture >= 8 else 0
+			pad = 2 if self.hovered or self.selected else 0
+
+			painter.setPen(QtGui.QPen(color, scale + 2))
+			crect = QtCore.QRectF(self.star.position[0] - self.star.aperture, self.star.position[1] - self.star.aperture,
+										2 * self.star.aperture, 2 * self.star.aperture).marginsAdded(QtCore.QMargins(pad, pad, pad, pad))
+			painter.drawEllipse(crect)
+			
+			font = QtGui.QFont("Calibri", 10 * int(scale))
+			painter.setFont(font)
+			painter.setOpacity(alpha)
+			rect = painter.boundingRect(crect, QtCore.Qt.AlignmentFlag.AlignCenter, self.star.name)
+			rect.translate(0, - self.star.aperture - scale * 10)
+			painter.drawText(rect, QtCore.Qt.AlignmentFlag.AlignCenter, self.star.name)
+			self._bbox = rect.united(crect)
+
+		def mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent) -> None:
+			super().mouseDoubleClickEvent(event)
+			self.selected = True
+			self.update()
+			self.parent.set_selectedStar(self.index)
+			self.parent.viewer_event('session_focus', self.index)()
+		
+		def hoverEnterEvent(self, event):
+			super().hoverEnterEvent(event)
+			self.hovered = True
+			self.update()
+
+		def hoverLeaveEvent(self, event):
+			super().hoverLeaveEvent(event)
+			self.hovered = False
+			self.update()
 
 def setup_itemColors(inverted):
 	global normal_color, hover_color, selected_color, highlighted_color
