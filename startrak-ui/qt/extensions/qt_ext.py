@@ -1,5 +1,6 @@
+from enum import StrEnum
 import re
-from typing import Type, TypeVar, cast, overload
+from typing import Any, List, Literal, Type, TypeVar, cast, overload
 from PySide6 import QtWidgets, QtCore, QtGui
 
 TWdg = TypeVar('TWdg', bound= QtCore.QObject)
@@ -71,3 +72,28 @@ class QStyleSheet:
 			raise TypeError('Invalid argument')
 	def __repr__(self) -> str:
 		return self.sheet
+
+EventCode = Literal[ 
+							'session_expand',		# Used to tell SessionView to expand on an item, value: QModelIndex
+							'session_focus',	# Tell InspectorView to focus on the specified item, value: QModelIndex
+							'inspector_update',	# Sent by InspectorView to tell that a value has changed, value: (QModelIndex, STObject)
+							'update_image'		# Used to update the current image in ImageView, value: QModelIndex (file)
+							]
+
+class UIEvent(QtCore.QObject):
+	__int = QtCore.Signal(str, object)
+
+	@overload
+	def __call__(self, code : Literal['session_expand', 'update_image', 'session_focus'], value : QtCore.QModelIndex): ...
+	@overload
+	def __call__(self, code : Literal['inspector_update'], value : tuple[QtCore.QModelIndex, Any]): ...
+
+	def __call__(self, code : EventCode, value : Any):
+		def wrapper(*args, **kwargs):
+			self.__int.emit(code, value)
+		return wrapper
+	
+	def __iadd__(self, slot: object):
+		self.__int.connect(slot)
+		return self
+	

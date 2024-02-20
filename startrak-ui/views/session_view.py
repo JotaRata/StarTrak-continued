@@ -1,16 +1,20 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from PySide6 import QtCore, QtWidgets
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from typing import List
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QWidget
 from views.application import Application
+from qt.extensions import *
 from startrak.native.ext import STObject
 
 class SessionTreeView(QtWidgets.QTreeView):
+	session_event : UIEvent
+
 	def __init__(self, parent: QWidget | None = None) -> None:
 		super().__init__(parent)
+		self.session_event = UIEvent(self)
 		app = Application.instance()
 		app.on_sessionLoad.connect(self.setModel)
 		self.setModel(app.st_module.get_session())

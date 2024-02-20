@@ -35,22 +35,28 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 
 		self.session_view.clicked.connect(self.inspector_view.on_sesionViewUpdate)
 		self.session_view.doubleClicked.connect(self.image_view.on_itemSelected)
-		self.inspector_view.inspector_event.connect(self.on_inspectorEvent)
+		self.inspector_view.inspector_event += self.on_inspectorEvent
 
 		#todo: replace all signals by a single event handler
-		self.inspector_view.on_inspectorUpdate.connect(self.session_view.updateItem)
-		self.inspector_view.on_inspectorUpdate.connect(self.image_view.update_image)
-		self.inspector_view.on_inspectorSelect.connect(self.session_view.setCurrentIndex)
-		self.inspector_view.on_inspectorSelect.connect(self.session_view.expandParent)
+		# self.inspector_view.on_inspectorUpdate.connect(self.session_view.updateItem)
+		# self.inspector_view.on_inspectorUpdate.connect(self.image_view.update_image)
+		# self.inspector_view.on_inspectorSelect.connect(self.session_view.setCurrentIndex)
+		# self.inspector_view.on_inspectorSelect.connect(self.session_view.expandParent)
 		# self.image_view.on_starSelected.connect(self.session_view.setCurrentIndex)
 		self.image_view.on_starSelected.connect(self.inspector_view.on_sesionViewUpdate)
 		self.fix_splitterWidth() 
 
 	#todo: improve event codes (i.e. a StrEnum)
-	def on_inspectorEvent(self, code : str, value : Any):
+	def on_inspectorEvent(self, code : EventCode, value : Any):
 		match code:
-			case 'update_img':
+			case 'update_image':
 				self.image_view.on_itemSelected(value)
+			case 'session_focus':
+				self.session_view.setCurrentIndex(value)
+				self.session_view.expandParent(value)
+			case 'inspector_update':
+				self.session_view.updateItem(value[0], value[1])
+				self.image_view.update_image(value[0], value[1])
 			case _:
 				print('Invalid code', code)
 

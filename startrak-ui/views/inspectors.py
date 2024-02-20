@@ -13,63 +13,56 @@ from qt.extensions import *
 import startrak
 from startrak.internals.exceptions import InstantiationError
 from startrak.native.collections.filelist import FileList
+from startrak.native.ext import STObject
 from startrak.types.phot import _get_cropped
 from views.application import Application
 
 class InspectorView(QtWidgets.QFrame):
-	on_inspectorUpdate = Signal(QtCore.QModelIndex, object)
-	on_inspectorSelect = Signal(QtCore.QModelIndex)
-	inspector_event = Signal(str, object)
+	inspector_event : UIEvent
 
 	current_index : QtCore.QModelIndex
 
 	def __init__(self, parent: QtWidgets.QWidget = None) -> None:
 		super().__init__(parent)
+		self.inspector_event = UIEvent(self)
 		
 		self.current_index = QtCore.QModelIndex()
 		self.header_frame = QtWidgets.QFrame(self)
 		header_layout = QtWidgets.QHBoxLayout(self.header_frame)
 		header_layout.addStretch()
 		header_layout.setContentsMargins(0, 0, 0, 0)
+		self.inspector : QtWidgets.QWidget = None
 	
 		layout = QtWidgets.QVBoxLayout(self)
 		layout.setContentsMargins(2, 8, 2, 8)
 		
-		self.scroll_area = QtWidgets.QScrollArea(self)
-		self.scroll_area.setWidgetResizable(True)
-		self.scroll_area.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
+		self.container = QtWidgets.QScrollArea(self)
+		self.container.setWidgetResizable(True)
+		self.container.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
 		content = QtWidgets.QFrame(self)
-		self.scroll_area.setWidget(content)
+		self.container.setWidget(content)
 		scroll_layout = QtWidgets.QVBoxLayout(content)
 		scroll_layout.setContentsMargins(0, 0, 0, 0)
 
 		layout.addWidget(self.header_frame)
-		layout.addWidget(self.scroll_area)
-		self.inspector : QtWidgets.QWidget | None = None
+		layout.addWidget(self.container)
 
 	@QtCore.Slot(QtCore.QModelIndex)
 	def on_sesionViewUpdate(self, index : QtCore.QModelIndex):
-		if self.inspector:
-			self.inspector.destroy()
-			self.scroll_area.widget().layout().removeWidget( self.inspector)
-		def emit_event(code, value):
-			self.inspector_event.emit(code, value)
-		def emit_update(value):
-			self.on_inspectorUpdate.emit(index, value)
-		def emit_select(value, updateInsp):
-			self.on_inspectorSelect.emit(value)
-			if updateInsp:
-				self.on_sesionViewUpdate(value)
-
+		self.destroy_inspector()
+		
 		pointer = index.internalPointer()
 		if pointer is not None:
 			self.current_index = index
-			self.inspector = AbstractInspector.instantiate(type(pointer.ref).__name__, pointer.ref, index, self.scroll_area)
-			self.inspector.insp_event.connect(emit_event)
-			self.inspector.on_change.connect(emit_update)
-			self.inspector.on_select.connect(emit_select)
-			self.scroll_area.widget().layout().addWidget(self.inspector)
+			self.inspector = AbstractInspector.instantiate(pointer.ref, index, self)
+			self.container.widget().layout().addWidget(self.inspector)
 		self.setup_breadCrumbs(index)
+	
+	def destroy_inspector(self):
+		if not self.inspector:
+			return
+		self.inspector.destroy()
+		self.container.widget().layout().removeWidget( self.inspector)
 	
 	def setup_breadCrumbs(self, index : QtCore.QModelIndex):
 		layout = cast(QtWidgets.QHBoxLayout, self.header_frame.layout())
@@ -138,29 +131,32 @@ TInspectorRef = TypeVar('TInspectorRef')
 class AbstractInspector(QtWidgets.QFrame, Generic[TInspectorRef], metaclass=AbstractInspectorMeta):
 	ref: TInspectorRef
 	index : QtCore.QModelIndex
-	on_change = Signal(object)
-	on_select = Signal(QtCore.QModelIndex, bool)
-	insp_event = Signal(str, object)
 
-	def __init__(self, value : TInspectorRef, index : QModelIndex, parent : QtWidgets.QWidget = None) -> None:
+	def __init__(self, value : TInspectorRef, index : QModelIndex, parent : InspectorView) -> None:
 		if type(self) is AbstractInspector:
 			raise TypeError('Cannot instantiate abstract class "AbstractInspector"')
 		
-		super().__init__(parent)
+		super().__init__(parent.container)
 		self.setupUi()
 		self.ref = value
 		self.index = index
-
+		self._view = parent
+	def parent(self) -> InspectorView:
+		return self._view
+	@property
+	def inspector_event(self):
+		return self._view.inspector_event
+	
 	def setupUi(self):
-		if not self.__layout__:
-			return
-		super().setupUi(self)
+		if self.__layout__:
+			super().setupUi(self)
 
 	@staticmethod
-	def instantiate(type_name : str, value : TInspectorRef, index: QtCore.QModelIndex, parent : QtWidgets.QWidget) -> AbstractInspector:
-		if type_name in AbstractInspectorMeta.supported:
-			return AbstractInspectorMeta.supported[type_name][0](value, index, parent)
-		return AnyInspector(value, index, parent)
+	def instantiate(obj : TInspectorRef, index: QtCore.QModelIndex, parent : InspectorView) -> AbstractInspector[TInspectorRef]:
+		t_name = type(obj).__name__
+		if t_name in AbstractInspectorMeta.supported:
+			return AbstractInspectorMeta.supported[t_name][0](obj, index, parent)
+		return AnyInspector(obj, index, parent)
 	
 	@staticmethod
 	def get_layout(name : str):
@@ -169,7 +165,7 @@ class AbstractInspector(QtWidgets.QFrame, Generic[TInspectorRef], metaclass=Abst
 		raise KeyError(name)
 
 class AnyInspector(AbstractInspector[Any], layout_name= 'insp_undef'):
-	def __init__(self, value, index, parent: QtWidgets.QWidget) -> None:
+	def __init__(self, value, index, parent: InspectorView):
 		super().__init__(value, index, parent)
 		content = get_child(self, 'contentField', QtWidgets.QTextEdit)
 		content.setText(str(value))
@@ -177,7 +173,7 @@ class AnyInspector(AbstractInspector[Any], layout_name= 'insp_undef'):
 class StarInspector(AbstractInspector[startrak.native.Star], layout_name= 'insp_star'): 
 	prev_height = 0
 	auto_exposure = False
-	def __init__(self, value: startrak.native.Star, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
+	def __init__(self, value: startrak.native.Star, index: QModelIndex, parent: InspectorView):
 		super().__init__(value, index, parent)
 		self.draw_ready = False
 
@@ -205,29 +201,27 @@ class StarInspector(AbstractInspector[startrak.native.Star], layout_name= 'insp_
 		self.draw_ready = True
 		self.draw_preview(value)
 
-		def phot_click(event):
-			index = self.index.model().index(0, 0, self.index)
-			self.on_select.emit(index, True)
-		phot_panel.mouseDoubleClickEvent = phot_click#type:ignore
+		phot_index = self.index.model().index(0, 0, self.index)
+		phot_panel.mouseDoubleClickEvent = self.inspector_event('session_focus', phot_index)	#type:ignore
 
 	@Slot(str)
 	def name_changed(self, value):
 		self.ref.name = value
-		self.on_change.emit(self.ref)
+		self.inspector_event('inspector_update', (self.index, self.ref))()
 	@Slot(int)
 	def posx_changed(self, value):
 		self.ref.position = startrak.native.Position(value, self.ref.position.y)
-		self.on_change.emit(self.ref)
+		self.inspector_event('inspector_update', (self.index, self.ref))()
 		self.draw_preview(self.ref)
 	@Slot(int)
 	def posy_changed(self, value):
 		self.ref.position = startrak.native.Position(self.ref.position.x, value)
-		self.on_change.emit(self.ref)
+		self.inspector_event('inspector_update', (self.index, self.ref))()
 		self.draw_preview(self.ref)
 	@Slot(int)
 	def apert_changed(self, value):
 		self.ref.aperture = value
-		self.on_change.emit(self.ref)
+		self.inspector_event('inspector_update', (self.index, self.ref))()
 		self.draw_preview(self.ref)
 	@Slot(bool)
 	def set_autoexp(self, state):
@@ -285,7 +279,7 @@ class StarInspector(AbstractInspector[startrak.native.Star], layout_name= 'insp_
 		self.view.fitInView(self.view.sceneRect(), QtCore.Qt.AspectRatioMode.KeepAspectRatio)
 
 class PhotometryInspector(AbstractInspector[startrak.native.PhotometryResult], layout_name= 'insp_phot'):
-	def __init__(self, value: startrak.native.PhotometryResult, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
+	def __init__(self, value: startrak.native.PhotometryResult, index: QModelIndex, parent: InspectorView) -> None:
 		super().__init__(value, index, parent)
 		aperture = value.aperture_info
 		flux_area = f"{np.pi * aperture.radius ** 2:.2f}"
@@ -310,7 +304,7 @@ class PhotometryInspector(AbstractInspector[startrak.native.PhotometryResult], l
 
 _THeader = TypeVar('_THeader', bound= startrak.native.Header)
 class AbstractHeaderInspector(AbstractInspector[_THeader], layout_name= 'insp_header'):
-	def __init__(self, value: _THeader, index: QModelIndex, readOnly= True, parent: QtWidgets.QWidget = None) -> None:
+	def __init__(self, value: _THeader, index: QModelIndex, parent: InspectorView, readOnly= True) -> None:
 		if type(self) is AbstractHeaderInspector:
 			raise InstantiationError(self)
 		
@@ -345,8 +339,8 @@ class HeaderInspector(AbstractHeaderInspector[startrak.native.Header]):
 	pass
 
 class HeaderArchetypeInspector(AbstractHeaderInspector[startrak.native.HeaderArchetype]):
-	def __init__(self, value: startrak.native.HeaderArchetype, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
-		super().__init__(value, index, False, parent)
+	def __init__(self, value: startrak.native.HeaderArchetype, index: QModelIndex, parent: InspectorView) -> None:
+		super().__init__(value, index, parent, readOnly= False)
 		self.user_panel = QtWidgets.QFrame(self)
 		self.user_panel.setObjectName('user_panel')
 		user_panel = QtWidgets.QVBoxLayout(self.user_panel)
@@ -361,7 +355,7 @@ class HeaderArchetypeInspector(AbstractHeaderInspector[startrak.native.HeaderArc
 
 
 class FileInspector(AbstractInspector[startrak.native.FileInfo], layout_name= 'insp_file'):
-	def __init__(self, value: startrak.native.FileInfo, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
+	def __init__(self, value: startrak.native.FileInfo, index: QModelIndex, parent: InspectorView) -> None:
 		super().__init__(value, index, parent)
 		path_line = get_child(self, 'path_line', QtWidgets.QLineEdit)
 		size_line = get_child(self, 'size_line', QtWidgets.QLineEdit)
@@ -395,13 +389,11 @@ class FileInspector(AbstractInspector[startrak.native.FileInfo], layout_name= 'i
 		focal_line.setText(value.header['FOCALLEN', str, 'NA'])
 		filter_line.setText(value.header['FILTER', str, 'NA'])
 
-		def header_click(event):
-			index = self.index.model().index(0, 0, self.index)
-			self.on_select.emit(index, True)
-		header_panel.mouseDoubleClickEvent = header_click#type:ignore
+		header_index = self.index.model().index(0, 0, self.index)
+		header_panel.mouseDoubleClickEvent = self.inspector_event('session_focus', header_index)	#type:ignore
 
 class SessionInspector(AbstractInspector[startrak.sessionutils.InspectionSession], layout_name= 'insp_session'): #type: ignore
-	def __init__(self, value: startrak.sessionutils.InspectionSession, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
+	def __init__(self, value: startrak.sessionutils.InspectionSession, index: QModelIndex, parent: InspectorView) -> None:
 		super().__init__(value, index, parent)
 		properties_panel = get_child(self, 'properties_panel', QtWidgets.QFrame)
 		validation_panel = get_child(self, 'validation_panel', QtWidgets.QFrame)
@@ -424,15 +416,12 @@ class SessionInspector(AbstractInspector[startrak.sessionutils.InspectionSession
 		strict_check = get_child(frame, 'strict_check', QtWidgets.QCheckBox)
 		strict_check.setChecked(value.force_validation)
 
-		def arch_panelBinder(event):
-			index = self.index.model().index(0, 0, self.index)
-			self.on_select.emit(index, True)
-
 		arch_panel = get_child(frame, 'arch_panel', QtWidgets.QFrame)
 		if value.archetype:
 			archCount_label = get_child(arch_panel, 'archCount_label', QtWidgets.QLabel)
 			archCount_label.setText(f'{len(value.archetype.keys())} entries')
-			arch_panel.mouseDoubleClickEvent = arch_panelBinder#type:ignore
+			arch_index = self.index.model().index(0, 0, self.index)
+			arch_panel.mouseDoubleClickEvent = self.inspector_event('session_focus', arch_index)#type:ignore
 		else:
 			arch_panel.setHidden(True)
 		
@@ -446,20 +435,16 @@ class SessionInspector(AbstractInspector[startrak.sessionutils.InspectionSession
 		fileCount_label.setText(f'{len(value.included_files)} entries')
 		starCount_label.setText(f'{len(value.included_stars)} entries')
 
-		_rows = self.index.model().rowCount(self.index)
-		def files_panelBinder(event):
-			index = self.index.model().index(_rows - 2, 0, self.index)
-			self.on_select.emit(index, True)
-		def stars_panelBinder(event):
-			index = self.index.model().index(_rows - 1, 0, self.index)
-			self.on_select.emit(index, True)
-		
-		files_panel.mouseDoubleClickEvent = files_panelBinder#type:ignore
-		stars_panel.mouseDoubleClickEvent = stars_panelBinder#type:ignore
+		rows = self.index.model().rowCount(self.index)
+		fileList_index = self.index.model().index(rows - 2, 0, self.index)
+		starList_index = self.index.model().index(rows - 1, 0, self.index)
+
+		files_panel.mouseDoubleClickEvent = self.inspector_event('session_focus', fileList_index)#type:ignore
+		stars_panel.mouseDoubleClickEvent = self.inspector_event('session_focus', starList_index)#type:ignore
 
 _TCollection = TypeVar('_TCollection', bound= startrak.native.ext.STCollection)
 class AbstractCollectionInspector(AbstractInspector[_TCollection]):
-	def __init__(self, value: _TCollection, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
+	def __init__(self, value: _TCollection, index: QModelIndex, parent: InspectorView) -> None:
 		super().__init__(value, index, parent)
 		layout= QtWidgets.QVBoxLayout(self)
 		layout.addWidget(QtWidgets.QLabel(f'{type(value).__name__}: {len(value)} elements'))
@@ -488,9 +473,7 @@ class AbstractCollectionInspector(AbstractInspector[_TCollection]):
 		model = self.index.model()
 		child_idx = model.index(index, 0, self.index)
 		entry= AbstractCollectionInspector._CollectionEntry(child_idx, label, desc, parent= self)
-		def click_binder(event):
-				self.on_select.emit(child_idx, True)
-		entry.mouseDoubleClickEvent = click_binder 	#type: ignore
+		entry.mouseDoubleClickEvent = self.inspector_event('session_focus', child_idx)	#type: ignore
 		return entry
 			
 	def create_element(self, index : int):
@@ -503,7 +486,7 @@ class AbstractCollectionInspector(AbstractInspector[_TCollection]):
 		return entry
 
 class FileListInspector(AbstractCollectionInspector[startrak.native.FileList]):
-	def __init__(self, value: FileList, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
+	def __init__(self, value: FileList, index: QModelIndex, parent: InspectorView) -> None:
 		self._group = QtWidgets.QButtonGroup(self)
 		super().__init__(value, index, parent)
 
@@ -515,7 +498,5 @@ class FileListInspector(AbstractCollectionInspector[startrak.native.FileList]):
 		btn.setSizePolicy(*(QtWidgets.QSizePolicy.Policy.Maximum,)*2)
 		entry.layout().addWidget(btn, 1, 1)
 		self._group.addButton(btn)
-		def toggle_binder(state):
-			self.insp_event.emit('update_img', entry.index)
-		btn.toggled.connect(toggle_binder)
+		btn.toggled.connect(self.inspector_event('update_image', entry.index))
 		return entry
