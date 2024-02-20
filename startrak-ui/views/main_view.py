@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Any
 from PySide6 import QtCore, QtWidgets 
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QFileDialog, QMessageBox
@@ -34,6 +35,9 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 
 		self.session_view.clicked.connect(self.inspector_view.on_sesionViewUpdate)
 		self.session_view.doubleClicked.connect(self.image_view.on_itemSelected)
+		self.inspector_view.inspector_event.connect(self.on_inspectorEvent)
+
+		#todo: replace all signals by a single event handler
 		self.inspector_view.on_inspectorUpdate.connect(self.session_view.updateItem)
 		self.inspector_view.on_inspectorUpdate.connect(self.image_view.update_image)
 		self.inspector_view.on_inspectorSelect.connect(self.session_view.setCurrentIndex)
@@ -42,8 +46,14 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 		self.image_view.on_starSelected.connect(self.inspector_view.on_sesionViewUpdate)
 		self.fix_splitterWidth() 
 
-		# self.show()
-	
+	#todo: improve event codes (i.e. a StrEnum)
+	def on_inspectorEvent(self, code : str, value : Any):
+		match code:
+			case 'update_img':
+				self.image_view.on_itemSelected(value)
+			case _:
+				print('Invalid code', code)
+
 	@QtCore.Slot(QAction)
 	def menubar_call(self, code: QAction):
 		app = Application.instance()

@@ -88,6 +88,10 @@ QScrollBar::handle:hover{
 	background: @secondary;
 }
 
+QRadioButton{
+	background: transparent;
+}
+
 InspectorView QFrame[objectName $= "_panel"]{
 	background: @panel-10;
 	border-radius: 8px

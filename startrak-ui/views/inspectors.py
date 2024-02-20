@@ -4,7 +4,7 @@ from functools import partial
 import os
 import re
 from typing import Any, Generic
-from PySide6.QtCore import QModelIndex, Signal, Slot
+from PySide6.QtCore import QMetaObject, QModelIndex, Signal, Slot
 from PySide6 import QtWidgets, QtCore
 from PySide6.QtGui import QMouseEvent, QResizeEvent
 import numpy as np
@@ -12,12 +12,15 @@ from qt.extensions import *
 
 import startrak
 from startrak.internals.exceptions import InstantiationError
+from startrak.native.collections.filelist import FileList
 from startrak.types.phot import _get_cropped
 from views.application import Application
 
 class InspectorView(QtWidgets.QFrame):
 	on_inspectorUpdate = Signal(QtCore.QModelIndex, object)
 	on_inspectorSelect = Signal(QtCore.QModelIndex)
+	inspector_event = Signal(str, object)
+
 	current_index : QtCore.QModelIndex
 
 	def __init__(self, parent: QtWidgets.QWidget = None) -> None:
@@ -49,6 +52,8 @@ class InspectorView(QtWidgets.QFrame):
 		if self.inspector:
 			self.inspector.destroy()
 			self.scroll_area.widget().layout().removeWidget( self.inspector)
+		def emit_event(code, value):
+			self.inspector_event.emit(code, value)
 		def emit_update(value):
 			self.on_inspectorUpdate.emit(index, value)
 		def emit_select(value, updateInsp):
@@ -60,6 +65,7 @@ class InspectorView(QtWidgets.QFrame):
 		if pointer is not None:
 			self.current_index = index
 			self.inspector = AbstractInspector.instantiate(type(pointer.ref).__name__, pointer.ref, index, self.scroll_area)
+			self.inspector.insp_event.connect(emit_event)
 			self.inspector.on_change.connect(emit_update)
 			self.inspector.on_select.connect(emit_select)
 			self.scroll_area.widget().layout().addWidget(self.inspector)
@@ -134,6 +140,7 @@ class AbstractInspector(QtWidgets.QFrame, Generic[TInspectorRef], metaclass=Abst
 	index : QtCore.QModelIndex
 	on_change = Signal(object)
 	on_select = Signal(QtCore.QModelIndex, bool)
+	insp_event = Signal(str, object)
 
 	def __init__(self, value : TInspectorRef, index : QModelIndex, parent : QtWidgets.QWidget = None) -> None:
 		if type(self) is AbstractInspector:
@@ -463,21 +470,24 @@ class AbstractCollectionInspector(AbstractInspector[_TCollection]):
 		layout.addStretch()
 
 	class _CollectionEntry(QtWidgets.QFrame):
-		def __init__(self, label: str, description: str= '', parent: QtWidgets.QWidget = None):
+		def __init__(self, mIndex: QModelIndex, label: str, description: str= '', parent: QtWidgets.QWidget = None):
 			super().__init__(parent)
 			self.setObjectName(str(id(self))[:7] + '_panel')
 			self.setFocusPolicy(QtCore.Qt.FocusPolicy.ClickFocus)
-			layout = QtWidgets.QVBoxLayout(self)
+			self.index = mIndex
+			self._layout = QtWidgets.QGridLayout(self)
 			self.name_label = QtWidgets.QLabel(label, self)
 			self.desc_label = QtWidgets.QLabel(description, self)
-			layout.addWidget(self.name_label)
-			layout.addWidget(self.desc_label)
+			self._layout.addWidget(self.name_label, 0, 0)
+			self._layout.addWidget(self.desc_label, 1, 0)
+		def layout(self) -> QtWidgets.QGridLayout:
+			return self._layout
 	
 	def _create_entry(self, index: int, label= 'Element', desc= ''):
 		'''Internal function, Do not override'''
 		model = self.index.model()
 		child_idx = model.index(index, 0, self.index)
-		entry= AbstractCollectionInspector._CollectionEntry(label, desc, parent= self)
+		entry= AbstractCollectionInspector._CollectionEntry(child_idx, label, desc, parent= self)
 		def click_binder(event):
 				self.on_select.emit(child_idx, True)
 		entry.mouseDoubleClickEvent = click_binder 	#type: ignore
@@ -493,7 +503,19 @@ class AbstractCollectionInspector(AbstractInspector[_TCollection]):
 		return entry
 
 class FileListInspector(AbstractCollectionInspector[startrak.native.FileList]):
+	def __init__(self, value: FileList, index: QModelIndex, parent: QtWidgets.QWidget = None) -> None:
+		self._group = QtWidgets.QButtonGroup(self)
+		super().__init__(value, index, parent)
+
 	def create_element(self, index: int):
 		ref = self.ref[index]
 		entry= self._create_entry(index, f'File: {ref.name}', f'Size: {ref.size}')
+		
+		btn = QtWidgets.QRadioButton(entry)
+		btn.setSizePolicy(*(QtWidgets.QSizePolicy.Policy.Maximum,)*2)
+		entry.layout().addWidget(btn, 1, 1)
+		self._group.addButton(btn)
+		def toggle_binder(state):
+			self.insp_event.emit('update_img', entry.index)
+		btn.toggled.connect(toggle_binder)
 		return entry
