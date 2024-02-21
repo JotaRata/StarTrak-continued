@@ -105,14 +105,14 @@ InspectorView QLabel {
 }
 
 /* Clickable frames */
-QFrame[focusPolicy= "2"]:enabled{
+.QFrame[focusPolicy= "2"]{
 	border: 0px; 
 	background: @panel-10; 
 }
-QFrame[focusPolicy= "2"]:hover:enabled{
+.QFrame[focusPolicy= "2"]:hover{
 	background: @panel-20; 
 }
-QFrame[focusPolicy= "2"]:focus:enabled{
+.QFrame[focusPolicy= "2"]:focus{
 	border: 1px solid @secondary; 
 	background: @panel-20; 
 }
@@ -161,4 +161,46 @@ QBreadCrumb:hover{
 QBreadCrumb:disabled{
 	background: @panel-20;
 	border: 1px solid @secondary;
+}
+
+AbstractCollectionInspector QScrollArea #scrollAreaWidgetContents{
+	background: @primary-dark;
+	border: 1px solid @shadow-5;
+	border-radius: 4px;
+}
+AbstractCollectionInspector CollectionEntry{
+	background: transparent;
+	height: 64px;
+	padding-top: 8px;
+	padding-right: 8px;
+	padding-left: 16px;
+}
+AbstractCollectionInspector CollectionEntry:hover{
+	background: @panel-10;
+}
+AbstractCollectionInspector CollectionEntry:focus{
+	background: @secondary;
+}
+
+AbstractCollectionInspector CollectionEntry > #name_label{
+	color: white;
+	height: 28px;
+}
+AbstractCollectionInspector CollectionEntry > #desc_label{
+	color: @panel-50;
+	height: 16px;
+}
+
+QRadioButton::indicator {
+	height: 12px;
+	width: 12px;
+}
+QRadioButton::indicator:unchecked {
+	image: url("res:radioButton_off.png");
+}
+QRadioButton::indicator:unchecked:hover {
+	image: url("res:radioButton_hover.png");
+}
+QRadioButton::indicator:checked {
+	image: url("res:radioButton_on.png");
 }

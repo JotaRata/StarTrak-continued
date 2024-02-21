@@ -446,26 +446,34 @@ class SessionInspector(AbstractInspector[startrak.sessionutils.InspectionSession
 		stars_panel.mouseDoubleClickEvent = self.inspector_event('session_focus', starList_index)#type:ignore
 
 _TCollection = TypeVar('_TCollection', bound= startrak.native.ext.STCollection)
-class AbstractCollectionInspector(AbstractInspector[_TCollection]):
+class AbstractCollectionInspector(AbstractInspector[_TCollection], layout_name= 'insp_collection'):
 	def __init__(self, value: _TCollection, index: QModelIndex, parent: InspectorView) -> None:
 		super().__init__(value, index, parent)
-		layout= QtWidgets.QVBoxLayout(self)
-		layout.addWidget(QtWidgets.QLabel(f'{type(value).__name__}: {len(value)} elements'))
-		
+		name_label = get_child(self, 'name_label', QtWidgets.QLabel)
+		info_label = get_child(self, 'info_label', QtWidgets.QLabel)
+		self.area = get_child(self, 'scrollArea', QtWidgets.QScrollArea)
+
+		name_label.setText(type(value).__name__)
+		info_label.setText(f'{len(value)} elements.')
 		for i in range(len(value)):
 			entry= self.create_element(i)
-			self.layout().addWidget(entry)
-		layout.addStretch()
+			self.area.widget().layout().addWidget(entry)
 
-	class _CollectionEntry(QtWidgets.QFrame):
+	class CollectionEntry(QtWidgets.QFrame):
 		def __init__(self, mIndex: QModelIndex, label: str, description: str= '', parent: QtWidgets.QWidget = None):
 			super().__init__(parent)
-			self.setObjectName(str(id(self))[:7] + '_panel')
 			self.setFocusPolicy(QtCore.Qt.FocusPolicy.ClickFocus)
 			self.index = mIndex
 			self._layout = QtWidgets.QGridLayout(self)
+			self._layout.setContentsMargins(0,0,0,0)
 			self.name_label = QtWidgets.QLabel(label, self)
 			self.desc_label = QtWidgets.QLabel(description, self)
+
+			self.name_label.setObjectName('name_label')
+			self.desc_label.setObjectName('desc_label')
+			self.name_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignBottom)
+			self.desc_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignBottom)
+
 			self._layout.addWidget(self.name_label, 0, 0)
 			self._layout.addWidget(self.desc_label, 1, 0)
 		def layout(self) -> QtWidgets.QGridLayout:
@@ -475,7 +483,7 @@ class AbstractCollectionInspector(AbstractInspector[_TCollection]):
 		'''Internal function, Do not override'''
 		model = self.index.model()
 		child_idx = model.index(index, 0, self.index)
-		entry= AbstractCollectionInspector._CollectionEntry(child_idx, label, desc, parent= self)
+		entry= AbstractCollectionInspector.CollectionEntry(child_idx, label, desc, parent= self.area.widget())
 		entry.mouseDoubleClickEvent = self.inspector_event('session_focus', child_idx)	#type: ignore
 		return entry
 			
@@ -503,7 +511,7 @@ class FileListInspector(AbstractCollectionInspector[startrak.native.FileList]):
 		btn.setSizePolicy(*(QtWidgets.QSizePolicy.Policy.Maximum,)*2)
 		btn.setChecked(index == FileListInspector.selected_file)
 
-		entry.layout().addWidget(btn, 1, 1)
+		entry.layout().addWidget(btn, 0, 1)
 		self._group.addButton(btn)
 		btn.toggled.connect(self.inspector_event('update_image', entry.index))
 		return entry
