@@ -491,7 +491,7 @@ class AbstractCollectionInspector(AbstractInspector[_TCollection]):
 class FileListInspector(AbstractCollectionInspector[startrak.native.FileList]):
 	selected_file = -1
 
-	def __init__(self, value: FileList, index: QModelIndex, parent: InspectorView) -> None:
+	def __init__(self, value: startrak.native.FileList, index: QModelIndex, parent: InspectorView) -> None:
 		self._group = QtWidgets.QButtonGroup(self)
 		super().__init__(value, index, parent)
 	
@@ -506,4 +506,10 @@ class FileListInspector(AbstractCollectionInspector[startrak.native.FileList]):
 		entry.layout().addWidget(btn, 1, 1)
 		self._group.addButton(btn)
 		btn.toggled.connect(self.inspector_event('update_image', entry.index))
+		return entry
+	
+class StarListInspector(AbstractCollectionInspector[startrak.native.StarList]):
+	def create_element(self, index: int):
+		ref = self.ref[index]
+		entry= self._create_entry(index, f'Star: {ref.name}', f'Aperture: {ref.aperture}')
 		return entry
