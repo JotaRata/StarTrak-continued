@@ -2,11 +2,12 @@
 from __future__ import annotations
 from functools import partial
 import os
+from pyexpat import model
 import re
 from typing import Any, Generic
-from PySide6.QtCore import QMetaObject, QModelIndex, Signal, Slot
+from PySide6.QtCore import QAbstractListModel, QEvent, QMetaObject, QModelIndex, QObject, QPersistentModelIndex, QPoint, QRect, QSize, Signal, Slot
 from PySide6 import QtWidgets, QtCore
-from PySide6.QtGui import QMouseEvent, QResizeEvent
+from PySide6.QtGui import QMouseEvent, QPainter, QPixmap, QResizeEvent
 import numpy as np
 from qt.extensions import *
 
@@ -451,73 +452,47 @@ class AbstractCollectionInspector(AbstractInspector[_TCollection], layout_name= 
 		super().__init__(value, index, parent)
 		name_label = get_child(self, 'name_label', QtWidgets.QLabel)
 		info_label = get_child(self, 'info_label', QtWidgets.QLabel)
-		self.area = get_child(self, 'scrollArea', QtWidgets.QScrollArea)
+		self.list = get_child(self, 'listWidget', QtWidgets.QListWidget)
+		
 
 		name_label.setText(type(value).__name__)
 		info_label.setText(f'{len(value)} elements.')
-		for i in range(len(value)):
-			entry= self.create_element(i)
-			self.area.widget().layout().addWidget(entry)
-
-	class CollectionEntry(QtWidgets.QFrame):
-		def __init__(self, mIndex: QModelIndex, label: str, description: str= '', parent: QtWidgets.QWidget = None):
-			super().__init__(parent)
-			self.setFocusPolicy(QtCore.Qt.FocusPolicy.ClickFocus)
-			self.index = mIndex
-			self._layout = QtWidgets.QGridLayout(self)
-			self._layout.setContentsMargins(0,0,0,0)
-			self.name_label = QtWidgets.QLabel(label, self)
-			self.desc_label = QtWidgets.QLabel(description, self)
-
-			self.name_label.setObjectName('name_label')
-			self.desc_label.setObjectName('desc_label')
-			self.name_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignBottom)
-			self.desc_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignBottom)
-
-			self._layout.addWidget(self.name_label, 0, 0)
-			self._layout.addWidget(self.desc_label, 1, 0)
-		def layout(self) -> QtWidgets.QGridLayout:
-			return self._layout
-	
-	def _create_entry(self, index: int, label= 'Element', desc= ''):
-		'''Internal function, Do not override'''
-		model = self.index.model()
-		child_idx = model.index(index, 0, self.index)
-		entry= AbstractCollectionInspector.CollectionEntry(child_idx, label, desc, parent= self.area.widget())
-		entry.mouseDoubleClickEvent = self.inspector_event('session_focus', child_idx)	#type: ignore
-		return entry
-			
-	def create_element(self, index : int):
-		match index:
-			case 1: _th = 'st'
-			case 2: _th = 'nd'
-			case 3: _th = 'rd'
-			case _: _th = 'th'
-		entry = self._create_entry(index, f'{index}{_th} Element')
-		return entry
-
+		
 class FileListInspector(AbstractCollectionInspector[startrak.native.FileList]):
 	selected_file = -1
 
-	def __init__(self, value: startrak.native.FileList, index: QModelIndex, parent: InspectorView) -> None:
+	def __init__(self, collection: startrak.native.FileList, index: QModelIndex, parent: InspectorView) -> None:
+		super().__init__(collection, index, parent)
 		self._group = QtWidgets.QButtonGroup(self)
-		super().__init__(value, index, parent)
-	
-	def create_element(self, index: int):
-		ref = self.ref[index]
-		entry= self._create_entry(index, f'File: {ref.name}', f'Size: {ref.size}')
+ 
+		for i, file in enumerate(collection):
+			item = QtWidgets.QListWidgetItem()
+			wdg = FileListInspector.ListWidget(file, i, self._group)
+			wdg.bind(i, self)
+			item.setSizeHint(wdg.sizeHint())
+			self.list.addItem(item)
+			self.list.setItemWidget(item, wdg)
 		
-		btn = QtWidgets.QRadioButton(entry)
-		btn.setSizePolicy(*(QtWidgets.QSizePolicy.Policy.Maximum,)*2)
-		btn.setChecked(index == FileListInspector.selected_file)
+	class ListWidget(QtWidgets.QWidget):
+		def __init__(self, file : startrak.native.FileInfo, index: int, group : QtWidgets.QButtonGroup):
+			super().__init__(None)
+			layout = QtWidgets.QGridLayout(self)
+			self.name_label = QtWidgets.QLabel(file.name, self)
+			self.desc_label = QtWidgets.QLabel(file.size, self)
+			self.btn = QtWidgets.QRadioButton()
+			self.btn.setChecked(index == FileListInspector.selected_file)
+			self.btn.setSizePolicy( *(QtWidgets.QSizePolicy.Policy.Maximum,)*2)
+			layout.addWidget(self.name_label, 0, 0)
+			layout.addWidget(self.desc_label, 1, 0)
+			layout.addWidget(self.btn, 0, 1)
+			group.addButton(self.btn)
+		
+		def bind(self, index : int, inspector : FileListInspector):
+			model = inspector.index.model()
+			child_idx = model.index(index, 0, inspector.index)
+			self.mouseDoubleClickEvent = inspector.inspector_event('session_focus', child_idx)#type: ignore
+			self.btn.toggled.connect(inspector.inspector_event('update_image', child_idx))
 
-		entry.layout().addWidget(btn, 0, 1)
-		self._group.addButton(btn)
-		btn.toggled.connect(self.inspector_event('update_image', entry.index))
-		return entry
 	
 class StarListInspector(AbstractCollectionInspector[startrak.native.StarList]):
-	def create_element(self, index: int):
-		ref = self.ref[index]
-		entry= self._create_entry(index, f'Star: {ref.name}', f'Aperture: {ref.aperture}')
-		return entry
+	pass

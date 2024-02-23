@@ -191,6 +191,12 @@ AbstractCollectionInspector CollectionEntry > #desc_label{
 	height: 16px;
 }
 
+QListView{
+	background: @primary-dark;
+	padding-right: 8px;
+	padding-left: 16px;
+}
+
 QRadioButton::indicator {
 	height: 12px;
 	width: 12px;
