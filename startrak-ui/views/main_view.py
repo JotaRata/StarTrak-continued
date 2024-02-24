@@ -4,6 +4,7 @@ from PySide6 import QtCore, QtWidgets
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 from qt.extensions import *
+import startrak
 from .application import Application
 from .session_view import SessionTreeView
 from .inspectors import InspectorView
@@ -48,6 +49,8 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 			case 'inspector_update':
 				self.session_view.updateItem(value[0], value[1])
 				self.image_view.update_image(value[0], value[1])
+				if type(value[1]) is startrak.native.Star:
+					self.image_view.view_file(value[0])
 			case _:
 				print('Invalid code', code)
 	

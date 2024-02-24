@@ -33,14 +33,16 @@ class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
 
 		self.view = get_child(self, 'graphicsView', QtWidgets.QGraphicsView)
 		self.view.setScene(QtWidgets.QGraphicsScene())
-
 		self.level_slider = get_child(self, 'level_slider', QRangeSlider)
+		combo_box = get_child(self, 'comboBox', QtWidgets.QComboBox)
 		self.current_file = None
 		self.view.scene().addText('Double click on a file to preview it').setDefaultTextColor(QtCore.Qt.GlobalColor.white)
 		self.star_labels = []
 		self.selected_star = -1
-		self.on_levelChange(0, 255)
-		self.on_colormapChange('linear')
+		self.level_slider.setRange(0, 125)
+		combo_box.setCurrentIndex(1)
+		# self.on_levelChange(0, 100)
+		# self.on_colormapChange('logarithmic')
 	
 	def update_image(self, index=None, obj=None):
 		if not (obj is None or type(obj) is Star):

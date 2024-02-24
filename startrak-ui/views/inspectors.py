@@ -142,6 +142,7 @@ class StarInspector(AbstractInspector[startrak.native.Star], layout_name= 'insp_
 			
 		self.draw_ready = True
 		self.draw_preview(value)
+		self.inspector_event('inspector_update', (self.index, self.ref))()
 
 		phot_index = self.index.model().index(0, 0, self.index)
 		phot_panel.mouseDoubleClickEvent = self.inspector_event('session_focus', phot_index)	#type:ignore

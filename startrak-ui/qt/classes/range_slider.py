@@ -31,6 +31,7 @@ class QRangeSlider(QtWidgets.QSlider):
 	def setRange(self, start: int, end: int):
 		self.first_position = start
 		self.second_position = end
+		self.valueChanged.emit(start, end)
 
 	def getRange(self):
 		return (self.first_position, self.second_position)
