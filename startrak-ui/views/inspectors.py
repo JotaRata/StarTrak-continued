@@ -2,21 +2,27 @@
 from __future__ import annotations
 from functools import partial
 import os
-from pyexpat import model
 import re
 from typing import Any, Generic
-from PySide6.QtCore import QAbstractListModel, QEvent, QMetaObject, QModelIndex, QObject, QPersistentModelIndex, QPoint, QRect, QSize, Signal, Slot
+from PySide6.QtCore import QModelIndex, Slot
 from PySide6 import QtWidgets, QtCore
-from PySide6.QtGui import QMouseEvent, QPainter, QPixmap, QResizeEvent
+from PySide6.QtGui import QResizeEvent
 import numpy as np
 from qt.extensions import *
 
 import startrak
-from startrak.internals.exceptions import InstantiationError
 from startrak.native.collections.filelist import FileList
-from startrak.native.ext import STObject
+import startrak.native.ext
+from startrak.internals.exceptions import InstantiationError
 from startrak.types.phot import _get_cropped
 from views.application import Application
+
+
+_T = TypeVar('_T')
+_TInspectorRef = TypeVar('_TInspectorRef')
+_THeader = TypeVar('_THeader', bound= startrak.native.Header)
+_TCollection = TypeVar('_TCollection', bound= startrak.native.ext.STCollection)
+
 
 class InspectorView(QtWidgets.QFrame):
 	inspector_event : UIEvent
@@ -130,12 +136,11 @@ class AbstractInspectorMeta(type(QtWidgets.QFrame)):	#type: ignore
 		AbstractInspectorMeta.supported[klass.__target__] = klass, klass.__layout__
 		return klass
 
-TInspectorRef = TypeVar('TInspectorRef')
-class AbstractInspector(QtWidgets.QFrame, Generic[TInspectorRef], metaclass=AbstractInspectorMeta):
-	ref: TInspectorRef
+class AbstractInspector(QtWidgets.QFrame, Generic[_TInspectorRef], metaclass=AbstractInspectorMeta):
+	ref: _TInspectorRef
 	index : QtCore.QModelIndex
 
-	def __init__(self, value : TInspectorRef, index : QModelIndex, parent : InspectorView) -> None:
+	def __init__(self, value : _TInspectorRef, index : QModelIndex, parent : InspectorView) -> None:
 		if type(self) is AbstractInspector:
 			raise TypeError('Cannot instantiate abstract class "AbstractInspector"')
 		
@@ -155,7 +160,7 @@ class AbstractInspector(QtWidgets.QFrame, Generic[TInspectorRef], metaclass=Abst
 			super().setupUi(self)
 
 	@staticmethod
-	def instantiate(obj : TInspectorRef, index: QtCore.QModelIndex, parent : InspectorView) -> AbstractInspector[TInspectorRef]:
+	def instantiate(obj : _TInspectorRef, index: QtCore.QModelIndex, parent : InspectorView) -> AbstractInspector[_TInspectorRef]:
 		t_name = type(obj).__name__
 		if t_name in AbstractInspectorMeta.supported:
 			return AbstractInspectorMeta.supported[t_name][0](obj, index, parent)
@@ -306,7 +311,6 @@ class PhotometryInspector(AbstractInspector[startrak.native.PhotometryResult], l
 		get_child(self, 'awidth_line', QtWidgets.QLineEdit).setText(f"{aperture.width:.2f} px")
 
 
-_THeader = TypeVar('_THeader', bound= startrak.native.Header)
 class AbstractHeaderInspector(AbstractInspector[_THeader], layout_name= 'insp_header'):
 	def __init__(self, value: _THeader, index: QModelIndex, parent: InspectorView, readOnly= True) -> None:
 		if type(self) is AbstractHeaderInspector:
@@ -446,52 +450,68 @@ class SessionInspector(AbstractInspector[startrak.sessionutils.InspectionSession
 		files_panel.mouseDoubleClickEvent = self.inspector_event('session_focus', fileList_index)#type:ignore
 		stars_panel.mouseDoubleClickEvent = self.inspector_event('session_focus', starList_index)#type:ignore
 
-_TCollection = TypeVar('_TCollection', bound= startrak.native.ext.STCollection)
+
 class AbstractCollectionInspector(AbstractInspector[_TCollection], layout_name= 'insp_collection'):
-	def __init__(self, value: _TCollection, index: QModelIndex, parent: InspectorView) -> None:
-		super().__init__(value, index, parent)
+	def __init__(self, collection: _TCollection, index: QModelIndex, parent: InspectorView) -> None:
+		super().__init__(collection, index, parent)
 		name_label = get_child(self, 'name_label', QtWidgets.QLabel)
 		info_label = get_child(self, 'info_label', QtWidgets.QLabel)
 		self.list = get_child(self, 'listWidget', QtWidgets.QListWidget)
-		
+		name_label.setText(type(collection).__name__)
+		info_label.setText(f'{len(collection)} elements.')
+		for i, item in enumerate(collection):
+			self.add_item(item, i)
 
-		name_label.setText(type(value).__name__)
-		info_label.setText(f'{len(value)} elements.')
+	def add_item(self, item : Any, index : int) -> QtWidgets.QListWidgetItem:
+		text = getattr(item, 'name', 'Item ' + str(index))
+		item_wdg = QtWidgets.QListWidgetItem()
+		wdg = self.create_widget(item, index)
+		item_wdg.setSizeHint(wdg.sizeHint())
+		self.list.addItem(item_wdg)
+		self.list.setItemWidget(item_wdg, wdg)
+		return item_wdg
+	def create_widget(self, item : Any, index : int) -> AbstractCollectionInspector.ListItem:
+		text, desc = self.setup_widget(item, index)
+		wdg = AbstractCollectionInspector.ListItem(self, index, text, desc)
+		return wdg
+	def setup_widget(self, item : Any, index : int) -> tuple[str, str]:
+		return getattr(item, 'name', 'Item ' + str(index)),  type(item).__name__
+	class ListItem(QtWidgets.QWidget):
+		def __init__(self, parent : AbstractCollectionInspector, index : int, text : str, desc : str):
+			super().__init__()
+			model = parent.index.model()
+			self._layout = QtWidgets.QGridLayout(self)
+			self.name_label = QtWidgets.QLabel(text, self)
+			self.desc_label = QtWidgets.QLabel(desc, self)
+			self._layout.addWidget(self.name_label, 0, 0)
+			self._layout.addWidget(self.desc_label, 1, 0)
+			self.index = model.index(index, 0, parent.index)
+			self.mouseDoubleClickEvent = parent.inspector_event('session_focus', self.index)#type: ignore
+		def layout(self) -> QtWidgets.QGridLayout:
+			return self._layout
 		
 class FileListInspector(AbstractCollectionInspector[startrak.native.FileList]):
 	selected_file = -1
-
 	def __init__(self, collection: startrak.native.FileList, index: QModelIndex, parent: InspectorView) -> None:
-		super().__init__(collection, index, parent)
 		self._group = QtWidgets.QButtonGroup(self)
- 
-		for i, file in enumerate(collection):
-			item = QtWidgets.QListWidgetItem()
-			wdg = FileListInspector.ListWidget(file, i, self._group)
-			wdg.bind(i, self)
-			item.setSizeHint(wdg.sizeHint())
-			self.list.addItem(item)
-			self.list.setItemWidget(item, wdg)
+		super().__init__(collection, index, parent)
+	
+	def create_widget(self, item: startrak.native.FileInfo, index: int):
+		wdg = super().create_widget(item, index)
+		btn = QtWidgets.QRadioButton(wdg)
+		btn.setChecked(index == FileListInspector.selected_file)
+		btn.setSizePolicy( *(QtWidgets.QSizePolicy.Policy.Maximum,)*2)
+		wdg.layout().addWidget(btn, 0, 1)#type:ignore
+		self._group.addButton(btn)
+		btn.toggled.connect(self.inspector_event('update_image', wdg.index))
+		return wdg
 		
-	class ListWidget(QtWidgets.QWidget):
-		def __init__(self, file : startrak.native.FileInfo, index: int, group : QtWidgets.QButtonGroup):
-			super().__init__(None)
-			layout = QtWidgets.QGridLayout(self)
-			self.name_label = QtWidgets.QLabel(file.name, self)
-			self.desc_label = QtWidgets.QLabel(file.size, self)
-			self.btn = QtWidgets.QRadioButton()
-			self.btn.setChecked(index == FileListInspector.selected_file)
-			self.btn.setSizePolicy( *(QtWidgets.QSizePolicy.Policy.Maximum,)*2)
-			layout.addWidget(self.name_label, 0, 0)
-			layout.addWidget(self.desc_label, 1, 0)
-			layout.addWidget(self.btn, 0, 1)
-			group.addButton(self.btn)
-		
-		def bind(self, index : int, inspector : FileListInspector):
-			model = inspector.index.model()
-			child_idx = model.index(index, 0, inspector.index)
-			self.mouseDoubleClickEvent = inspector.inspector_event('session_focus', child_idx)#type: ignore
-			self.btn.toggled.connect(inspector.inspector_event('update_image', child_idx))
+	def setup_widget(self, item: startrak.native.FileInfo, index: int):
+		return item.name, item.size
+	
+	'''
+	
+	'''
 
 	
 class StarListInspector(AbstractCollectionInspector[startrak.native.StarList]):
