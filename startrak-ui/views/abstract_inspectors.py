@@ -4,6 +4,7 @@ from typing import Generic, TypeVar
 from PySide6 import QtWidgets
 from PySide6 import QtCore
 from PySide6.QtCore import QModelIndex
+from PySide6.QtGui import QEnterEvent, QMouseEvent
 from qt.extensions import *
 from startrak.internals.exceptions import InstantiationError
 
@@ -139,6 +140,7 @@ class AbstractCollectionInspector(AbstractInspector[_TCollection], layout_name= 
 		return wdg
 	def setup_widget(self, item : Any, index : int) -> tuple[str, str]:
 		return getattr(item, 'name', 'Item ' + str(index)),  type(item).__name__
+	
 	class ListItem(QtWidgets.QWidget):
 		def __init__(self, parent : AbstractCollectionInspector, index : int, text : str, desc : str):
 			super().__init__()
@@ -146,10 +148,27 @@ class AbstractCollectionInspector(AbstractInspector[_TCollection], layout_name= 
 			self._layout = QtWidgets.QGridLayout(self)
 			self.name_label = QtWidgets.QLabel(text, self)
 			self.desc_label = QtWidgets.QLabel(desc, self)
+			self.del_btn = QtWidgets.QPushButton(self)
+			self.del_btn.setObjectName('remove-button')
 			self._layout.addWidget(self.name_label, 0, 0)
 			self._layout.addWidget(self.desc_label, 1, 0)
+			self.del_btn.setSizePolicy( *(QtWidgets.QSizePolicy.Policy.Fixed,)*2)
+			self.del_btn.setFixedSize(16, 16)
+			self.del_btn.hide()
+
+			self._layout.addWidget(self.del_btn, 0, 1)
 			self.index = model.index(index, 0, parent.index)
 			self.mouseDoubleClickEvent = parent.inspector_event('session_focus', self.index)#type: ignore
+
+			sp_retain = self.del_btn.sizePolicy()
+			sp_retain.setRetainSizeWhenHidden(True)
+			self.del_btn.setSizePolicy(sp_retain)
+
 		def layout(self) -> QtWidgets.QGridLayout:
 			return self._layout
-		
+		def enterEvent(self, event: QEnterEvent) -> None:
+			super().enterEvent(event)
+			self.del_btn.show()
+		def leaveEvent(self, event: QtCore.QEvent) -> None:
+			super().leaveEvent(event)
+			self.del_btn.hide()

@@ -12,6 +12,8 @@
 	panel-10: rgba(255, 255, 255, 25)
 	panel-20: rgba(255, 255, 255, 50)
 	panel-50: rgba(255, 255, 255, 125)
+	danger-50: rgba(211, 25, 25, 125)
+	danger-100: rgba(225, 25, 25, 255)
 	shadow-5: rgba(0, 0, 0, 12)
 }
 
@@ -163,32 +165,18 @@ QBreadCrumb:disabled{
 	border: 1px solid @secondary;
 }
 
-AbstractCollectionInspector QScrollArea #scrollAreaWidgetContents{
-	background: @primary-dark;
-	border: 1px solid @shadow-5;
+ListItem #remove-button{
+	icon: url('res:remove-button.png');
+	icon-size: 12px;
+	width: 16px;
+	height: 16px;
+	margin: 0px;
+	background: transparent;
 	border-radius: 4px;
 }
-AbstractCollectionInspector CollectionEntry{
-	background: transparent;
-	height: 64px;
-	padding-top: 8px;
-	padding-right: 8px;
-	padding-left: 16px;
-}
-AbstractCollectionInspector CollectionEntry:hover{
-	background: @panel-10;
-}
-AbstractCollectionInspector CollectionEntry:focus{
-	background: @secondary;
-}
-
-AbstractCollectionInspector CollectionEntry > #name_label{
-	color: white;
-	height: 28px;
-}
-AbstractCollectionInspector CollectionEntry > #desc_label{
-	color: @panel-50;
-	height: 16px;
+ListItem #remove-button:hover{
+	background: @danger-50;
+	border: 1px solid @danger-100;
 }
 
 QListView{
@@ -197,6 +185,11 @@ QListView{
 	padding-left: 16px;
 }
 
+QRadioButton {
+	spacing: 0px;
+	height: 16px;
+	width: 16px;
+}
 QRadioButton::indicator {
 	height: 12px;
 	width: 12px;

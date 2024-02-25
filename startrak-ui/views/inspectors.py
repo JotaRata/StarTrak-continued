@@ -363,8 +363,9 @@ class FileListInspector(AbstractCollectionInspector[startrak.native.FileList]):
 		wdg = super().create_widget(item, index)
 		btn = QtWidgets.QRadioButton(wdg)
 		btn.setChecked(index == FileListInspector.selected_file)
-		btn.setSizePolicy( *(QtWidgets.QSizePolicy.Policy.Maximum,)*2)
-		wdg.layout().addWidget(btn, 0, 1)#type:ignore
+		btn.setSizePolicy( *(QtWidgets.QSizePolicy.Policy.Fixed,)*2)
+		btn.setFixedSize(16, 16)
+		wdg.layout().addWidget(btn, 1, 1)#type:ignore
 		self._group.addButton(btn)
 		btn.toggled.connect(self.inspector_event('update_image', wdg.index))
 		return wdg
