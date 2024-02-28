@@ -48,7 +48,6 @@ class InspectorView(QtWidgets.QFrame):
 	@QtCore.Slot(QtCore.QModelIndex)
 	def create_inspector(self, index : QtCore.QModelIndex):
 		self.destroy_inspector()
-		
 		ptr = get_data(index)
 		if ptr is not None:
 			self.current_index = index

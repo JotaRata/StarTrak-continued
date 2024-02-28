@@ -192,17 +192,31 @@
            </widget>
           </item>
           <item>
-           <widget class="QTextEdit" name="consoleText">
-            <property name="readOnly">
-             <bool>true</bool>
+           <widget class="QFrame" name="console_frame">
+            <property name="frameShape">
+             <enum>QFrame::StyledPanel</enum>
             </property>
-            <property name="acceptRichText">
-             <bool>false</bool>
+            <property name="frameShadow">
+             <enum>QFrame::Raised</enum>
             </property>
+            <layout class="QVBoxLayout" name="verticalLayout_4">
+             <property name="spacing">
+              <number>0</number>
+             </property>
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+            </layout>
            </widget>
-          </item>
-          <item>
-           <widget class="QLineEdit" name="consoleLine"/>
           </item>
          </layout>
         </widget>

@@ -9,12 +9,14 @@ from .application import Application
 from .session_view import SessionTreeView
 from .inspectors import InspectorView
 from .image_view import ImageViewer
+from .console_view import ConsoleView
 
 UI_MainWindow, _ = load_class('main_layout')
 class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, misc]
 	image_view : ImageViewer
 	session_view : SessionTreeView
 	inspector_view : InspectorView
+	console_view : ConsoleView
 
 	def __init__(self) -> None:
 		super().__init__(None)
@@ -31,6 +33,10 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 		sidebar_frame = get_child(self, 'widget_sidebar', QtWidgets.QFrame)
 		self.inspector_view = InspectorView(sidebar_frame)
 		sidebar_frame.layout().addWidget(self.inspector_view)
+
+		console_frame = get_child(self, 'console_frame', QtWidgets.QFrame)
+		self.console_view = ConsoleView(console_frame)
+		console_frame.layout().addWidget(self.console_view)
 
 		self.session_view.session_event += self.on_sessionEvent
 		self.inspector_view.inspector_event += self.on_inspectorEvent

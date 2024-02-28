@@ -203,3 +203,11 @@ QRadioButton::indicator:unchecked:hover {
 QRadioButton::indicator:checked {
 	image: url("res:radioButton_on.png");
 }
+
+ConsoleView QAbstractScrollArea,
+ConsoleView QLineEdit{
+	background: @primary-dark;
+	color: white;
+	border-radius: 4px;
+	padding-left: 16px;
+}
