@@ -1,10 +1,11 @@
 from __future__ import annotations
-from dataclasses import dataclass
 from PySide6 import QtCore, QtWidgets
-from PySide6.QtCore import Qt, Signal
-from typing import List
-from PySide6.QtGui import QIcon, QMouseEvent
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon, QMouseEvent, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import QWidget
+import startrak.native
+import startrak.native.ext
+
 from views.application import Application
 from qt.extensions import *
 from startrak.native.ext import STObject
@@ -18,19 +19,32 @@ class SessionTreeView(QtWidgets.QTreeView):
 		app = Application.instance()
 		app.on_sessionLoad.connect(self.setModel)
 
-		self.setModel(app.st_module.get_session())
+		self.session = app.st_module.get_session()
+		self.setModel(self.session)
 	
 	def setModel(self, session):
-		model = SessionTreeModel(session)
+		model = SessionModel(session)
 		super().setModel(model)
 		self.expand(model.index(0, 0, QtCore.QModelIndex()))
-
-	def updateItem(self, index, obj):
-		item = index.internalPointer()
-		if item:
-			item.name = obj.name
-			item.ref = obj
-		self.model().dataChanged.emit(index, index)
+	
+	def model(self) -> SessionModel:
+		return cast(SessionModel, super().model())
+	
+	def updateItem(self, index):
+		name, obj = index.data()
+		item = self.model().itemFromIndex(index)
+		item.setData(obj, obj.name)
+		# self.model().dataChanged.emit(index, index)
+	
+	def addItem(self, obj : Any):
+		model = self.model()
+		session_idx = QtCore.QModelIndex()
+		rows = model.rowCount(session_idx)
+		if type(obj) is startrak.native.FileInfo:
+			fileList_index = model.index(rows - 2, 0, session_idx)
+			self.session.add_file(obj)
+			model.insertRow(0, fileList_index)
+			model.setData(model.index(0, 0, fileList_index), obj)
 
 	def expandParent(self, index : QtCore.QModelIndex):
 		self.expand(index.parent())
@@ -46,82 +60,41 @@ class SessionTreeView(QtWidgets.QTreeView):
 		self.session_event('update_image', index)()
 		
 _excluded = ['SessionLocationBlock']
+class SessionModel(QStandardItemModel):
+	def __init__(self, session : startrak.native.Session):
+		super().__init__()
+		self.rootItem = self.add_item(session, session.name)
+		self.appendRow(self.rootItem)
+		self.build_tree(session, self.rootItem)
 
-class SessionTreeModel(QtCore.QAbstractItemModel):
-	def __init__(self, session, parent: QtCore.QObject | None = None):
-		super().__init__(parent)
-		self.rootItem = SessionTreeModel.TreeItem(session.name, session, None, [])
-		self.rootItem.grow_tree()
-	@dataclass
-	class TreeItem:
-		name : str
-		ref : STObject
-		parent : SessionTreeModel.TreeItem | None
-		children : List[SessionTreeModel.TreeItem]
-		def grow_tree(self):
-			export = [ (value.name if key.isdigit() else key.replace('_', ' ').capitalize(), value)
-							for key, value in self.ref.__export__().items()
-							if isinstance(value, STObject) and type(value).__name__ not in _excluded ]
-			if type(self.ref).__name__ == 'FileInfo':
-				export.append(('Header', self.ref.header))
-			if len(export) == 0: return
-			for name, value in export:
-				node = SessionTreeModel.TreeItem(name, value, self, [])
-				self.children.append(node)
-				node.grow_tree()
-		def type(self) -> str:
-			return type(self.ref).__name__
-		def __getitem__(self, index : int) -> _TreeItem:	#type: ignore
-			if index == -1 and self.parent is not None:
-				return self.parent
-			return self.children[index]
-		def __repr__(self) -> str:
-			return f'TreeItem(name={self.name}, ref={self.ref.__class__.__name__}, parent= {self.parent.name if self.parent else "None"}, children= {len(self.children)})'
-		
-	def rowCount(self, parent):
-		if not parent.isValid():
-			return 1
-		node = parent.internalPointer()
-		return len(node.children)
-	def columnCount(self, parent): return 2
-	def index(self, row, column, parent_index):
-		if not self.hasIndex(row, column, parent_index):
-			return QtCore.QModelIndex()
+	def add_item(self, obj : Any, name : str = None):
+		item = QStandardItem()
+		if not name:
+			name = type(obj).__name__
+		item.setData(name, Qt.ItemDataRole.DisplayRole)
+		item.setData(obj, Qt.ItemDataRole.UserRole)
+		return item
+	
+	def build_tree(self, item : startrak.native.ext.STObject, parent_item : QStandardItem):
+		for key, value in item.__export__().items():
+			if isinstance(value, STObject) and type(value).__name__ not in _excluded:
+				if key.isdigit():
+					key = value.name
+				else:
+					key = key.replace('_', ' ').capitalize()
+				child_item = self.add_item(value, key)
+				parent_item.appendRow(child_item)
+				self.build_tree(value, child_item)
+			
+				if isinstance(value, startrak.native.FileInfo):
+						header_item = self.add_item(value.header, 'Header')
+						child_item.appendRow(header_item)
 
-		if not parent_index.isValid():
-			return self.createIndex(row, column, self.rootItem)
-		else:
-			parentItem = parent_index.internalPointer()
-
-		childItem = parentItem[row]
-		return self.createIndex(row, column, childItem)
-
-	def parent(self, child_index):
-		parentItem = child_index.internalPointer().parent
-		if parentItem is None:
-			return QtCore.QModelIndex()
-		grandParentItem = parentItem.parent
-		if grandParentItem is None:
-			return self.createIndex(0, 0, parentItem)
-		
-		return self.createIndex(grandParentItem.children.index(parentItem), 0, parentItem)
-
-	def data(self, index, role):
-		if not index.isValid():
-			return None
-		node = index.internalPointer()
-
-		if role == Qt.DisplayRole:
-			match index.column():
-				case 0:
-					return f'{node.name}'
-				case 1:
-					return f'{node.type()}'
-				case _:
-					return None
-		elif role == Qt.DecorationRole and index.column() == 0:
-			return self.get_icon(node)
-		return None
+	def data(self, index: QtCore.QModelIndex | QtCore.QPersistentModelIndex, role: int= Qt.ItemDataRole.UserRole) -> QtCore.Any:
+		if role == Qt.ItemDataRole.DecorationRole and index.column() == 0:
+			item = self.itemFromIndex(index)
+			return self.get_icon(item.data(Qt.ItemDataRole.UserRole))
+		return super().data(index, role)
 	
 	def headerData(self, section, orientation, role=Qt.DisplayRole):
 		if role == Qt.DisplayRole and orientation == Qt.Horizontal:
@@ -130,7 +103,8 @@ class SessionTreeModel(QtCore.QAbstractItemModel):
 			elif section == 1:
 					return "Type"
 		return super().headerData(section, orientation, role)
-	def get_icon(self, node : TreeItem):
+	
+	def get_icon(self, node : object):
 		base_dir = 'startrak-ui/res/icons/'
 		icons_path = { 'InspectionSession' : 'session.png',
 							'ScanSession' : 'session.png',
@@ -139,6 +113,5 @@ class SessionTreeModel(QtCore.QAbstractItemModel):
 							'FileList' : 'filelist.png',
 							'StarList' : 'starlist.png'}
 		if node is not None:
-			icon_path = base_dir + icons_path.get(node.type(), '')
+			icon_path = base_dir + icons_path.get(type(node).__name__, '')
 			return QIcon(icon_path)
-		
