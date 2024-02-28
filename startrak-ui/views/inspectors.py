@@ -150,21 +150,21 @@ class StarInspector(AbstractInspector[startrak.native.Star], layout_name= 'insp_
 	@Slot(str)
 	def name_changed(self, value):
 		self.ref.name = value
-		self.inspector_event('inspector_update', (self.index, self.ref))()
+		self.inspector_event('session_edit', self.index)()
 	@Slot(int)
 	def posx_changed(self, value):
 		self.ref.position = startrak.native.Position(value, self.ref.position.y)
-		self.inspector_event('inspector_update', (self.index, self.ref))()
+		self.inspector_event('session_edit', self.index)()
 		self.draw_preview(self.ref)
 	@Slot(int)
 	def posy_changed(self, value):
 		self.ref.position = startrak.native.Position(self.ref.position.x, value)
-		self.inspector_event('inspector_update', (self.index, self.ref))()
+		self.inspector_event('session_edit', self.index)()
 		self.draw_preview(self.ref)
 	@Slot(int)
 	def apert_changed(self, value):
 		self.ref.aperture = value
-		self.inspector_event('inspector_update', (self.index, self.ref))()
+		self.inspector_event('session_edit', self.index)()
 		self.draw_preview(self.ref)
 	@Slot(bool)
 	def set_autoexp(self, state):

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from PySide6 import QtCore, QtWidgets
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QModelIndex, Qt
 from PySide6.QtGui import QIcon, QMouseEvent, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import QWidget
 import startrak.native
@@ -30,10 +30,11 @@ class SessionTreeView(QtWidgets.QTreeView):
 	def model(self) -> SessionModel:
 		return cast(SessionModel, super().model())
 	
-	def updateItem(self, index):
-		name, obj = index.data()
+	def updateItem(self, index : QModelIndex):
+		obj = get_data(index)
 		item = self.model().itemFromIndex(index)
-		item.setData(obj, obj.name)
+		item.setData(obj.name, Qt.ItemDataRole.DisplayRole)
+		item.setData(obj, Qt.ItemDataRole.UserRole)
 		# self.model().dataChanged.emit(index, index)
 	
 	def addItem(self, obj : Any):
