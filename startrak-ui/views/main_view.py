@@ -40,17 +40,22 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 	def on_inspectorEvent(self, code : EventCode, value : Any):
 		match code:
 			case 'update_image':
+				if type(get_data(value)) is startrak.native.Star:
+					self.image_view.view_file(value)
+					return
 				self.image_view.view_file(value)
 				self.inspector_view.set_previewIndex(value)
 			case 'session_focus':
 				self.session_view.setCurrentIndex(value)
 				self.session_view.expandParent(value)
 				self.inspector_view.create_inspector(value)
-			case 'inspector_update':
-				self.session_view.updateItem(value[0], value[1])
-				self.image_view.update_image(value[0], value[1])
-				if type(value[1]) is startrak.native.Star:
-					self.image_view.view_file(value[0])
+			
+			case 'session_edit':
+				self.session_view.updateItem(value)
+				self.image_view.update_image(value)
+			case 'session_add':
+				pass
+					
 			case _:
 				print('Invalid code', code)
 	

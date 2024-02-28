@@ -49,12 +49,12 @@ class InspectorView(QtWidgets.QFrame):
 	def create_inspector(self, index : QtCore.QModelIndex):
 		self.destroy_inspector()
 		
-		pointer = index.internalPointer()
-		if pointer is not None:
+		ptr = get_data(index)
+		if ptr is not None:
 			self.current_index = index
-			self.inspector = AbstractInspector.instantiate(pointer.ref, index, self)
+			self.inspector = AbstractInspector.instantiate(ptr, index, self)
 			if not self.inspector:
-				self.inspector = AnyInspector(pointer.ref, index, self)
+				self.inspector = AnyInspector(ptr, index, self)
 
 			self.container.widget().layout().addWidget(self.inspector)
 		self.setup_breadCrumbs(index)
@@ -80,7 +80,7 @@ class InspectorView(QtWidgets.QFrame):
 			parent = current_index.parent()
 			
 			# type_label = ' ' + type(current_index.internalPointer().ref).__name__ + ' '
-			btn = QBreadCrumb(current_index, self.header_frame)
+			btn = QBreadCrumb(current_index)
 			btn.clicked.connect(partial(self.create_inspector, current_index))
 			if current_index == index:
 				btn.setDisabled(True)
@@ -95,13 +95,13 @@ class InspectorView(QtWidgets.QFrame):
 		FileListInspector.selected_file = index.row()
 
 class QBreadCrumb(QtWidgets.QPushButton):
-	def __init__(self, index, parent):
-		ref = index.internalPointer().ref
-		label = re.sub(r'([a-z])([A-Z])', r'\1 \2', type(ref).__name__)
+	def __init__(self, index : QModelIndex):
+		ptr = get_data(index)
+		label = re.sub(r'([a-z])([A-Z])', r'\1 \2', type(ptr).__name__)
 		super().__init__(label, None)
 
-		name = getattr(ref, 'name', None)
-		self.setToolTip(type(ref).__name__ + f': "{name}"' if name else '')
+		name = getattr(ptr, 'name', None)
+		self.setToolTip(type(ptr).__name__ + f': "{name}"' if name else '')
 
 # -------------------- Inspectors -------------------------------------
 
@@ -142,7 +142,7 @@ class StarInspector(AbstractInspector[startrak.native.Star], layout_name= 'insp_
 			
 		self.draw_ready = True
 		self.draw_preview(value)
-		self.inspector_event('inspector_update', (self.index, self.ref))()
+		self.inspector_event('update_image', (self.index))()
 
 		phot_index = self.index.model().index(0, 0, self.index)
 		phot_panel.mouseDoubleClickEvent = self.inspector_event('session_focus', phot_index)	#type:ignore

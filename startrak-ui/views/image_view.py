@@ -36,6 +36,7 @@ class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
 		self.level_slider = get_child(self, 'level_slider', QRangeSlider)
 		combo_box = get_child(self, 'comboBox', QtWidgets.QComboBox)
 		self.current_file = None
+		self.current_index = QtCore.QModelIndex()
 		self.view.scene().addText('Double click on a file to preview it').setDefaultTextColor(QtCore.Qt.GlobalColor.white)
 		self.star_labels = []
 		self.selected_star = -1
@@ -44,9 +45,12 @@ class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
 		# self.on_levelChange(0, 100)
 		# self.on_colormapChange('logarithmic')
 	
-	def update_image(self, index=None, obj=None):
-		if not (obj is None or type(obj) is Star):
+	def update_image(self, index : QtCore.QModelIndex = None):
+		if not index:
+			index = self.current_index
+		if not index.isValid():
 			return
+		
 		if self.current_file is not None:
 			array = self.current_file.get_data()
 			self.set_image(array)
@@ -59,15 +63,15 @@ class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
 	
 	@QtCore.Slot(QtCore.QModelIndex)
 	def view_file(self, index):
-		pointer = index.internalPointer()
+		pointer = get_data(index)
 		if not pointer:
 			return
-		if type(pointer.ref) is FileInfo:
-			self.current_file = pointer.ref
+		if type(pointer) is FileInfo:
+			self.current_file = pointer
 			self.current_index = index
 			self.update_image()
 
-		elif type(pointer.ref) is Star:
+		elif type(pointer) is Star:
 			for i, item in enumerate(self.star_labels):
 				item.selected = i == index.row()
 				item.update()
