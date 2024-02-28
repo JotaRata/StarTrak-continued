@@ -44,6 +44,7 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 		self.fix_splitterWidth() 
 
 	def on_inspectorEvent(self, code : EventCode, value : Any):
+		print(code)
 		match code:
 			case 'update_image':
 				if type(get_data(value)) is startrak.native.Star:
@@ -60,7 +61,23 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 				self.session_view.updateItem(value)
 				self.image_view.update_image(value)
 			case 'session_add':
-				pass
+				session = Application.instance().get_session()
+				if type(value) is startrak.native.FileInfo:
+					parent_idx = self.session_view.model().get_index(session.included_files)
+					self.session_view.model().add_item(value, value.name, self.session_view.model().itemFromIndex(parent_idx))
+					session.included_files.append(value)
+				if type(value) is startrak.native.Star:
+					parent_idx = self.session_view.model().get_index(session.included_stars)
+					self.session_view.model().add_item(value, value.name, self.session_view.model().itemFromIndex(parent_idx))
+					session.included_stars.append(value)
+			case 'session_remove':
+				session = Application.instance().get_session()
+				if type(value) is startrak.native.FileInfo:
+					self.session_view.model().remove_item(value)
+					session.included_files.remove(value)
+				if type(value) is startrak.native.Star:
+					self.session_view.model().remove_item(value)
+					session.included_stars.remove(value)
 					
 			case _:
 				print('Invalid code', code)

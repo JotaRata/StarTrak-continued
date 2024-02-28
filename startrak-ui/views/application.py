@@ -2,6 +2,7 @@ from __future__ import annotations
 from PySide6 import QtWidgets, QtCore
 from typing import Sequence, cast
 from qt.extensions import QStyleSheet
+import startrak
 
 class Application(QtWidgets.QApplication):
 	on_sessionLoad = QtCore.Signal(object, arguments= ['session'])
@@ -17,7 +18,7 @@ class Application(QtWidgets.QApplication):
 		return cast(Application, app)
 	
 	@staticmethod
-	def get_session():
+	def get_session()-> startrak.native.Session:
 		app = Application.instance()
 		return app.st_module.get_session()
 	
