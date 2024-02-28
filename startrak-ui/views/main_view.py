@@ -49,9 +49,10 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 				assert type(value) is QtCore.QModelIndex
 				if type(get_data(value)) is startrak.native.Star:
 					self.image_view.view_file(value)
+					self.inspector_view.set_previewIndex('star', value)
 					return
 				self.image_view.view_file(value)
-				self.inspector_view.set_previewIndex(value)
+				self.inspector_view.set_previewIndex('file', value)
 			case 'session_focus':
 				assert type(value) is QtCore.QModelIndex
 				self.session_view.setCurrentIndex(value)
@@ -92,8 +93,9 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 			case 'session_focus':
 				self.inspector_view.create_inspector(value)
 			case 'update_image':
+				pointer = get_data(value)
 				self.image_view.view_file(value)
-				self.inspector_view.set_previewIndex(value)
+				self.inspector_view.set_previewIndex('file' if type(pointer) is startrak.native.FileInfo else 'star', value)
 			case 'session_edit':
 				self.inspector_view.redraw_inspector()
 				self.image_view.redraw_viewer()

@@ -93,8 +93,11 @@ class InspectorView(QtWidgets.QFrame):
 			current_index = parent
 			count += 1
 	
-	def set_previewIndex(self, index):
-		FileListInspector.selected_file = index.row()
+	def set_previewIndex(self, case : Literal['file', 'star'], index : QModelIndex):
+		if case == 'file':
+			FileListInspector.selected_row = index.row()
+		if case == 'star':
+			StarListInspector.selected_row = index.row()
 
 class QBreadCrumb(QtWidgets.QPushButton):
 	def __init__(self, index : QModelIndex):
@@ -356,23 +359,11 @@ class SessionInspector(AbstractInspector[startrak.sessionutils.InspectionSession
 
 
 class FileListInspector(AbstractCollectionInspector[startrak.native.FileList]):
-	selected_file = -1
-	def __init__(self, collection: startrak.native.FileList, index: QModelIndex, parent: InspectorView) -> None:
-		self._group = QtWidgets.QButtonGroup(self)
-		super().__init__(collection, index, parent)
-	
-	def create_widget(self, item: startrak.native.FileInfo, index: int):
-		wdg = super().create_widget(item, index)
-		btn = QtWidgets.QRadioButton(wdg)
-		btn.setChecked(index == FileListInspector.selected_file)
-		btn.setSizePolicy( *(QtWidgets.QSizePolicy.Policy.Fixed,)*2)
-		btn.setFixedSize(16, 16)
-		wdg.layout().addWidget(btn, 1, 1)#type:ignore
-		self._group.addButton(btn)
-		btn.toggled.connect(self.inspector_event('update_image', wdg.index))
-		return wdg
 	def setup_widget(self, item: startrak.native.FileInfo, index: int):
 		return item.name, item.size
+	def on_itemSelect(self, index: QModelIndex):
+		self.inspector_event('update_image', index)()
 	
 class StarListInspector(AbstractCollectionInspector[startrak.native.StarList]):
-	pass
+	def on_itemSelect(self, index: QModelIndex):
+		self.inspector_event('update_image', index)()

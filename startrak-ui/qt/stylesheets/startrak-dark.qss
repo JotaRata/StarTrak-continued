@@ -3,9 +3,9 @@
 	primary: #1f1f1f
 	primary-dark: #1a1a1a
 	primary-light: #353535
-	secondary: #2a82da
-	secondary-light: #6fb7ff
-	secondary-dark: #163f68
+	secondary: #2994ff
+	secondary-light: #1e5c99
+	secondary-dark: #102f4e
 	highlighted: #f4d62b
 	highlighted-dark: #907b00
 	panel-5: rgba(255, 255, 255, 12)
@@ -165,26 +165,6 @@ QBreadCrumb:disabled{
 	border: 1px solid @secondary;
 }
 
-ListItem #remove-button{
-	icon: url('res:remove-button.png');
-	icon-size: 12px;
-	width: 16px;
-	height: 16px;
-	margin: 0px;
-	background: transparent;
-	border-radius: 4px;
-}
-ListItem #remove-button:hover{
-	background: @danger-50;
-	border: 1px solid @danger-100;
-}
-
-QListView{
-	background: @primary-dark;
-	padding-right: 8px;
-	padding-left: 16px;
-}
-
 QRadioButton {
 	spacing: 0px;
 	height: 16px;
@@ -210,4 +190,49 @@ ConsoleView QLineEdit{
 	color: white;
 	border-radius: 4px;
 	padding-left: 16px;
+}
+
+QListView{
+	background: @primary-dark;
+	padding-right: 8px;
+	padding-left: 16px;
+	show-decoration-selected: 0;
+}
+
+QListView::item
+{
+	background: transparent;
+	border-radius: 4px;
+}
+QListView::item:selected
+{
+	background: @secondary-dark;
+	border: 1px solid @secondary;
+}
+QListView::item:selected:!active
+{
+	background: @secondary-dark;
+	border: none;
+}
+QListView::item:hover
+{
+	background: @panel-10;
+}
+QListView::item:selected:hover
+{
+	background: @secondary-dark;
+}
+
+ListItem #remove-button{
+	icon: url('res:remove-button.png');
+	icon-size: 12px;
+	width: 16px;
+	height: 16px;
+	margin: 0px;
+	background: transparent;
+	border-radius: 4px;
+}
+ListItem #remove-button:hover{
+	background: @danger-50;
+	border: 1px solid @danger-100;
 }

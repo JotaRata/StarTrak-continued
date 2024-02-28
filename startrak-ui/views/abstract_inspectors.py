@@ -1,9 +1,9 @@
 from __future__ import annotations
 import os
-from typing import Generic, TypeVar
+from typing import ClassVar, Generic, TypeVar
 from PySide6 import QtWidgets
 from PySide6 import QtCore
-from PySide6.QtCore import QModelIndex
+from PySide6.QtCore import QModelIndex, Qt, Signal
 from PySide6.QtGui import QEnterEvent, QMouseEvent
 from qt.extensions import *
 from startrak.internals.exceptions import InstantiationError
@@ -114,6 +114,8 @@ class AbstractHeaderInspector(AbstractInspector[_THeader], layout_name= 'insp_he
 
 
 class AbstractCollectionInspector(AbstractInspector[_TCollection], layout_name= 'insp_collection'):
+	selected_row : ClassVar[int] = -1
+
 	def __init__(self, collection: _TCollection, index: QModelIndex, parent: QtWidgets.QWidget) -> None:
 		if type(self) is AbstractCollectionInspector:
 			raise InstantiationError(self)
@@ -123,6 +125,8 @@ class AbstractCollectionInspector(AbstractInspector[_TCollection], layout_name= 
 		self.list = get_child(self, 'listWidget', QtWidgets.QListWidget)
 		name_label.setText(type(collection).__name__)
 		info_label.setText(f'{len(collection)} elements.')
+		self.list.setFocus(Qt.FocusReason.MouseFocusReason)
+		
 		for i, item in enumerate(collection):
 			self.add_item(item, i)
 
@@ -133,6 +137,7 @@ class AbstractCollectionInspector(AbstractInspector[_TCollection], layout_name= 
 		item_wdg.setSizeHint(wdg.sizeHint())
 		self.list.addItem(item_wdg)
 		self.list.setItemWidget(item_wdg, wdg)
+		item_wdg.setSelected(index == type(self).selected_row)
 		return item_wdg
 	def create_widget(self, item : Any, index : int) -> AbstractCollectionInspector.ListItem:
 		text, desc = self.setup_widget(item, index)
@@ -141,32 +146,43 @@ class AbstractCollectionInspector(AbstractInspector[_TCollection], layout_name= 
 	def setup_widget(self, item : Any, index : int) -> tuple[str, str]:
 		return getattr(item, 'name', 'Item ' + str(index)),  type(item).__name__
 	
+	def on_itemSelect(self, index : QModelIndex):
+		pass
+	
 	class ListItem(QtWidgets.QWidget):
 		def __init__(self, parent : AbstractCollectionInspector, index : int, text : str, desc : str):
 			super().__init__()
+			self.inspector = parent
 			model = parent.index.model()
 			self._layout = QtWidgets.QGridLayout(self)
 			self.name_label = QtWidgets.QLabel(text, self)
 			self.desc_label = QtWidgets.QLabel(desc, self)
 			self.del_btn = QtWidgets.QPushButton(self)
+
 			self.del_btn.setObjectName('remove-button')
-			self._layout.addWidget(self.name_label, 0, 0)
-			self._layout.addWidget(self.desc_label, 1, 0)
 			self.del_btn.setSizePolicy( *(QtWidgets.QSizePolicy.Policy.Fixed,)*2)
 			self.del_btn.setFixedSize(16, 16)
 			self.del_btn.hide()
-
-			self._layout.addWidget(self.del_btn, 0, 1)
 			self.index = model.index(index, 0, parent.index)
-			self.mouseDoubleClickEvent = parent.inspector_event('session_focus', self.index)#type: ignore
 
 			sp_retain = self.del_btn.sizePolicy()
 			sp_retain.setRetainSizeWhenHidden(True)
-			self.del_btn.setSizePolicy(sp_retain)
 			self.del_btn.clicked.connect(parent.inspector_event('session_remove', self.index))
+			self.del_btn.setSizePolicy(sp_retain)
+
+			self._layout.addWidget(self.name_label, 0, 0)
+			self._layout.addWidget(self.desc_label, 1, 0)
+			self._layout.addWidget(self.del_btn, 0, 1)
 
 		def layout(self) -> QtWidgets.QGridLayout:
 			return self._layout
+		def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
+			self.inspector.inspector_event('session_focus', self.index)()
+		def mousePressEvent(self, event: QMouseEvent) -> None:
+			super().mousePressEvent(event)
+			type(self.inspector).selected_row = self.index.row()
+			self.inspector.on_itemSelect(self.index)
+		
 		def enterEvent(self, event: QEnterEvent) -> None:
 			super().enterEvent(event)
 			self.del_btn.show()
