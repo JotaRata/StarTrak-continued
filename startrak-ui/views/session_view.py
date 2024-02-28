@@ -1,6 +1,6 @@
 from __future__ import annotations
 from PySide6 import QtCore, QtWidgets
-from PySide6.QtCore import QModelIndex, Qt
+from PySide6.QtCore import QModelIndex, QPersistentModelIndex, Qt
 from PySide6.QtGui import QIcon, QMouseEvent, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import QWidget
 import startrak.native
@@ -21,6 +21,7 @@ class SessionTreeView(QtWidgets.QTreeView):
 
 		self.session = app.st_module.get_session()
 		self.setModel(self.session)
+		self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
 	
 	def setModel(self, session):
 		model = SessionModel(session)
@@ -51,12 +52,12 @@ class SessionTreeView(QtWidgets.QTreeView):
 
 	def mousePressEvent(self, event: QMouseEvent) -> None:
 		super().mousePressEvent(event)
-		index = self.currentIndex()
+		index = self.currentIndex().siblingAtColumn(0)
 		self.session_event('session_focus', index)()
 	
 	def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
 		super().mouseDoubleClickEvent(event)
-		index = self.currentIndex()
+		index = self.currentIndex().siblingAtColumn(0)
 		self.session_event('update_image', index)()
 		
 _excluded = ['SessionLocationBlock']
@@ -66,17 +67,20 @@ class SessionModel(QStandardItemModel):
 		self._map = dict[object, QModelIndex]()
 		self.rootItem = self.add_item(session, session.name, self)
 		self.build_tree(session, self.rootItem)
-	
+		
+
 	def get_index(self, obj : Any) -> QModelIndex:
 		return self._map.get(obj, QModelIndex())
 
 	def add_item(self, obj : Any, name : str = None, parent = None):
 		item = QStandardItem()
+		type_ = QStandardItem(type(obj).__name__)
+		type_.setSelectable(False)
 		if not name:
 			name = type(obj).__name__
 		item.setData(name, Qt.ItemDataRole.DisplayRole)
 		item.setData(obj, Qt.ItemDataRole.UserRole)
-		parent.appendRow(item)
+		parent.appendRow((item, type_))
 		return item
 	
 	def remove_item(self, obj : Any):
@@ -100,8 +104,6 @@ class SessionModel(QStandardItemModel):
 		item = self.itemFromIndex(index)
 		if role == Qt.ItemDataRole.DecorationRole and index.column() == 0:
 			return self.get_icon(item.data(Qt.ItemDataRole.UserRole))
-		if index.column() == 1:
-			return type(item.data(Qt.ItemDataRole.UserRole)).__name__
 		return super().data(index, role)
 	
 	def headerData(self, section, orientation, role=Qt.DisplayRole):
