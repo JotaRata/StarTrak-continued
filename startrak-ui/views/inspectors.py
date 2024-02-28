@@ -57,6 +57,9 @@ class InspectorView(QtWidgets.QFrame):
 
 			self.container.widget().layout().addWidget(self.inspector)
 		self.setup_breadCrumbs(index)
+
+	def redraw_inspector(self,):
+		self.create_inspector(self.current_index)
 	
 	def destroy_inspector(self):
 		if not self.inspector:

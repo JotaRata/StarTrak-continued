@@ -77,6 +77,9 @@ class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
 				item.update()
 				if item.selected:
 					self.selected_star = i
+
+	def redraw_viewer(self):
+		self.view_file(self.current_index)
 	
 	@QtCore.Slot(str)
 	def on_colormapChange(self, value : str):

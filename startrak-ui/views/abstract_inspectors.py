@@ -163,6 +163,7 @@ class AbstractCollectionInspector(AbstractInspector[_TCollection], layout_name= 
 			sp_retain = self.del_btn.sizePolicy()
 			sp_retain.setRetainSizeWhenHidden(True)
 			self.del_btn.setSizePolicy(sp_retain)
+			self.del_btn.clicked.connect(parent.inspector_event('session_remove', self.index))
 
 		def layout(self) -> QtWidgets.QGridLayout:
 			return self._layout

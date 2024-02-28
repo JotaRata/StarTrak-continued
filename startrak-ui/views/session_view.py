@@ -35,6 +35,16 @@ class SessionTreeView(QtWidgets.QTreeView):
 		item = self.model().itemFromIndex(index)
 		item.setData(obj.name, Qt.ItemDataRole.DisplayRole)
 		item.setData(obj, Qt.ItemDataRole.UserRole)
+
+	def add_item(self, obj : STObject | Any, parent : QStandardItem):
+		result = self.model().add_item(obj, obj.name, parent)
+		self.session_event('session_edit', result.index())()
+		return result
+	
+	def removeRow(self, index : QModelIndex):
+		result = self.model().removeRow(index.row(), index.parent())
+		self.session_event('session_edit', index)()
+		return result
 		# s
 	def expandParent(self, index : QtCore.QModelIndex):
 		self.expand(index.parent())
