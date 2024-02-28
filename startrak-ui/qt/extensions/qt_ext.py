@@ -10,6 +10,14 @@ T = TypeVar('T')
 def get_child(parent : QtWidgets.QWidget, name: str, _type : Type[TWdg]) -> TWdg:
 	return cast(TWdg, parent.findChild(_type, name))
 
+@overload
+def get_data(index : QtCore.QModelIndex,  _type : Type[T]) -> T: ...
+@overload
+def get_data(index : QtCore.QModelIndex) -> Any: ...
+
+def get_data(index : QtCore.QModelIndex,  _type : Type[T] = None) -> Any | T:
+	return index.data(QtCore.Qt.ItemDataRole.UserRole)
+
 class QStyleSheet:
 	__slots__ = ('sheet', 'variables')
 	sheet : str
@@ -75,19 +83,16 @@ class QStyleSheet:
 		return self.sheet
 
 EventCode = Literal[ 
-							'session_expand',		# Used to tell SessionView to expand on an item, value: QModelIndex
-							'session_focus',	# Tell InspectorView to focus on the specified item, value: QModelIndex
-							'inspector_update',	# Sent by InspectorView to tell that a value has changed, value: (QModelIndex, STObject)
-							'update_image'		# Used to update the current image in ImageView, value: QModelIndex (file)
-							]
+						'session_expand',	# Tells the session view to expand an item to reveal its child elements
+						'session_focus',	# Tells the session view that an element should be focused and displayed on the inspector
+						'session_edit',	# Tells an object from the session property has been changed
+						'session_add',		# Tells that an object is added to the session
+						'session_remove',	# Tells that an object was removed from the session
+						'update_image'		# Tells the image viewer to update the requested object
+						]
 
 class UIEvent(QtCore.QObject):
 	__int = QtCore.Signal(str, object)
-
-	@overload
-	def __call__(self, code : Literal['session_expand', 'update_image', 'session_focus'], value : QtCore.QModelIndex): ...
-	@overload
-	def __call__(self, code : Literal['inspector_update'], value : tuple[QtCore.QModelIndex, Any]): ...
 
 	def __call__(self, code : EventCode, value : Any):
 		def wrapper(*args, **kwargs):
@@ -102,4 +107,3 @@ class UIEvent(QtCore.QObject):
 	def blocked(self):
 		yield self.blockSignals(True)
 		self.blockSignals(False)
-	
