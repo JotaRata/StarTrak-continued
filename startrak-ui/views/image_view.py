@@ -99,22 +99,20 @@ class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
 		self.update_image()
 			
 	def set_image(self, array):
-		array = array[0:-1, 0:-1].copy()
+		# array = array[0:-1, 0:-1].copy()		# Trick usd to regenerate the array buffer
 		array = self.mapping_func(array)
 		_min, _max = array.min() + array.max() * self.level_min, array.min() + array.max() * self.level_max
-		array = np.clip((array - _min) / (_max - _min) * 255, 0, 255)
-		array = np.nan_to_num(array).astype(np.uint8)
+		array = np.clip((array - _min) / (_max - _min) * 255, 0, 255).astype(np.uint8)
 		setup_itemColors(np.mean(array) > 128)
 
 		scene = self.view.scene()
 		scene.clear()
-		qimage = QtGui.QImage(array.data, array.shape[1], array.shape[0], QtGui.QImage.Format_Grayscale8)\
-							.scaledToWidth(1024)
+		qimage = QtGui.QImage(array.data, array.shape[1], array.shape[0], array.shape[1], QtGui.QImage.Format.Format_Indexed8)
 		pixmap = QtGui.QPixmap.fromImage(qimage)
 		scene.addPixmap(pixmap)
-		# pixmap_item.setTransformationMode(QtCore.Qt.TransformationMode.SmoothTransformation)
 		self.showEvent(None)
 		self.draw_stars()
+		
 	def showEvent(self, event) -> None:
 		self.view.fitInView(self.view.sceneRect(), QtCore.Qt.AspectRatioMode.KeepAspectRatio)
 
