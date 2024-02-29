@@ -1,8 +1,7 @@
 from __future__ import annotations
 from PySide6 import QtCore, QtWidgets
-from PySide6.QtCore import QModelIndex, QPersistentModelIndex, Qt
+from PySide6.QtCore import QModelIndex, Qt
 from PySide6.QtGui import QIcon, QMouseEvent, QStandardItem, QStandardItemModel
-from PySide6.QtWidgets import QWidget
 import startrak.native
 import startrak.native.ext
 
@@ -13,11 +12,13 @@ from startrak.native.ext import STObject
 class SessionTreeView(QtWidgets.QTreeView):
 	session_event : UIEvent
 
-	def __init__(self, parent: QWidget | None = None) -> None:
+	def __init__(self, parent: QtWidgets.QWidget= None) -> None:
 		super().__init__(parent)
 		self.session_event = UIEvent(self)
 		app = Application.instance()
 		app.on_sessionLoad.connect(self.setModel)
+		header = SessionHeader(Qt.Orientation.Horizontal, self)
+		self.setHeader(header)
 
 		self.session = app.st_module.get_session()
 		self.setModel(self.session)
@@ -27,6 +28,7 @@ class SessionTreeView(QtWidgets.QTreeView):
 		model = SessionModel(session)
 		super().setModel(model)
 		self.expand(model.index(0, 0, QtCore.QModelIndex()))
+		self.session = session
 	
 	def model(self) -> SessionModel:
 		return cast(SessionModel, super().model())
@@ -67,7 +69,6 @@ class SessionModel(QStandardItemModel):
 		self._map = dict[object, QModelIndex]()
 		self.rootItem = self.add_item(session, session.name, self)
 		self.build_tree(session, self.rootItem)
-		
 
 	def get_index(self, obj : Any) -> QModelIndex:
 		return self._map.get(obj, QModelIndex())
@@ -125,3 +126,26 @@ class SessionModel(QStandardItemModel):
 		if node is not None:
 			icon_path = base_dir + icons_path.get(type(node).__name__, '')
 			return QIcon(icon_path)
+
+class SessionHeader(QtWidgets.QHeaderView):
+	def __init__(self, orientation: Qt.Orientation, parent: SessionTreeView) -> None:
+		super().__init__(orientation, parent)
+		self.setStretchLastSection(True)
+		self.setSectionsMovable(False)
+		self.setSectionsClickable(True)
+
+		self.update_btn = QtWidgets.QPushButton(self)
+		self.update_btn.setObjectName('update_btn')
+		self.update_btn.clicked.connect(self.update_session)
+	
+	def parent(self) -> SessionTreeView:
+		return cast(SessionTreeView, super().parent())
+	
+	def paintSection(self, painter, rect, logicalIndex):
+		super().paintSection(painter, rect, logicalIndex)
+		if logicalIndex == 1:
+			buttonRect = rect.adjusted(rect.width() - 20, 0, 0, 0)
+			self.update_btn.setGeometry(buttonRect)
+	
+	def update_session(self):
+		self.parent().setModel(self.parent().session)

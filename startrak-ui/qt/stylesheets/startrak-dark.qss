@@ -40,6 +40,16 @@ QMenuBar::item:selected{
 QHeaderView::section{
 	background: @primary-light;
 }
+QHeaderView #update_btn{
+	background: transparent;
+	width: 16px;
+	height: 16px;
+	icon: url('res:update-button.png')
+}
+
+QHeaderView #update_btn:hover{
+	background: @secondary;
+}
 
 QSplitter::handle{
 	background: @shadow-5;
