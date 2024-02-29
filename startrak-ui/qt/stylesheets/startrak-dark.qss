@@ -246,3 +246,26 @@ ListItem #remove-button:hover{
 	background: @danger-50;
 	border: 1px solid @danger-100;
 }
+
+ConsoleView QLineEdit{
+	margin: 0px;
+	margin-left: 1px;
+	padding: 0px;
+}
+ConsoleView QComboBox{
+	background: @primary-dark;
+	padding: 0px;
+	padding-left: 4px;
+}
+ConsoleView QComboBox::down-arrow{
+	image: none;
+	border-width: 0px;
+	padding: 0px;
+	margin: 0px;
+	width: 0px;
+}
+
+QComboBox QAbstractItemView {
+	min-width: 100px;
+	selection-background-color: @panel-10;
+}
