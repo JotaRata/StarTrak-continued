@@ -45,9 +45,20 @@ class ConsoleView(QtWidgets.QFrame):
 
 	def command_sent(self):
 		text = self.input_line.text()
+		if not text:
+			return
 		self.update_console('> ' + text + '\n')
-		exec(text, self._globals)
-		self.input_line.clear()
+
+		try:
+			result = eval(text, self._globals)
+		except SyntaxError:
+			exec(text, self._globals)
+			result = None
+		finally:
+			self.input_line.clear()
+
+		if result:
+			self.update_console(repr(result) + '\n')
 
 class StdoutListener(QtCore.QObject):
 	write_event = Signal(str)

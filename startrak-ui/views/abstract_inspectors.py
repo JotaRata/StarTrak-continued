@@ -52,7 +52,8 @@ class AbstractInspector(QtWidgets.QFrame, Generic[_TInspectorRef], metaclass=Abs
 	def __init__(self, value : _TInspectorRef, index : QModelIndex, parent : QtWidgets.QWidget) -> None:
 		if type(self) is AbstractInspector:
 			raise TypeError('Cannot instantiate abstract class "AbstractInspector"')
-		
+		if not index.isValid():
+			return
 		super().__init__(parent.container)#type:ignore
 		self.setupUi()
 		self.ref = value

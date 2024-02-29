@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import partial
 import re
 from typing import Any
-from PySide6.QtCore import QModelIndex, Slot
+from PySide6.QtCore import QAbstractItemModel, QModelIndex, Slot
 from PySide6 import QtWidgets, QtCore
 from PySide6.QtGui import QResizeEvent
 import numpy as np
@@ -19,11 +19,11 @@ from views.abstract_inspectors import *
 class InspectorView(QtWidgets.QFrame):
 	inspector_event : UIEvent
 	current_index : QtCore.QModelIndex
+	model : QAbstractItemModel
 
 	def __init__(self, parent: QtWidgets.QWidget = None) -> None:
 		super().__init__(parent)
 		self.inspector_event = UIEvent(self)
-		
 		self.current_index = QtCore.QModelIndex()
 		self.header_frame = QtWidgets.QFrame(self)
 		header_layout = QtWidgets.QHBoxLayout(self.header_frame)
@@ -59,13 +59,17 @@ class InspectorView(QtWidgets.QFrame):
 		self.setup_breadCrumbs(index)
 
 	def redraw_inspector(self,):
-		self.create_inspector(self.current_index)
+		if not self.current_index.isValid():
+			return
+		index = self.current_index.model().get_index(self.inspector.ref)
+		self.create_inspector(index)
 	
 	def destroy_inspector(self):
 		if not self.inspector:
 			return
-		self.inspector.destroy()
-		self.container.widget().layout().removeWidget( self.inspector)
+		self.inspector.deleteLater()
+		self.inspector = None
+		# self.container.widget().layout().removeWidget( self.inspector)
 	
 	def setup_breadCrumbs(self, index : QtCore.QModelIndex):
 		layout = cast(QtWidgets.QHBoxLayout, self.header_frame.layout())
@@ -142,9 +146,13 @@ class StarInspector(AbstractInspector[startrak.native.Star], layout_name= 'insp_
 			phot_panel = get_child(self, 'phot_panel', QtWidgets.QFrame)
 			flux_line = get_child(phot_panel, 'flux_line', QtWidgets.QLineEdit)
 			background_line = get_child(phot_panel, 'background_line', QtWidgets.QLineEdit)
-			flux_line.setText(f'{value.photometry.flux.value:.3f} ± {value.photometry.flux.sigma:.3f}')
-			background_line.setText(f'{value.photometry.background.value:.3f} ± {value.photometry.background.sigma:.3f}')
-			
+			if value.photometry:
+				flux_line.setText(f'{value.photometry.flux.value:.3f} ± {value.photometry.flux.sigma:.3f}')
+				background_line.setText(f'{value.photometry.background.value:.3f} ± {value.photometry.background.sigma:.3f}')
+			else:
+				flux_line.setText('NA')
+				background_line.setText('NA')
+
 		self.draw_ready = True
 		self.draw_preview(value)
 		self.inspector_event('update_image', (self.index))()
@@ -154,20 +162,28 @@ class StarInspector(AbstractInspector[startrak.native.Star], layout_name= 'insp_
 
 	@Slot(str)
 	def name_changed(self, value):
+		if not self.index.isValid():
+			return
 		self.ref.name = value
 		self.inspector_event('session_edit', self.index)()
 	@Slot(int)
 	def posx_changed(self, value):
+		if not self.index.isValid():
+			return
 		self.ref.position = startrak.native.Position(value, self.ref.position.y)
 		self.inspector_event('session_edit', self.index)()
 		self.draw_preview(self.ref)
 	@Slot(int)
 	def posy_changed(self, value):
+		if not self.index.isValid():
+			return
 		self.ref.position = startrak.native.Position(self.ref.position.x, value)
 		self.inspector_event('session_edit', self.index)()
 		self.draw_preview(self.ref)
 	@Slot(int)
 	def apert_changed(self, value):
+		if not self.index.isValid():
+			return
 		self.ref.aperture = value
 		self.inspector_event('session_edit', self.index)()
 		self.draw_preview(self.ref)
@@ -204,7 +220,7 @@ class StarInspector(AbstractInspector[startrak.native.Star], layout_name= 'insp_
 		p1, p99 = np.nanpercentile(array if StarInspector.auto_exposure else orig_array, (0.1, 99.9))
 		array = np.clip((array - p1) / (p99 - p1), 0, 1) * 255
 		array = np.nan_to_num(array).astype(np.uint8)
-
+		
 		qimage = QtGui.QImage(array.data, array.shape[1], array.shape[0], QtGui.QImage.Format_Grayscale8)\
 							.scaledToWidth(100)
 		xcenter, ycenter = qimage.width()/2, qimage.height()/2

@@ -91,15 +91,17 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 	def on_sessionEvent(self, code : EventCode, value : Any):
 		match code:
 			case 'session_focus':
+				assert type(value) is QtCore.QModelIndex
 				self.inspector_view.create_inspector(value)
 			case 'update_image':
+				assert type(value) is QtCore.QModelIndex
 				pointer = get_data(value)
 				self.image_view.view_file(value)
 				self.inspector_view.set_previewIndex('file' if type(pointer) is startrak.native.FileInfo else 'star', value)
 			case 'session_edit':
 				self.inspector_view.redraw_inspector()
 				self.image_view.redraw_viewer()
-
+			
 			case _:
 				print('Invalid code', code)
 

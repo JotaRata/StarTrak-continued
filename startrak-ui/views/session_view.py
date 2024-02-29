@@ -29,6 +29,14 @@ class SessionTreeView(QtWidgets.QTreeView):
 		super().setModel(model)
 		self.expand(model.index(0, 0, QtCore.QModelIndex()))
 		self.session = session
+
+	def rebuild_model(self):
+		model = self.model()
+		model.clear()
+		model._map.clear()
+		model.rootItem = model.add_item(self.session, self.session.name, model)
+		model.build_tree(self.session, model.rootItem)
+		self.expand(model.index(0, 0, QtCore.QModelIndex()))
 	
 	def model(self) -> SessionModel:
 		return cast(SessionModel, super().model())
@@ -82,6 +90,7 @@ class SessionModel(QStandardItemModel):
 		item.setData(name, Qt.ItemDataRole.DisplayRole)
 		item.setData(obj, Qt.ItemDataRole.UserRole)
 		parent.appendRow((item, type_))
+		self._map[obj] = item.index()
 		return item
 	
 	def remove_item(self, obj : Any):
@@ -148,4 +157,5 @@ class SessionHeader(QtWidgets.QHeaderView):
 			self.update_btn.setGeometry(buttonRect)
 	
 	def update_session(self):
-		self.parent().setModel(self.parent().session)
+		self.parent().rebuild_model()
+		self.parent().session_event('session_edit', None)()
