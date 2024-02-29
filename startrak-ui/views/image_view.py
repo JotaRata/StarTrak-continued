@@ -6,6 +6,7 @@ import numpy as np
 from qt.extensions import *
 from qt.classes.range_slider import QRangeSlider
 from PySide6 import QtWidgets, QtCore, QtGui
+from startrak.types.phot import _get_cropped
 from views.application import Application
 from startrak.native import FileInfo, Star, StarList
 from startrak.native.alias import ImageLike
@@ -79,7 +80,10 @@ class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
 					self.selected_star = i
 
 	def redraw_viewer(self):
-		self.view_file(self.current_index)
+		if not self.current_index.isValid():
+			return
+		index = self.current_index.model().get_index(self.current_file)
+		self.view_file(index)
 	
 	@QtCore.Slot(str)
 	def on_colormapChange(self, value : str):
@@ -95,20 +99,24 @@ class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
 		self.update_image()
 			
 	def set_image(self, array):
+		array = array[0:-1, 0:-1].copy()
 		array = self.mapping_func(array)
 		_min, _max = array.min() + array.max() * self.level_min, array.min() + array.max() * self.level_max
-		array = np.clip((array - _min) / (_max - _min) * 255, 0, 255).astype(np.uint8)
+		array = np.clip((array - _min) / (_max - _min) * 255, 0, 255)
+		array = np.nan_to_num(array).astype(np.uint8)
 		setup_itemColors(np.mean(array) > 128)
 
 		scene = self.view.scene()
 		scene.clear()
-		qimage = QtGui.QImage(array.data, array.shape[1], array.shape[0], QtGui.QImage.Format_Grayscale8)
+		qimage = QtGui.QImage(array.data, array.shape[1], array.shape[0], QtGui.QImage.Format_Grayscale8)\
+							.scaledToWidth(1024)
 		pixmap = QtGui.QPixmap.fromImage(qimage)
-		pixmap_item = scene.addPixmap(pixmap)
-		pixmap_item.setTransformationMode(QtCore.Qt.TransformationMode.SmoothTransformation)
-		scene.setSceneRect(QtCore.QRectF(pixmap.rect()))
-		self.view.fitInView(pixmap_item, QtCore.Qt.AspectRatioMode.KeepAspectRatio)
+		scene.addPixmap(pixmap)
+		# pixmap_item.setTransformationMode(QtCore.Qt.TransformationMode.SmoothTransformation)
+		self.showEvent(None)
 		self.draw_stars()
+	def showEvent(self, event) -> None:
+		self.view.fitInView(self.view.sceneRect(), QtCore.Qt.AspectRatioMode.KeepAspectRatio)
 
 	def draw_stars(self,):
 		session = Application.get_session()
