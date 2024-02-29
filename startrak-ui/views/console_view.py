@@ -1,5 +1,6 @@
 from io import BytesIO, TextIOBase
 import os
+import subprocess
 import sys
 
 from PySide6.QtCore import QObject, Qt, Signal, Slot
@@ -83,7 +84,7 @@ class ConsoleView(QtWidgets.QFrame, UI_CONSOLE):	#type:ignore
 			if not text:
 				return
 			self.update_console('! ' + text + '\n')
-			result = os.popen(text).read()
+			result = subprocess.check_output(text, shell=True, text= True, env= os.environ)
 			if result:
 				self.update_console(result + '\n')
 			self.line_input.clear()
