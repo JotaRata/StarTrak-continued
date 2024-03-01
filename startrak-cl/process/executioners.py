@@ -27,6 +27,7 @@ class ShellExecutioner(Executioner):
 		command = parsed_data.data[0]
 		if not command:
 			return ""
+		command = command.replace(chr(0), '')
 		try:
 			result = subprocess.run(command, shell=True, capture_output=True, text=True)
 			output = result.stdout.strip() if result.stdout else ""
