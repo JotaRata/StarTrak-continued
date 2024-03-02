@@ -19,7 +19,7 @@ class ConsoleApp:
 		sys.stdout = self.output
 		if shell:
 			self.prepare_shell()
-			keyboard.hook(self.on_keyEvent)
+			keyboard.hook(self.on_keyEvent, suppress= True)
 			self._prepare(_PREFIXES[self.mode])
 			while True:
 				keyboard.wait()
@@ -56,7 +56,6 @@ class ConsoleApp:
 		input_text = self.input.getvalue()
 		if key.event_type == 'down':
 			if len(key.name) == 1:
-				self.input.write(key.name)
 				if (key.name == '>' or key.name == '!') and len(input_text.strip()) == 0:
 					if key.name == '>':
 						self.set_mode('py')
@@ -68,6 +67,10 @@ class ConsoleApp:
 					self.output.write('\n')
 					self._prepare(_PREFIXES[self.mode])
 					return
+				
+				else:
+					self.input.write(key.name)
+
 			else:
 				if key.name == 'space':
 					self.input.write(' ')
@@ -82,9 +85,11 @@ class ConsoleApp:
 					self.process(output)
 					self._prepare(_PREFIXES[self.mode])
 					return
-			self.output.write('\r' + ' ' * len(prompt + input_text)) 
-			input_text = self.input.getvalue() 
-			self.output.write('\r' + prompt + input_text) 
+			
+			new_text = self.input.getvalue() 
+			self.output.write('\r' + ' ' * len(prompt + input_text) + '\r' + prompt + new_text) 
+			# self.output.write('\r' + prompt + new_text) 
+			self.output.flush()
 
 	def process(self, string : str):
 		try:
