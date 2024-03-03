@@ -50,16 +50,16 @@ class ConsoleApp:
 
 	def _prepare(self, prompt):
 		self.output.write(prompt)
-		input_text = normalize(self.input.getvalue())
+		input_text =self.input.get_text()
 		self.output.write(input_text)
 		self.output.flush()
 	
 	def on_keyEvent(self, key : keyboard.KeyboardEvent):
-		input_text = normalize(self.input.getvalue())
+		input_text = self.input.get_text()
 
 		def clear_newline():
 			prompt = _PREFIXES[self.mode]
-			new_text = self.input.getvalue() 
+			new_text = self.input.get_value() 
 			self.output.write('\r' + ' ' * len(prompt + input_text) + '\r' + (prompt + new_text)) 
 			self.output.flush()
 
@@ -85,15 +85,21 @@ class ConsoleApp:
 					self.cursor += 1
 				elif key.scan_code in keyboard.key_to_scan_codes('backspace'):
 					if self.cursor > 0:
-						text = self.input.getvalue()
+						text = self.input.get_text()
 						current = text[:self.cursor - 1] + text[self.cursor:]
 						self.input.clear()
 						self.input.write(current)
-						self.input.flush()
 						self.cursor -= 1
+				elif key.scan_code in keyboard.key_to_scan_codes('delete'):
+					if self.cursor < len(self.input.get_text()):
+						text = self.input.get_text()
+						current = text[:self.cursor] + text[self.cursor + 1:]
+						self.input.shift_left(-1)
+						self.input.clear()
+						self.input.write(current)
 
 				elif key.scan_code in keyboard.key_to_scan_codes('enter'):
-					output = normalize(self.input.getvalue())
+					output = self.input.get_text()
 					self.input.save_state(self.mode)
 					self.input.clear()
 					self.index = 0
@@ -117,12 +123,12 @@ class ConsoleApp:
 
 			if key.scan_code in keyboard.key_to_scan_codes('left'):
 				if self.cursor > 0:
-					self.input.write('\033[D')  # Move cursor left
+					self.input.shift_left(1)
 					self.cursor -= 1
 
 			if key.scan_code in keyboard.key_to_scan_codes('right'):
 				if self.cursor < len(input_text): 
-					self.input.write('\033[C')  # Move cursor right
+					self.input.shift_left(-1)
 					self.cursor += 1
 			clear_newline()
 
@@ -140,13 +146,24 @@ class ConsoleApp:
 
 def normalize(s : str):
 	return s.replace('\033[D', '').replace('\033[C', '')
-class ConsoleInput(StringIO):
+class ConsoleInput():
 	def __init__(self) -> None:
-		super().__init__()
 		self._h = list[tuple[str, LanguageMode]]()
+		self._text = ''
+		self._lmov = 0
 
+	def write(self, __s: str):
+		self._text += __s
+	def get_text(self):
+		return self._text
+	def get_value(self) -> str:
+		return self._text + '\033[D' * self._lmov
+	
+	def shift_left(self, shift : int):
+		self._lmov += shift
+	
 	def save_state(self, mode : LanguageMode):
-		state = normalize(self.getvalue())
+		state = self.get_text()
 		if not state:
 			return
 		self._h.append((state, mode))
@@ -167,20 +184,17 @@ class ConsoleInput(StringIO):
 		return index, len(state), mode
 	
 	def insert(self, pos : int, text : str):
-		current = self.getvalue()
+		current = self.get_text()
 		if pos < 0:
 			pos = 0
 		elif pos > len(current):
 			pos = len(current)
 		new_content = current[:pos] + text + current[pos:]
-		self.seek(0)
-		self.truncate(0)
+		self.clear()
 		self.write(new_content)
 
 	def clear(self):
-		self.truncate(0)
-		self.seek(0)
-		self.flush()
+		self._text = ''
 	
 class ConsoleOutput(StringIO):
 	def __init__(self, stdout : TextIO) -> None:
