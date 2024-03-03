@@ -8,8 +8,7 @@ class ShellConsole(ConsoleApp):
 		self._prepare_shell()
 		keyboard.hook(self.on_keyEvent, suppress= False)
 		self._prepare_line(_PREFIXES[self.mode])
-		while True:
-			keyboard.wait()
+		keyboard.wait()
 	
 	def _prepare_shell(self):
 		match os.name:
