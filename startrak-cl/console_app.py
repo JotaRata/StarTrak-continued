@@ -1,6 +1,4 @@
 from io import StringIO
-import io
-from queue import Queue
 import sys
 import keyboard	#type: ignore
 from typing import Literal, TextIO
@@ -33,7 +31,7 @@ class ConsoleApp:
 				os.system('clear')
 			case 'nt' | 'java':
 				os.system('cls')
-		print('\n' * os.get_terminal_size().lines)
+		self.output.write('\n' * os.get_terminal_size().lines)
 
 	def set_mode(self, mode : LanguageMode):
 		match mode:
@@ -50,16 +48,16 @@ class ConsoleApp:
 
 	def _prepare(self, prompt):
 		self.output.write(prompt)
-		input_text =self.input.get_text()
+		input_text =self.input.getvalue()
 		self.output.write(input_text)
 		self.output.flush()
 	
 	def on_keyEvent(self, key : keyboard.KeyboardEvent):
-		input_text = self.input.get_text()
+		input_text = self.input.getvalue()
 
 		def clear_newline():
 			prompt = _PREFIXES[self.mode]
-			new_text = self.input.get_value() 
+			new_text = self.input.get_text() 
 			self.output.write('\r' + ' ' * len(prompt + input_text) + '\r' + (prompt + new_text)) 
 			self.output.flush()
 
@@ -74,7 +72,6 @@ class ConsoleApp:
 					self.output.write('\r' + ' ' * len(input_text)) 
 					self._prepare(_PREFIXES[self.mode])
 					return
-				
 				else:
 					self.input.insert(self.cursor, key.name)
 					self.cursor += 1
@@ -85,21 +82,21 @@ class ConsoleApp:
 					self.cursor += 1
 				elif key.scan_code in keyboard.key_to_scan_codes('backspace'):
 					if self.cursor > 0:
-						text = self.input.get_text()
+						text = self.input.getvalue()
 						current = text[:self.cursor - 1] + text[self.cursor:]
 						self.input.clear()
 						self.input.write(current)
 						self.cursor -= 1
 				elif key.scan_code in keyboard.key_to_scan_codes('delete'):
-					if self.cursor < len(self.input.get_text()):
-						text = self.input.get_text()
+					if self.cursor < len(self.input.getvalue()):
+						text = self.input.getvalue()
 						current = text[:self.cursor] + text[self.cursor + 1:]
 						self.input.shift_left(-1)
 						self.input.clear()
 						self.input.write(current)
 
 				elif key.scan_code in keyboard.key_to_scan_codes('enter'):
-					output = self.input.get_text()
+					output = self.input.getvalue()
 					self.input.save_state(self.mode)
 					self.input.clear()
 					self.index = 0
@@ -146,24 +143,20 @@ class ConsoleApp:
 
 def normalize(s : str):
 	return s.replace('\033[D', '').replace('\033[C', '')
-class ConsoleInput():
+
+class ConsoleInput(StringIO):
 	def __init__(self) -> None:
+		super().__init__()
 		self._h = list[tuple[str, LanguageMode]]()
-		self._text = ''
 		self._lmov = 0
 
-	def write(self, __s: str):
-		self._text += __s
-	def get_text(self):
-		return self._text
-	def get_value(self) -> str:
-		return self._text + '\033[D' * self._lmov
-	
+	def get_text(self) -> str:
+		return self.getvalue() + '\033[D' * self._lmov
 	def shift_left(self, shift : int):
 		self._lmov += shift
 	
 	def save_state(self, mode : LanguageMode):
-		state = self.get_text()
+		state = self.getvalue()
 		if not state:
 			return
 		self._h.append((state, mode))
@@ -184,7 +177,7 @@ class ConsoleInput():
 		return index, len(state), mode
 	
 	def insert(self, pos : int, text : str):
-		current = self.get_text()
+		current = self.getvalue()
 		if pos < 0:
 			pos = 0
 		elif pos > len(current):
@@ -194,7 +187,8 @@ class ConsoleInput():
 		self.write(new_content)
 
 	def clear(self):
-		self._text = ''
+		self.truncate(0)
+		self.seek(0)
 	
 class ConsoleOutput(StringIO):
 	def __init__(self, stdout : TextIO) -> None:
