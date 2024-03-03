@@ -1,12 +1,12 @@
 from io import StringIO
 import sys
-import keyboard	#type: ignore
+import keyboard
 from typing import Literal, TextIO
 import os
 from process import Executioner, Parser, STException, parser, execs
 
 LanguageMode = Literal['py', 'sh', 'st']
-_PREFIXES = {'st': '~ ', 'py' : '> ', 'sh' : '! ' }
+_PREFIXES = {'st': '[ST]: ', 'py' : '[PY]: ', 'sh' : '[SH]: ' }
 class ConsoleApp:
 	mode : LanguageMode
 	_parser : Parser

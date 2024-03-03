@@ -7,17 +7,16 @@ class PythonExcecutioner(Executioner):
 		self._globals = execution_context
 
 	def execute(self, parsed_data: ParsedOutput) -> str:
-		prefix = '> '
 		command, mode = parsed_data.data
 		if mode != 'none':
 			command = command.replace(chr(0), '')
 		if mode == 'eval':
 			result = eval(command, self._globals)
 			if result:
-				return prefix + repr(result)
+				return repr(result)
 		elif mode == 'exec':
 			exec(command, self._globals)
-		return prefix
+		return ''
 
 class ShellExecutioner(Executioner):
 	def __init__(self, execution_context: dict[str, object], **kwargs) -> None:
