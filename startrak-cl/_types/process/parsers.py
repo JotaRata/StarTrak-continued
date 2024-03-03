@@ -1,4 +1,4 @@
-from process import Parser, ParsedOutput, STException
+from .protocols import Parser, ParsedOutput, STException
 
 
 _DISALLOWED_PY_KW = ('import', 'os', 'sys', 'raise', 

@@ -10,6 +10,3 @@ class Executioner(Protocol):
 	def execute(self, parsed_data : ParsedOutput) -> str: ...
 class STException(Exception):
 	pass
-
-from . import parsers as parser
-from . import executioners as execs

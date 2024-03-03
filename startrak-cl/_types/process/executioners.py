@@ -1,6 +1,6 @@
 import subprocess
-from . import ParsedOutput, STException
-from process import Executioner
+from .protocols import ParsedOutput, STException
+from .protocols import Executioner
 
 class PythonExcecutioner(Executioner):
 	def __init__(self, execution_context: dict[str, object], **kwagrs) -> None:
