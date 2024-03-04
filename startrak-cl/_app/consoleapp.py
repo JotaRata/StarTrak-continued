@@ -1,11 +1,10 @@
-import importlib
-import os
 import sys
 from _types.process.protocols import Executioner, Parser, STException
 from _types.process import parsers as parser
 from _types.process import executioners as execs
 from _types.alias import LanguageMode
 from _types.streams import ConsoleInput, ConsoleOutput
+import startrak
 _PREFIXES = {'st': '[ST]: ', 'py' : '[PY]: ', 'sh' : '[SH]: ' }
 
 class ConsoleApp:
@@ -22,8 +21,7 @@ class ConsoleApp:
 		sys.stdout = self.output
 	
 	def set_mode(self, mode : LanguageMode):
-		st_module = importlib.import_module('startrak')
-		_globals = {var:vars(st_module)[var] for var in dir(st_module) if not var.startswith('_')}
+		_globals = {var:vars(startrak)[var] for var in dir(startrak) if not var.startswith('_')}
 		match mode:
 			case 'py':
 				self._parser = parser.PythonParser()
