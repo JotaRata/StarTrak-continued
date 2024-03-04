@@ -53,12 +53,17 @@ class StartrakExecutioner(Executioner):
 		
 		values = []
 		for i, (tneed, given) in enumerate(zip(targs, args)):
-			value = literal_eval(given)
+			try:
+				value = literal_eval(given)
+			except:
+				value = repr(given)
+
 			if type(value).__name__ != tneed:
 				raise STException(f'"{command}" argument #{i} needs to be of type "{tneed}", "{type(value).__name__}" given')
 			values.append(value)
 		
 		source = func(*values)
+		print(source)
 		output = str(eval(source, self.execution_context))
 
 		return output
