@@ -19,7 +19,11 @@ __all__ = ['new_session',
 				'get_files',
 				'get_stars',]
 SessionType = Literal['inspect', 'scan']
-__session__ : Session = InspectionSession('default')
+
+if not os.getenv('ST_SESSION_DISABLED'):
+	__session__ : Session = InspectionSession('default')
+else:
+	__session__ = None
 
 @overload
 def new_session(name : str, sessionType : Literal['inspect'], *args, overwrite : bool, **kwargs) -> InspectionSession: ...
