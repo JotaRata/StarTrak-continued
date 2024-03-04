@@ -1,13 +1,15 @@
+from ast import literal_eval
 import subprocess
 from .protocols import ParsedOutput, STException
 from .protocols import Executioner
+from _types._lang import get_method
 
 class PythonExcecutioner(Executioner):
 	def __init__(self, execution_context: dict[str, object], **kwagrs) -> None:
 		self._globals = execution_context
 
 	def execute(self, parsed_data: ParsedOutput) -> str:
-		command, mode = parsed_data.data
+		command, (mode, ) = parsed_data
 		if mode != 'none':
 			command = command.replace(chr(0), '')
 		if mode == 'eval':
@@ -23,7 +25,7 @@ class ShellExecutioner(Executioner):
 		self.execution_context = execution_context
 
 	def execute(self, parsed_data: ParsedOutput) -> str:
-		command = parsed_data.data[0]
+		command = parsed_data.command
 		if not command:
 			return ""
 		command = command.replace(chr(0), '')
@@ -41,4 +43,22 @@ class StartrakExecutioner(Executioner):
 		self.execution_context = execution_context
 
 	def execute(self, parsed_data: ParsedOutput) -> str:
-		return parsed_data.data[0]
+		command, args = parsed_data
+		if not command:
+			return ""
+		
+		func, targs, ret = get_method(command)
+		if len(args) != len(targs):
+			raise STException(f'"{command}" requires {len(targs)} arguments, given {len(args)}')
+		
+		values = []
+		for i, (tneed, given) in enumerate(zip(targs, args)):
+			value = literal_eval(given)
+			if type(value).__name__ != tneed:
+				raise STException(f'"{command}" argument #{i} needs to be of type "{tneed}", "{type(value).__name__}" given')
+			values.append(value)
+		
+		source = func(*values)
+		output = str(eval(source, self.execution_context))
+
+		return output

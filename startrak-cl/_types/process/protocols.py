@@ -1,7 +1,8 @@
 from typing import NamedTuple, Protocol
 
 class ParsedOutput(NamedTuple):
-	data : tuple[str,...]
+	command : str
+	args : tuple[str,...]
 
 class Parser(Protocol):
 	def parse(self, text_input : str) -> ParsedOutput: ...

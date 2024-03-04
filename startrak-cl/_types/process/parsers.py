@@ -1,5 +1,5 @@
 from .protocols import Parser, ParsedOutput, STException
-
+from _types._lang import has_method
 
 _DISALLOWED_PY_KW = ('import', 'os', 'sys', 'raise', 
 							'input', 'class', 'open', 'with', 
@@ -17,12 +17,12 @@ class PythonParser(Parser):
 			if any(word == kw for kw in _DISALLOWED_PY_KW):
 				raise STException('Forbidden keywords at input')
 		if not text_input:
-			return ParsedOutput((None, 'none'))
+			return ParsedOutput(None, ('none', ))
 
 		if '=' in text_input and not '==' in text_input:
-			return ParsedOutput((text_input, 'exec'))
+			return ParsedOutput(text_input, ('exec', ))
 		else:
-			return ParsedOutput((text_input, 'eval'))
+			return ParsedOutput(text_input, ('eval', ))
 		
 class ShellParser(Parser):
 	def parse(self, text_input: str) -> ParsedOutput:
@@ -31,9 +31,15 @@ class ShellParser(Parser):
 		for word in words:
 			if any(word == kw for kw in _DISALLOWED_SH_KW):
 				raise STException('Forbidden keywords at input')
-		return ParsedOutput((text_input,))
+		return ParsedOutput(text_input)
 	
 class StartrakParser(Parser):
 	def parse(self, text_input: str) -> ParsedOutput:
-		return ParsedOutput((text_input,))
-	
+		if not text_input:
+			return ParsedOutput(None, ('none',))
+		words = text_input.strip().split(' ')
+		func, *args = words
+		if not has_method(func):
+			raise STException(f'No function named "{func}"')
+		
+		return ParsedOutput(func, args)

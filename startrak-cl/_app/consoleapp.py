@@ -1,3 +1,5 @@
+import importlib
+import os
 import sys
 from _types.process.protocols import Executioner, Parser, STException
 from _types.process import parsers as parser
@@ -20,16 +22,18 @@ class ConsoleApp:
 		sys.stdout = self.output
 	
 	def set_mode(self, mode : LanguageMode):
+		st_module = importlib.import_module('startrak')
+		_globals = {var:vars(st_module)[var] for var in dir(st_module) if not var.startswith('_')}
 		match mode:
 			case 'py':
 				self._parser = parser.PythonParser()
-				self._exc = execs.PythonExcecutioner({})
+				self._exc = execs.PythonExcecutioner(_globals)
 			case 'sh':
 				self._parser = parser.ShellParser()
 				self._exc = execs.ShellExecutioner({})
 			case 'st':
 				self._parser = parser.StartrakParser()
-				self._exc = execs.StartrakExecutioner({})
+				self._exc = execs.StartrakExecutioner(_globals)
 		self.mode = mode
 
 	def process(self, string : str):
