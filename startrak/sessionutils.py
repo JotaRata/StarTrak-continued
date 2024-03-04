@@ -7,6 +7,7 @@ from startrak.types.exporters import TextExporter
 from startrak.types.importers import TextImporter
 
 __all__ = ['new_session', 
+				'load_session', 
 				'get_session', 
 				'save_session', 
 				'SessionType',
@@ -20,7 +21,7 @@ __all__ = ['new_session',
 				'get_stars',]
 SessionType = Literal['inspect', 'scan']
 
-if not os.getenv('ST_SESSION_DISABLED'):
+if not os.environ.get('ST_SESSION_DISABLED', None):
 	__session__ : Session = InspectionSession('default')
 else:
 	__session__ = None
