@@ -25,6 +25,13 @@ def _CHANGE_DIR(command, args):
 	helper = Helper(command, args)
 	path = helper.get_arg(0)
 	os.chdir(path)
+	print(os.getcwd())
+
+@register('cwd')
+@register('pwd')
+def _GET_CWD(command, args):
+	print(os.getcwd())
+
 
 @register('ls', args= [Optional(0, str)])
 def _LIST_DIR(command, args):
