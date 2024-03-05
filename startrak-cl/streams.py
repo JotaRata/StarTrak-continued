@@ -1,6 +1,6 @@
 from io import StringIO
 from typing import TextIO
-from .alias import LanguageMode
+from alias import LanguageMode
 
 class ConsoleInput(StringIO):
 	def __init__(self) -> None:
