@@ -1,7 +1,7 @@
 import sys
-from _types.process.protocols import Executioner, Parser, STException
+from _types.process.protocols import Executor, Parser, STException
 from _types.process import parsers as parser
-from _types.process import executioners as execs
+from _types.process import executors as execs
 from _types.alias import LanguageMode
 from _types.streams import ConsoleInput, ConsoleOutput
 import startrak
@@ -10,7 +10,7 @@ _PREFIXES = {'st': '[ST]: ', 'py' : '[PY]: ', 'sh' : '[SH]: ' }
 class ConsoleApp:
 	mode : LanguageMode
 	_parser : Parser
-	_exc : Executioner
+	_exc : Executor
 
 	def __init__(self, *args : str) -> None:
 		self.input = ConsoleInput()

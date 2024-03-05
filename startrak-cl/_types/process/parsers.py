@@ -1,5 +1,4 @@
 from .protocols import Parser, ParsedOutput, STException
-from _types._lang import has_method
 
 _DISALLOWED_PY_KW = ('import', 'os', 'sys', 'raise', 
 							'input', 'class', 'open', 'with', 
@@ -39,7 +38,4 @@ class StartrakParser(Parser):
 			return ParsedOutput(None, ('none',))
 		words = text_input.strip().split(' ')
 		func, *args = words
-		if not has_method(func):
-			raise STException(f'No function named "{func}"')
-		
 		return ParsedOutput(func, args)
