@@ -9,9 +9,10 @@ _DISALLOWED_SH_KW = ('sudo', 'bash', 'sh', 'cmd',
 							'powershell', 'pwsh', 'exec', 
 							'start', 'python', 'shutdown', 
 							'reboot', 'init')
+
 class PythonParser(Parser):
 	def parse(self, text_input : str) -> ParsedOutput:
-		words = text_input.split(' ')
+		words = self.match(text_input.strip())
 
 		for word in words:
 			if any(word == kw for kw in _DISALLOWED_PY_KW):
@@ -26,18 +27,18 @@ class PythonParser(Parser):
 		
 class ShellParser(Parser):
 	def parse(self, text_input: str) -> ParsedOutput:
-		words = text_input.split(' ')
+		words = self.match(text_input.strip())
 
 		for word in words:
 			if any(word == kw for kw in _DISALLOWED_SH_KW):
 				raise STException('Forbidden keywords at input')
-		return ParsedOutput(text_input)
+		return ParsedOutput(text_input, ( ))
 	
 class StartrakParser(Parser):
 	def parse(self, text_input: str) -> ParsedOutput:
 		if not text_input:
 			return ParsedOutput(None, ('none',))
-		words = text_input.strip().split(' ')
+		words = self.match(text_input.strip())
 		cmd_name, *args = words
 		if not args:
 			args = []

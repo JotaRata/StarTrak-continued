@@ -18,7 +18,7 @@ class PythonExcecutioner(Executor):
 		if mode == 'eval':
 			result = eval(command, self._globals)
 			if result:
-				return repr(result)
+				print(repr(result))
 		elif mode == 'exec':
 			exec(command, self._globals)
 		return ''
@@ -37,7 +37,7 @@ class ShellExecutioner(Executor):
 			output = result.stdout.strip() if result.stdout else ""
 			if result.returncode != 0:
 					raise STException(f"Shell command failed: {result.stderr.strip()}")
-			return output
+			print(output)
 		except Exception as e:
 			raise STException(f"Error executing shell command: {e}")
 		

@@ -11,6 +11,7 @@ class ConsoleApp:
 	mode : LanguageMode
 	_parser : Parser
 	_exc : Executor
+	_globals = {var:vars(startrak)[var] for var in dir(startrak) if not var.startswith('_')}
 
 	def __init__(self, *args : str) -> None:
 		self.input = ConsoleInput()
@@ -21,24 +22,22 @@ class ConsoleApp:
 		sys.stdout = self.output
 	
 	def set_mode(self, mode : LanguageMode):
-		_globals = {var:vars(startrak)[var] for var in dir(startrak) if not var.startswith('_')}
 		match mode:
 			case 'py':
 				self._parser = parser.PythonParser()
-				self._exc = execs.PythonExcecutioner(_globals)
+				self._exc = execs.PythonExcecutioner(ConsoleApp._globals)
 			case 'sh':
 				self._parser = parser.ShellParser()
 				self._exc = execs.ShellExecutioner({})
 			case 'st':
 				self._parser = parser.StartrakParser()
-				self._exc = execs.StartrakExecutioner(_globals)
+				self._exc = execs.StartrakExecutioner(ConsoleApp._globals)
 		self.mode = mode
 
 	def process(self, string : str):
 		try:
 			data = self._parser.parse(string)
-			out = self._exc.execute(data)
-			print(out)
+			self._exc.execute(data)
 		except STException as e:
 			print('Error:', e)
 		except Exception as e:

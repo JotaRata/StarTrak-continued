@@ -54,9 +54,8 @@ def _LIST_DIR(command, args):
 		path = os.getcwd()
 	else:
 		path = helper.get_arg(0)
-	print(path)
 	for path in os.scandir(path):
-		print(' ',os.path.basename(path) + ('/' if os.path.isdir(path) else ''))
+		print(os.path.basename(path) + ('/' if os.path.isdir(path) else ''))
 
 @register('open', args= [Positional(0, str)], kw= [Keyword('-f', int)])
 def _LOAD_SESSION(command, args):
