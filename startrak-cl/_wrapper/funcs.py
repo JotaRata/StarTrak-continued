@@ -4,17 +4,31 @@ from _wrapper.base import register, Positional, Keyword, Optional
 from _wrapper.helper import Helper
 from _process.protocols import STException
 
-@register('session', kw= [Keyword('-f', int), Keyword('-new', str, str), Keyword('--v')])
+@register('session', kw= [Keyword('-f', int), Keyword('-new', str), Keyword('-mode', str), Keyword('-scan-dir', str), Keyword('--v')])
 def _GET_SESSION(command, args):
 	helper = Helper(command, args)
 
 	fold = helper.get_kw('-f')
 	new = helper.get_kw('-new')
 	if '-new' in args and not new:
-		raise STException('Keyword "-new" expected two arguments: name and sessionType')
+		raise STException('Keyword "-new" expected argument: name')
+	
 	if new:
+		mode = helper.get_kw('-mode')
+		match mode:
+			case False:
+				s = startrak.new_session(new, 'inspect')
+			case 'inspect' | 'insp' | 'InspectionSession':
+				s = startrak.new_session(new, 'inspect')
+			case 'scan' | 'ScanSession':
+				_dir = helper.get_kw('-scan-dir')
+				if not _dir:
+					_dir = os.getcwd()
+				s = startrak.new_session(new, 'scan', _dir)
+			case _:
+				raise STException(f'Unknown mode "{mode}"')
+
 		out = helper.get_kw('--v')
-		s = startrak.new_session(new[0], new[1])
 		if out:
 			startrak.pprint(s,  fold if fold else 1)
 		return
@@ -54,13 +68,14 @@ def _LOAD_SESSION(command, args):
 		fold = helper.get_kw('-f')
 		startrak.pprint(s,  fold if fold else 1)
 
-@register('add', args= [Positional(0, str), Optional(1, str)], kw= [Keyword('--v'), Keyword('-f', int)])
+@register('add', args= [Positional(0, str), Positional(1, str)], 
+						kw= [Keyword('--v'), Keyword('-f', int), Keyword('-pos', float, float), Keyword('-ap', int)])
 def _ADD_ITEM(command, args):
 	helper = Helper(command, args)
 	mode = helper.get_arg(0)
 	out = helper.get_kw('--v')
 	if not startrak.get_session():
-		raise STException('No session to add to, create one using session -new')
+		raise STException('No session to add to, create one using "session -new"')
 	match mode:
 		case 'file':
 			path = helper.get_arg(1)
@@ -68,5 +83,20 @@ def _ADD_ITEM(command, args):
 			if out:
 				fold = helper.get_kw('-f')
 				startrak.pprint(file, fold if fold else 1)
+		
+		case 'star':
+			name = helper.get_arg(1)
+			if '-pos' not in args:
+				raise STException('Missing required keyword: "-pos x y"')
+			pos = helper.get_kw('-pos')
+			apert = helper.get_kw('-ap')
+
+			star = startrak.Star(name, pos, apert if apert else 16)
+			startrak.add_star(star)
+
+			if out:
+				fold = helper.get_kw('-f')
+				startrak.pprint(star, fold if fold else 1)
+
 		case _:
 			raise STException(f'Invalid argument: "{mode}", supported values are "file" and "star"')
