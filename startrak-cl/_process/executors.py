@@ -17,8 +17,7 @@ class PythonExcecutioner(Executor):
 			command = command.replace(chr(0), '')
 		if mode == 'eval':
 			result = eval(command, self._globals)
-			if result:
-				print(repr(result))
+			print(repr(result))
 		elif mode == 'exec':
 			exec(command, self._globals)
 		return ''

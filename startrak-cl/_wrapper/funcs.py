@@ -57,7 +57,7 @@ def _LIST_DIR(command, args):
 	for path in os.scandir(path):
 		print(os.path.basename(path) + ('/' if os.path.isdir(path) else ''))
 
-@register('open', args= [Positional(0, str)], kw= [Keyword('-f', int)])
+@register('open', args= [Positional(0, str)], kw= [Keyword('--v'), Keyword('-f', int)])
 def _LOAD_SESSION(command, args):
 	helper = Helper(command, args)
 	path = helper.get_arg(0)
@@ -99,3 +99,23 @@ def _ADD_ITEM(command, args):
 
 		case _:
 			raise STException(f'Invalid argument: "{mode}", supported values are "file" and "star"')
+
+def __int_or_str(value):
+	if value.isdigit(): return int(value)
+	else: return str(value)
+
+@register('get', args= [Positional(0, str), Positional(1, __int_or_str)], kw= [Keyword('-f', int)])
+def _GET_IETM(command, args):
+	helper = Helper(command, args)
+	mode = helper.get_arg(0)
+	index = helper.get_arg(1)
+
+	match mode:
+		case 'file':
+			item = startrak.get_file(index)
+		case 'star':
+			item = startrak.get_star(index)
+		case _:
+			raise STException(f'Invalid argument: "{mode}", supported values are "file" and "star"')
+	fold = helper.get_kw('-f')
+	startrak.pprint(item, fold if fold else 1)
