@@ -23,6 +23,7 @@ class OptionalKeyword:
 class ReturnInfo(NamedTuple):
 	name : str = None
 	text : str = None
+	path : str = None
 	obj : object = None
 	def __str__(self) -> str:
 		return self.name

@@ -1,7 +1,7 @@
 import os
 import re
 import startrak
-from _wrapper import ReturnInfo, register, pos, key, opos, okey, name, text, obj
+from _wrapper import ReturnInfo, register, pos, key, opos, okey, name, text, obj, path
 from _process.protocols import STException
 
 @register('session', kw= [key('-new', str), key('-mode', str), key('-scan-dir', str), okey('--v', int, 1)])
@@ -36,20 +36,20 @@ def _GET_SESSION(helper):
 		helper.print(pprint)
 	return ReturnInfo(session.name, pprint, session)
 
-@register('cd', args= [pos(0, text)])
+@register('cd', args= [pos(0, path)])
 def _CHANGE_DIR(helper):
 	path = helper.get_arg(0)
 	os.chdir(path)
 	new_path = os.getcwd()
 	helper.print(new_path)
-	return ReturnInfo(os.path.basename(new_path), new_path)
+	return ReturnInfo(os.path.basename(new_path), path= new_path)
 
 @register('cwd')
 @register('pwd')
 def _GET_CWD(helper):
 	path = os.getcwd().replace(r'\\', '/')
 	helper.print(path)
-	return ReturnInfo(os.path.basename(path), os.path.abspath(path))
+	return ReturnInfo(os.path.basename(path), path= os.path.abspath(path))
 
 @register('ls', args= [opos(0, text)])
 def _LIST_DIR(helper):
@@ -58,11 +58,11 @@ def _LIST_DIR(helper):
 	else:
 		path = helper.get_arg(0)
 	paths = []
-	for path in os.scandir(path):
-		paths.append(os.path.basename(path) + ('/' if os.path.isdir(path) else ''))
+	for p in os.scandir(path):
+		paths.append(os.path.basename(p) + ('/' if os.path.isdir(p) else ''))
 	string = '\n'.join(paths)
 	helper.print(string)
-	return ReturnInfo(path, string)
+	return ReturnInfo(text= string, path= path)
 
 @register('grep', args= [pos(0, str), pos(1, text)])
 def _FIND_IN_TEXT(helper):
@@ -91,7 +91,7 @@ def _PRINT(helper):
 	value = helper.get_arg(0)
 	helper.print(value)
 
-@register('open', args= [pos(0, name)], kw= [okey('--v', int, 1)])
+@register('open', args= [pos(0, path)], kw= [okey('--v', int, 1)])
 def _LOAD_SESSION(helper):
 	path = helper.get_arg(0)
 	out, fold = helper.get_kw('--v')

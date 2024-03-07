@@ -11,6 +11,13 @@ def text(__r : ReturnInfo | str):
 	if type(__r) is str:
 		return __r
 	return str(__r.text)
+def path(__r : ReturnInfo | str):
+	''' path in an object or string or name if it's not available'''
+	if type(__r) is str:
+		return __r
+	if __r.path:
+		return str(__r.path)
+	return str(__r.name)
 def obj(__r : ReturnInfo):
 	''' Strictly the object of ReturnInfo '''
 	return str(__r.obj)
