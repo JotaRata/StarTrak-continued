@@ -40,3 +40,7 @@ class Helper:
 			print(pos, self.args, _type)
 			raise STException(f'Invalid argument type for "{self.command.name}" at position #{pos + 1}')
 		return value
+
+	def print(self, *args, **kwargs):
+		if self.command.printable:
+			print(*args, **kwargs)

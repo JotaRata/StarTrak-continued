@@ -46,20 +46,24 @@ class StartrakExecutioner(Executor):
 
 	def execute(self, parsed_data: ParsedOutput | ChainedOutput) -> str:
 		if type(parsed_data) is ParsedOutput:
-			command, args = parsed_data
+			command, args, printable = parsed_data
 			if not command: return
 			call = get_command(command)
+			call.printable = printable
 			call(args)
+			call.printable = True
 
 		elif type(parsed_data) is ChainedOutput:
 			retval = None
 			for out in parsed_data.outputs:
-				command, args = out
+				command, args, printable = out
 				if not command: return
 				if retval:
 					new_args = args + [retval]
 				else:
 					new_args = args
 				call = get_command(command)
+
+				call.printable = printable
 				retval = call(new_args)
-	
+				call.printable = True

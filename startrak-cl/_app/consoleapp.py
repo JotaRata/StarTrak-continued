@@ -41,6 +41,7 @@ class ConsoleApp:
 		except STException as e:
 			print('Error:', e)
 		except Exception as e:
+			raise
 			print('Python Error:', e)
 		if self.mode != 'st':
 			self.set_mode('st')

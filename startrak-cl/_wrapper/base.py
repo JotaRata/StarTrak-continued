@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable
 
 class Positional:
@@ -29,6 +29,7 @@ class _CommandInfo:
 			self.args = []
 		if not self._kws:
 			self._kws = []
+		self.printable = True
 		self.keywords = {k.key: k.types for k in self._kws}
 		self.count_positional = sum(1 for arg in self.args if type(arg) is Positional)
 		self.count_optional = sum(1 for arg in self.args if type(arg) is Optional)

@@ -45,7 +45,7 @@ class StartrakParser(Parser):
 		else:
 			return self.parse_multiple(words)
 
-	def parse_single(self, words, chained= False):
+	def parse_single(self, words, chained= False, printable= True):
 		cmd_name, *args = words
 		if not args:
 			args = []
@@ -64,7 +64,7 @@ class StartrakParser(Parser):
 			if a.startswith('-') and a not in command.keywords:
 				raise STException(f'Unknown keyword "{a}" in command "{cmd_name}"')
 			
-		return ParsedOutput(cmd_name, args)
+		return ParsedOutput(cmd_name, args, printable)
 	
 	def parse_multiple(self, words : list):
 		count = words.count('|')
@@ -76,7 +76,7 @@ class StartrakParser(Parser):
 				next_index = words.index('|', index + 1)
 			sliced = words[index + 1: next_index]
 			index = next_index
-			parsed_output = self.parse_single(sliced, i > 0)
+			parsed_output = self.parse_single(sliced, i > 0, i == count)
 			outputs.append(parsed_output)
 		return ChainedOutput(outputs)
 

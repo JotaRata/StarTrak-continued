@@ -4,6 +4,7 @@ from typing import Literal, NamedTuple, Protocol
 class ParsedOutput(NamedTuple):
 	command : str
 	args : list[str]
+	printable : bool = True
 
 class ChainedOutput(NamedTuple):
 	outputs : list[ParsedOutput]

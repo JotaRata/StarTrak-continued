@@ -1,4 +1,5 @@
 import os
+import re
 import startrak
 from _wrapper.base import register, Positional, Keyword, Optional
 from _wrapper.helper import Helper
@@ -32,7 +33,7 @@ def _GET_SESSION(command, args):
 		out = helper.get_kw('--v')
 		if out:
 			startrak.pprint(session,  fold if fold else 1)
-		return session.anem
+		return session.name
 	else:
 		if not session:
 			raise STException('There is no session created, use the "-new" keyword to create one.')
@@ -44,13 +45,15 @@ def _CHANGE_DIR(command, args):
 	helper = Helper(command, args)
 	path = helper.get_arg(0)
 	os.chdir(path)
-	return path
+	helper.print(os.getcwd())
+	return os.getcwd()
 
 @register('cwd')
 @register('pwd')
 def _GET_CWD(command, args):
+	helper = Helper(command, args)
 	path = os.getcwd().replace(r'\\', '/')
-	print(path)
+	helper.print(path)
 	return path
 
 @register('ls', args= [Optional(0, str)])
@@ -60,15 +63,40 @@ def _LIST_DIR(command, args):
 		path = os.getcwd()
 	else:
 		path = helper.get_arg(0)
+	paths = []
 	for path in os.scandir(path):
-		print(os.path.basename(path) + ('/' if os.path.isdir(path) else ''))
-	return None
+		paths.append(os.path.basename(path) + ('/' if os.path.isdir(path) else ''))
+	string = '\n'.join(paths)
+	helper.print(string)
+	return string
+
+@register('grep', args= [Positional(0, str), Positional(1, str)])
+def _FIND_IN_TEXT(command, args):
+	helper = Helper(command, args)
+	pattern = helper.get_arg(0)
+	pattern = re.escape(pattern).replace(r'\*', r'.*?')
+	try:
+		path = helper.get_arg(1)
+		with open(path, 'r') as file:
+			lines = []
+			for line in file:
+				if re.search(pattern, line):
+					lines.append(line)
+	except (FileNotFoundError, OSError):
+		text = helper.get_arg(1)
+		lines = []
+		for line in text.split('\n'):
+			if re.search(pattern, line):
+					lines.append(line)
+	string = '\n'.join(lines)
+	helper.print(string)
+	return string
 
 @register('echo', args= [Positional(0, str)])
 def _PRINT(command, args):
 	helper = Helper(command, args)
 	value = helper.get_arg(0)
-	print(value)
+	helper.print(value)
 
 @register('open', args= [Positional(0, str)], kw= [Keyword('--v'), Keyword('-f', int)])
 def _LOAD_SESSION(command, args):
