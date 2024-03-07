@@ -1,4 +1,5 @@
 from .consoleapp import ConsoleApp, _PREFIXES
+from _wrapper import get_commands
 import keyboard
 import os
 
@@ -99,4 +100,22 @@ class ShellConsole(ConsoleApp):
 				if self.cursor < len(input_text): 
 					self.input.shift_left(-1)
 					self.cursor += 1
+			
+			if key.scan_code in keyboard.key_to_scan_codes('tab'):
+				if self.mode != 'st':
+					return
+				possible = []
+				if not ' ' in input_text:
+					for command in get_commands():
+						if input_text in command:
+							possible.append(command)
+					if len(possible) > 1:
+						self.output.write('\n')
+						self.output.write('\n'.join(possible) + '\n')
+
+					elif len(possible) == 1:
+						self.input.clear()
+						self.input.write(possible[0])
+						self.cursor = len(possible[0])
+
 			clear_newline()
