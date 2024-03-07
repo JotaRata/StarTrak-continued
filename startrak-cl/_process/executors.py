@@ -4,7 +4,7 @@ import subprocess
 from .protocols import ChainedOutput, ParsedOutput, STException
 from .protocols import Executor
 import _wrapper.funcs
-from _wrapper.base import get_command
+from _wrapper import get_command
 import startrak
 
 class PythonExcecutioner(Executor):
@@ -12,7 +12,7 @@ class PythonExcecutioner(Executor):
 		self._globals = execution_context
 
 	def execute(self, parsed_data: ParsedOutput) -> str:
-		command, (mode, ) = parsed_data
+		command, mode, _ = parsed_data
 		if mode != 'none':
 			command = command.replace(chr(0), '')
 		if mode == 'eval':

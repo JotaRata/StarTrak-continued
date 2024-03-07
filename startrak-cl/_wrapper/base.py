@@ -3,34 +3,20 @@ from dataclasses import dataclass
 from typing import Callable, NamedTuple
 from _process.protocols import STException
 
-def name(__r : ReturnInfo | str):
-	''' Name of an object or string'''
-	if type(__r) is str:
-		return __r
-	return str(__r.name)
-def text(__r : ReturnInfo | str):
-	''' Text in an object or string'''
-	if type(__r) is str:
-		return __r
-	return str(__r.text)
-def obj(__r : ReturnInfo):
-	''' Strictly the object of ReturnInfo '''
-	return str(__r.obj)
-
 class Positional:
-	def __init__(self, index : int, kind : type) -> None:
+	def __init__(self, index, kind) -> None:
 		self.index = index
 		self.type = kind
 class Optional(Positional):
 	pass
 class Keyword:
-	def __init__(self, key : str, *kinds : type) -> None:
+	def __init__(self, key, *kinds) -> None:
 		self.key = key
 		self.types = kinds
 		if not self.types:
 			self.types = tuple()
 class OptionalKeyword:
-	def __init__(self, key : str, kind : type, default = None) -> None:
+	def __init__(self, key, kind, default) -> None:
 		self.key = key
 		self.type = type
 		self.default = default
@@ -90,8 +76,8 @@ class Helper:
 				next_ = self.args[idx + j]
 				try:
 					value = _type(next_)
-				except:
-					raise STException(f'Invalid argument type for "{self.command.name}" at position #{j}')
+				except Exception as e:
+					raise STException(f'Invalid argument type for "{self.command.name}" at position #{j}: {e}')
 				values.append(value)
 			if len(values) > 1:
 				return values
@@ -100,10 +86,11 @@ class Helper:
 			if len(self.args) < 1 + len(key.types): 
 				return key.default
 			idx = self.args.index(arg)
+			_type = key.type
 			try:
 				value = _type(self.args[idx + 1])
 			except:
-				raise STException(f'Invalid argument type for "{self.command.name}" at position #1')
+				raise STException(f'Invalid argument type for "{self.command.name}" at position #1.')
 			return value
 			
 	def get_arg(self, pos : int):
@@ -123,14 +110,4 @@ class Helper:
 		if self.command.printable:
 			print(*args, **kwargs)
 
-
 _REGISTERED_COMMANDS = dict[str, _CommandInfo]()
-def register(name : str, *, args : list[Positional] = None, kw : list[Keyword] = None):
-	def decorator(func):
-		command = _CommandInfo(name, args, kw, func if type(func) is not _CommandInfo else func.ref)
-		_REGISTERED_COMMANDS[name] = command
-		return command
-	return decorator
-
-def get_command(name) -> _CommandInfo | None:
-	return _REGISTERED_COMMANDS.get(name, None)

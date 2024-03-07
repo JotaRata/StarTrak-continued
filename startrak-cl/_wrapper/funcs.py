@@ -1,15 +1,15 @@
 import os
 import re
 import startrak
-from _wrapper.base import ReturnInfo, register, Positional, Keyword, Optional, name, text, obj
+from _wrapper import ReturnInfo, register, pos, key, opos, okey, name, text, obj
 from _process.protocols import STException
 
-@register('session', kw= [Keyword('-f', int), Keyword('-new', str), Keyword('-mode', str), Keyword('-scan-dir', str), Keyword('--v')])
+@register('session', kw= [key('-f', int), key('-new', str), key('-mode', str), key('-scan-dir', str), key('--v')])
 def _GET_SESSION(helper):
 	fold = helper.get_kw('-f')
 	new = helper.get_kw('-new')
 	if '-new' in helper.args and not new:
-		raise STException('Keyword "-new" expected argument: name')
+		raise STException('key "-new" expected argument: name')
 	
 	session : startrak.native.Session
 	session = startrak.get_session()
@@ -38,7 +38,7 @@ def _GET_SESSION(helper):
 		startrak.pprint(session, fold if fold else 1)
 	return ReturnInfo(session.name, session.__pprint__(0, fold if fold else 1), session)
 
-@register('cd', args= [Positional(0, text)])
+@register('cd', args= [pos(0, text)])
 def _CHANGE_DIR(helper):
 	path = helper.get_arg(0)
 	os.chdir(path)
@@ -53,7 +53,7 @@ def _GET_CWD(helper):
 	helper.print(path)
 	return ReturnInfo(os.path.basename(path), os.path.abspath(path))
 
-@register('ls', args= [Optional(0, text)])
+@register('ls', args= [opos(0, text)])
 def _LIST_DIR(helper):
 	if len(helper.args) == 0:
 		path = os.getcwd()
@@ -66,7 +66,7 @@ def _LIST_DIR(helper):
 	helper.print(string)
 	return ReturnInfo(path, string)
 
-@register('grep', args= [Positional(0, str), Positional(1, text)])
+@register('grep', args= [pos(0, str), pos(1, text)])
 def _FIND_IN_TEXT(helper):
 	pattern = helper.get_arg(0)
 	pattern = re.escape(pattern).replace(r'\*', r'.*?')
@@ -88,12 +88,12 @@ def _FIND_IN_TEXT(helper):
 	single = lines[0] if len(lines) == 1 else None
 	return ReturnInfo(single, string)
 
-@register('echo', args= [Positional(0, text)])
+@register('echo', args= [pos(0, text)])
 def _PRINT(helper):
 	value = helper.get_arg(0)
 	helper.print(value)
 
-@register('open', args= [Positional(0, name)], kw= [Keyword('--v'), Keyword('-f', int)])
+@register('open', args= [pos(0, name)], kw= [key('--v'), key('-f', int)])
 def _LOAD_SESSION(helper):
 	path = helper.get_arg(0)
 	out = helper.get_kw('--v')
@@ -103,8 +103,8 @@ def _LOAD_SESSION(helper):
 		startrak.pprint(session,  fold if fold else 1)
 	return ReturnInfo(session.name, session.__pprint__(0, fold if fold else 1), session)
 
-@register('add', args= [Positional(0, str), Positional(1, name)], 
-						kw= [Keyword('--v'), Keyword('-f', int), Keyword('-pos', float, float), Keyword('-ap', int)])
+@register('add', args= [pos(0, str), pos(1, name)], 
+						kw= [key('--v'), key('-f', int), key('-pos', float, float), key('-ap', int)])
 def _ADD_ITEM(helper):
 	mode = helper.get_arg(0)
 	out = helper.get_kw('--v')
@@ -140,7 +140,7 @@ def _ADD_ITEM(helper):
 def __int_or_str(value):
 	if value.isdigit(): return int(value)
 	else: return str(value)
-@register('get', args= [Positional(0, str), Positional(1, __int_or_str)], kw= [Keyword('-f', int)])
+@register('get', args= [pos(0, str), pos(1, __int_or_str)], kw= [key('-f', int)])
 def _GET_IETM(helper):
 	mode = helper.get_arg(0)
 	index = helper.get_arg(1)
