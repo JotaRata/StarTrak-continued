@@ -35,7 +35,7 @@ class _CommandInfo:
 		self.count_kws = sum(1 + len(arg.types) for arg in self._kws)
 
 	def __call__(self, args : list[str]):
-		self.ref(self, args)
+		return self.ref(self, args)
 
 _REGISTERED_COMMANDS = dict[str, _CommandInfo]()
 

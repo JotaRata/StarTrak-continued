@@ -47,6 +47,7 @@ class ConsoleInput(StringIO):
 	def clear(self):
 		self.truncate(0)
 		self.seek(0)
+		self._lmov = 0
 	
 class ConsoleOutput(StringIO):
 	def __init__(self, stdout : TextIO) -> None:

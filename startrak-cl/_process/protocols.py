@@ -3,7 +3,10 @@ from typing import Literal, NamedTuple, Protocol
 
 class ParsedOutput(NamedTuple):
 	command : str
-	args : tuple[str,...]
+	args : list[str]
+
+class ChainedOutput(NamedTuple):
+	outputs : list[ParsedOutput]
 
 
 class Parser(Protocol):

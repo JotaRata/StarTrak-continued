@@ -1,7 +1,7 @@
 from ast import literal_eval
 import os
 import subprocess
-from .protocols import ParsedOutput, STException
+from .protocols import ChainedOutput, ParsedOutput, STException
 from .protocols import Executor
 import _wrapper.funcs
 from _wrapper.base import get_command
@@ -44,16 +44,22 @@ class StartrakExecutioner(Executor):
 	def __init__(self, execution_context: dict[str, object], **kwargs) -> None:
 		self.execution_context = execution_context
 
-	def execute(self, parsed_data: ParsedOutput) -> str:
-		command, args = parsed_data
-		if not command:
-			return ""
-		
-		call = get_command(command)
-		if call:
+	def execute(self, parsed_data: ParsedOutput | ChainedOutput) -> str:
+		if type(parsed_data) is ParsedOutput:
+			command, args = parsed_data
+			if not command: return
+			call = get_command(command)
 			call(args)
-		# todo: add somehow in parser
-		# if len(args) > 0:
-		# 	raise STException(f'Unexpected keywords "{args}" in "{command}"')
-		return ''
+
+		elif type(parsed_data) is ChainedOutput:
+			retval = None
+			for out in parsed_data.outputs:
+				command, args = out
+				if not command: return
+				if retval:
+					new_args = args + [retval]
+				else:
+					new_args = args
+				call = get_command(command)
+				retval = call(new_args)
 	

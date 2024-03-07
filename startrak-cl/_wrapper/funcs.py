@@ -13,39 +13,45 @@ def _GET_SESSION(command, args):
 	if '-new' in args and not new:
 		raise STException('Keyword "-new" expected argument: name')
 	
+	session = startrak.get_session()
 	if new:
 		mode = helper.get_kw('-mode')
 		match mode:
 			case False:
-				s = startrak.new_session(new, 'inspect')
+				session = startrak.new_session(new, 'inspect')
 			case 'inspect' | 'insp' | 'InspectionSession':
-				s = startrak.new_session(new, 'inspect')
+				session = startrak.new_session(new, 'inspect')
 			case 'scan' | 'ScanSession':
 				_dir = helper.get_kw('-scan-dir')
 				if not _dir:
 					_dir = os.getcwd()
-				s = startrak.new_session(new, 'scan', _dir)
+				session = startrak.new_session(new, 'scan', _dir)
 			case _:
 				raise STException(f'Unknown mode "{mode}"')
 
 		out = helper.get_kw('--v')
 		if out:
-			startrak.pprint(s,  fold if fold else 1)
-		return
-	startrak.pprint(startrak.get_session(), fold if fold else 1)
+			startrak.pprint(session,  fold if fold else 1)
+		return session.anem
+	else:
+		if not session:
+			raise STException('There is no session created, use the "-new" keyword to create one.')
+		startrak.pprint(session, fold if fold else 1)
+		return session.name
 
 @register('cd', args= [Positional(0, str)])
 def _CHANGE_DIR(command, args):
 	helper = Helper(command, args)
 	path = helper.get_arg(0)
 	os.chdir(path)
-	print(os.getcwd())
+	return path
 
 @register('cwd')
 @register('pwd')
 def _GET_CWD(command, args):
-	print(os.getcwd())
-
+	path = os.getcwd().replace(r'\\', '/')
+	print(path)
+	return path
 
 @register('ls', args= [Optional(0, str)])
 def _LIST_DIR(command, args):
@@ -56,16 +62,24 @@ def _LIST_DIR(command, args):
 		path = helper.get_arg(0)
 	for path in os.scandir(path):
 		print(os.path.basename(path) + ('/' if os.path.isdir(path) else ''))
+	return None
+
+@register('echo', args= [Positional(0, str)])
+def _PRINT(command, args):
+	helper = Helper(command, args)
+	value = helper.get_arg(0)
+	print(value)
 
 @register('open', args= [Positional(0, str)], kw= [Keyword('--v'), Keyword('-f', int)])
 def _LOAD_SESSION(command, args):
 	helper = Helper(command, args)
 	path = helper.get_arg(0)
 	out = helper.get_kw('--v')
-	s = startrak.load_session(path)
+	session = startrak.load_session(path)
 	if out:
 		fold = helper.get_kw('-f')
-		startrak.pprint(s,  fold if fold else 1)
+		startrak.pprint(session,  fold if fold else 1)
+	return session.name
 
 @register('add', args= [Positional(0, str), Positional(1, str)], 
 						kw= [Keyword('--v'), Keyword('-f', int), Keyword('-pos', float, float), Keyword('-ap', int)])
@@ -82,6 +96,7 @@ def _ADD_ITEM(command, args):
 			if out:
 				fold = helper.get_kw('-f')
 				startrak.pprint(file, fold if fold else 1)
+			return file.name
 		
 		case 'star':
 			name = helper.get_arg(1)
@@ -96,6 +111,7 @@ def _ADD_ITEM(command, args):
 			if out:
 				fold = helper.get_kw('-f')
 				startrak.pprint(star, fold if fold else 1)
+			return star.name
 
 		case _:
 			raise STException(f'Invalid argument: "{mode}", supported values are "file" and "star"')
@@ -119,3 +135,4 @@ def _GET_IETM(command, args):
 			raise STException(f'Invalid argument: "{mode}", supported values are "file" and "star"')
 	fold = helper.get_kw('-f')
 	startrak.pprint(item, fold if fold else 1)
+	return item.name
