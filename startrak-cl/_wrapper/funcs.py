@@ -32,12 +32,11 @@ def _GET_SESSION(helper):
 		out = helper.get_kw('--v')
 		if out:
 			startrak.pprint(session,  fold if fold else 1)
-		return ReturnInfo(session.name, session.__pprint__(0, fold if fold else 1), session)
 	else:
 		if not session:
 			raise STException('There is no session created, use the "-new" keyword to create one.')
 		startrak.pprint(session, fold if fold else 1)
-		return ReturnInfo(session.name, session.__pprint__(0, fold if fold else 1), session)
+	return ReturnInfo(session.name, session.__pprint__(0, fold if fold else 1), session)
 
 @register('cd', args= [Positional(0, text)])
 def _CHANGE_DIR(helper):
