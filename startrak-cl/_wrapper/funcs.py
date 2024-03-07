@@ -1,19 +1,17 @@
 import os
 import re
 import startrak
-from _wrapper.base import register, Positional, Keyword, Optional
-from _wrapper.helper import Helper
+from _wrapper.base import ReturnInfo, register, Positional, Keyword, Optional, name, text, obj
 from _process.protocols import STException
 
 @register('session', kw= [Keyword('-f', int), Keyword('-new', str), Keyword('-mode', str), Keyword('-scan-dir', str), Keyword('--v')])
-def _GET_SESSION(command, args):
-	helper = Helper(command, args)
-
+def _GET_SESSION(helper):
 	fold = helper.get_kw('-f')
 	new = helper.get_kw('-new')
-	if '-new' in args and not new:
+	if '-new' in helper.args and not new:
 		raise STException('Keyword "-new" expected argument: name')
 	
+	session : startrak.native.Session
 	session = startrak.get_session()
 	if new:
 		mode = helper.get_kw('-mode')
@@ -30,36 +28,35 @@ def _GET_SESSION(command, args):
 			case _:
 				raise STException(f'Unknown mode "{mode}"')
 
+		# todo: move printing logic outside of the functions
 		out = helper.get_kw('--v')
 		if out:
 			startrak.pprint(session,  fold if fold else 1)
-		return session.name
+		return ReturnInfo(session.name, session.__pprint__(0, fold if fold else 1), session)
 	else:
 		if not session:
 			raise STException('There is no session created, use the "-new" keyword to create one.')
 		startrak.pprint(session, fold if fold else 1)
-		return session.name
+		return ReturnInfo(session.name, session.__pprint__(0, fold if fold else 1), session)
 
-@register('cd', args= [Positional(0, str)])
-def _CHANGE_DIR(command, args):
-	helper = Helper(command, args)
+@register('cd', args= [Positional(0, text)])
+def _CHANGE_DIR(helper):
 	path = helper.get_arg(0)
 	os.chdir(path)
-	helper.print(os.getcwd())
-	return os.getcwd()
+	new_path = os.getcwd()
+	helper.print(new_path)
+	return ReturnInfo(os.path.basename(new_path), new_path)
 
 @register('cwd')
 @register('pwd')
-def _GET_CWD(command, args):
-	helper = Helper(command, args)
+def _GET_CWD(helper):
 	path = os.getcwd().replace(r'\\', '/')
 	helper.print(path)
-	return path
+	return ReturnInfo(os.path.basename(path), os.path.abspath(path))
 
-@register('ls', args= [Optional(0, str)])
-def _LIST_DIR(command, args):
-	helper = Helper(command, args)
-	if len(args) == 0:
+@register('ls', args= [Optional(0, text)])
+def _LIST_DIR(helper):
+	if len(helper.args) == 0:
 		path = os.getcwd()
 	else:
 		path = helper.get_arg(0)
@@ -68,11 +65,10 @@ def _LIST_DIR(command, args):
 		paths.append(os.path.basename(path) + ('/' if os.path.isdir(path) else ''))
 	string = '\n'.join(paths)
 	helper.print(string)
-	return string
+	return ReturnInfo(path, string)
 
-@register('grep', args= [Positional(0, str), Positional(1, str)])
-def _FIND_IN_TEXT(command, args):
-	helper = Helper(command, args)
+@register('grep', args= [Positional(0, str), Positional(1, text)])
+def _FIND_IN_TEXT(helper):
 	pattern = helper.get_arg(0)
 	pattern = re.escape(pattern).replace(r'\*', r'.*?')
 	try:
@@ -90,29 +86,27 @@ def _FIND_IN_TEXT(command, args):
 					lines.append(line)
 	string = '\n'.join(lines)
 	helper.print(string)
-	return string
+	single = lines[0] if len(lines) == 1 else None
+	return ReturnInfo(single, string)
 
-@register('echo', args= [Positional(0, str)])
-def _PRINT(command, args):
-	helper = Helper(command, args)
+@register('echo', args= [Positional(0, text)])
+def _PRINT(helper):
 	value = helper.get_arg(0)
 	helper.print(value)
 
-@register('open', args= [Positional(0, str)], kw= [Keyword('--v'), Keyword('-f', int)])
-def _LOAD_SESSION(command, args):
-	helper = Helper(command, args)
+@register('open', args= [Positional(0, name)], kw= [Keyword('--v'), Keyword('-f', int)])
+def _LOAD_SESSION(helper):
 	path = helper.get_arg(0)
 	out = helper.get_kw('--v')
 	session = startrak.load_session(path)
+	fold = helper.get_kw('-f')
 	if out:
-		fold = helper.get_kw('-f')
 		startrak.pprint(session,  fold if fold else 1)
-	return session.name
+	return ReturnInfo(session.name, session.__pprint__(0, fold if fold else 1), session)
 
-@register('add', args= [Positional(0, str), Positional(1, str)], 
+@register('add', args= [Positional(0, str), Positional(1, name)], 
 						kw= [Keyword('--v'), Keyword('-f', int), Keyword('-pos', float, float), Keyword('-ap', int)])
-def _ADD_ITEM(command, args):
-	helper = Helper(command, args)
+def _ADD_ITEM(helper):
 	mode = helper.get_arg(0)
 	out = helper.get_kw('--v')
 	if not startrak.get_session():
@@ -121,14 +115,15 @@ def _ADD_ITEM(command, args):
 		case 'file':
 			path = helper.get_arg(1)
 			file = startrak.load_file(path, append= True)
+			fold = helper.get_kw('-f')
 			if out:
-				fold = helper.get_kw('-f')
 				startrak.pprint(file, fold if fold else 1)
+			return ReturnInfo(file.name, file.__pprint__(0, fold if fold else 1), file)
 			return file.name
 		
 		case 'star':
 			name = helper.get_arg(1)
-			if '-pos' not in args:
+			if '-pos' not in helper.args:
 				raise STException('Missing required keyword: "-pos x y"')
 			pos = helper.get_kw('-pos')
 			apert = helper.get_kw('-ap')
@@ -136,21 +131,18 @@ def _ADD_ITEM(command, args):
 			star = startrak.Star(name, pos, apert if apert else 16)
 			startrak.add_star(star)
 
+			fold = helper.get_kw('-f')
 			if out:
-				fold = helper.get_kw('-f')
 				startrak.pprint(star, fold if fold else 1)
-			return star.name
-
+			return ReturnInfo(star.name, star.__pprint__(0, fold if fold else 1), star)
 		case _:
 			raise STException(f'Invalid argument: "{mode}", supported values are "file" and "star"')
 
 def __int_or_str(value):
 	if value.isdigit(): return int(value)
 	else: return str(value)
-
 @register('get', args= [Positional(0, str), Positional(1, __int_or_str)], kw= [Keyword('-f', int)])
-def _GET_IETM(command, args):
-	helper = Helper(command, args)
+def _GET_IETM(helper):
 	mode = helper.get_arg(0)
 	index = helper.get_arg(1)
 
@@ -163,4 +155,5 @@ def _GET_IETM(command, args):
 			raise STException(f'Invalid argument: "{mode}", supported values are "file" and "star"')
 	fold = helper.get_kw('-f')
 	startrak.pprint(item, fold if fold else 1)
+	return ReturnInfo(item.name, item.__pprint__(0, fold if fold else 1), item)
 	return item.name
