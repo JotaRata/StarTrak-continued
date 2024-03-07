@@ -18,7 +18,7 @@ class Keyword:
 class OptionalKeyword:
 	def __init__(self, key, kind, default) -> None:
 		self.key = key
-		self.type = type
+		self.type = kind
 		self.default = default
 class ReturnInfo(NamedTuple):
 	name : str = None
@@ -46,7 +46,7 @@ class _CommandInfo:
 		self.keywords = {k.key: k for k in self._kws}
 		self.count_positional = sum(1 for arg in self.args if type(arg) is Positional)
 		self.count_optional = sum(1 for arg in self.args if type(arg) is Optional)
-		self.count_kws = sum(1 + len(arg.types) for arg in self._kws)
+		self.count_kws = sum(1 + (len(arg.types) if type(arg) is Keyword else 1) for arg in self._kws)
 
 	def __call__(self, args : list[str]):
 		helper = Helper(self, args)
@@ -61,11 +61,11 @@ class Helper:
 		self.command = command
 	
 	def get_kw(self, arg : str):
-		if arg not in self.args: 
-			return False
 		key = self.command.keywords[arg]
 
 		if type(key) is Keyword:
+			if arg not in self.args: 
+				return False
 			if len(self.args) < 1 + len(key.types): 
 				return False
 			idx = self.args.index(arg)
@@ -82,16 +82,17 @@ class Helper:
 			if len(values) > 1:
 				return values
 			return value
+		
 		elif type(key) is OptionalKeyword:
-			if len(self.args) < 1 + len(key.types): 
-				return key.default
+			if arg not in self.args: 
+				return False, key.default
+			if len(self.args) < 2: 
+				return True, key.default
 			idx = self.args.index(arg)
-			_type = key.type
 			try:
-				value = _type(self.args[idx + 1])
+				return True, key.type(self.args[idx + 1])
 			except:
-				raise STException(f'Invalid argument type for "{self.command.name}" at position #1.')
-			return value
+				return True, key.default
 			
 	def get_arg(self, pos : int):
 		_type = self.command.args[pos].type
