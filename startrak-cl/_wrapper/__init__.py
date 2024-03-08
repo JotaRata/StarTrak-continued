@@ -41,5 +41,5 @@ def register(name : str, *, args : list[Positional] = None, kw : list[Keyword] =
 def get_command(name) -> _CommandInfo | None:
 	return _REGISTERED_COMMANDS.get(name, None)
 
-def get_commands() -> _CommandInfo | None:
+def get_commands() -> list[str]:
 	return list(_REGISTERED_COMMANDS.keys())

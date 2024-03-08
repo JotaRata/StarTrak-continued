@@ -41,13 +41,14 @@ class ConsoleInput(StringIO):
 		elif pos > len(current):
 			pos = len(current)
 		new_content = current[:pos] + text + current[pos:]
-		self.clear()
+		self.clear(False)
 		self.write(new_content)
 
-	def clear(self):
+	def clear(self, reset_cursor= True):
 		self.truncate(0)
 		self.seek(0)
-		self._lmov = 0
+		if reset_cursor: 
+			self._lmov = 0
 	
 class ConsoleOutput(StringIO):
 	def __init__(self, stdout : TextIO) -> None:

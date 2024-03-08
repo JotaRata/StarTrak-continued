@@ -1,7 +1,6 @@
-from genericpath import isdir
 from .consoleapp import ConsoleApp, _PREFIXES
 from _wrapper import get_command, get_commands
-from _utils import word_index
+from _utils import word_index, common_string
 import keyboard
 import os
 
@@ -59,7 +58,7 @@ class ShellConsole(ConsoleApp):
 					if self.cursor > 0:
 						text = self.input.getvalue()
 						current = text[:self.cursor - 1] + text[self.cursor:]
-						self.input.clear()
+						self.input.clear(False)
 						self.input.write(current)
 						self.cursor -= 1
 				elif key.scan_code in keyboard.key_to_scan_codes('delete'):
@@ -67,7 +66,7 @@ class ShellConsole(ConsoleApp):
 						text = self.input.getvalue()
 						current = text[:self.cursor] + text[self.cursor + 1:]
 						self.input.shift_left(-1)
-						self.input.clear()
+						self.input.clear(False)
 						self.input.write(current)
 
 				elif key.scan_code in keyboard.key_to_scan_codes('enter'):
@@ -110,7 +109,7 @@ class ShellConsole(ConsoleApp):
 				possible = []
 				if not ' ' in input_text.strip():
 					for command in get_commands():
-						if input_text in command:
+						if command.lower().startswith(input_text.lower()):
 							possible.append(command)
 				else:
 					words, word_idx, _ = word_index(input_text, self.cursor)
@@ -129,7 +128,7 @@ class ShellConsole(ConsoleApp):
 								scan_path = new_path
 
 						for path in os.scandir(scan_path):
-							if words[word_idx][curr_indx:].strip('"') in (p:=os.path.basename(path)):
+							if (p:=os.path.basename(path).lower()).startswith(words[word_idx][curr_indx:].strip('"').lower()):
 								if dir_idx == 0:
 									res = f'{" ".join(words[:word_idx])} {p}' if not ' ' in p else f'{command.name} "{p}"' 
 								else:
@@ -140,6 +139,12 @@ class ShellConsole(ConsoleApp):
 				if len(possible) > 1:
 						self.output.write('\n')
 						self.output.write('\n'.join(possible) + '\n')
+
+						common = common_string(possible)
+						if common:
+							self.input.clear()
+							self.input.write(common)
+							self.cursor = len(common)
 				elif len(possible) == 1:
 					self.input.clear()
 					self.input.write(possible[0])

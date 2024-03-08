@@ -4,7 +4,7 @@ import startrak
 from _wrapper import ReturnInfo, register, pos, key, opos, okey, name, text, obj, path
 from _process.protocols import STException
 
-@register('session', kw= [key('-new', str), key('-mode', str), key('-scan-dir', str), okey('--v', int, 1)])
+@register('session', kw= [key('-new', str), key('-mode', str), key('-scan-dir', str), okey('--v', int, 0)])
 def _GET_SESSION(helper):
 	new = helper.get_kw('-new')
 	out, fold = helper.get_kw('--v')
@@ -31,10 +31,9 @@ def _GET_SESSION(helper):
 		if not session:
 			raise STException('There is no session created, use the "-new" keyword to create one.')
 	
-	pprint = session.__pprint__(0, fold)
 	if out:
-		helper.print(pprint)
-	return ReturnInfo(session.name, pprint, session)
+		helper.print(session.__pprint__(0, fold))
+	return ReturnInfo(session.name, session.__pprint__(0, 4), session)
 
 @register('cd', args= [pos(0, path)])
 def _CHANGE_DIR(helper):
@@ -91,18 +90,17 @@ def _PRINT(helper):
 	value = helper.get_arg(0)
 	helper.print(value)
 
-@register('open', args= [pos(0, path)], kw= [okey('--v', int, 1)])
+@register('open', args= [pos(0, path)], kw= [okey('--v', int, 0)])
 def _LOAD_SESSION(helper):
 	path = helper.get_arg(0)
 	out, fold = helper.get_kw('--v')
 	session = startrak.load_session(path)
-	pprint = session.__pprint__(0, fold)
 	if out:
-		helper.print(pprint)
-	return ReturnInfo(session.name, pprint, session)
+		helper.print(session.__pprint__(0, fold))
+	return ReturnInfo(session.name, session.__pprint__(0, 4), session)
 
 @register('add', args= [pos(0, str), pos(1, path)], 
-						kw= [okey('--v', int, 1), key('-pos', float, float), key('-ap', int)])
+						kw= [okey('--v', int, 0), key('-pos', float, float), key('-ap', int)])
 def _ADD_ITEM(helper):
 	mode = helper.get_arg(0)
 	out, fold = helper.get_kw('--v')
@@ -112,10 +110,9 @@ def _ADD_ITEM(helper):
 		case 'file':
 			path = helper.get_arg(1)
 			file = startrak.load_file(path, append= True)
-			pprint = file.__pprint__(0, fold)
 			if out:
-				helper.print(pprint)
-			return ReturnInfo(file.name, pprint, file)
+				helper.print(file.__pprint__(0, fold))
+			return ReturnInfo(file.name, file.__pprint__(0, 4), file)
 		
 		case 'star':
 			name = helper.get_arg(1)
@@ -125,10 +122,9 @@ def _ADD_ITEM(helper):
 			apert = helper.get_kw('-ap')
 			star = startrak.Star(name, pos, apert if apert else 16)
 			startrak.add_star(star)
-			pprint = star.__pprint__(0, fold)
 			if out:
-				helper.print(pprint)
-			return ReturnInfo(star.name, pprint, star)
+				helper.print(star.__pprint__(0, fold))
+			return ReturnInfo(star.name, star.__pprint__(0, 4), star)
 		
 		case _:
 			raise STException(f'Invalid argument: "{mode}", supported values are "file" and "star"')
@@ -150,6 +146,5 @@ def _GET_IETM(helper):
 		case _:
 			raise STException(f'Invalid argument: "{mode}", supported values are "file" and "star"')
 	
-	pprint = item.__pprint__(0, fold if fold else 1)
-	helper.print(pprint)
-	return ReturnInfo(item.name, pprint, item)
+	helper.print(item.__pprint__(0, fold if fold else 0))
+	return ReturnInfo(item.name, item.__pprint__(0, 4), item)
