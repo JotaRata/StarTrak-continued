@@ -101,7 +101,7 @@ def _LOAD_SESSION(helper):
 		helper.print(pprint)
 	return ReturnInfo(session.name, pprint, session)
 
-@register('add', args= [pos(0, str), pos(1, name)], 
+@register('add', args= [pos(0, str), pos(1, path)], 
 						kw= [okey('--v', int, 1), key('-pos', float, float), key('-ap', int)])
 def _ADD_ITEM(helper):
 	mode = helper.get_arg(0)

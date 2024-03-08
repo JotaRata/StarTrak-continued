@@ -1,5 +1,7 @@
+from genericpath import isdir
 from .consoleapp import ConsoleApp, _PREFIXES
-from _wrapper import get_commands
+from _wrapper import get_command, get_commands
+from _utils import word_index
 import keyboard
 import os
 
@@ -103,19 +105,44 @@ class ShellConsole(ConsoleApp):
 			
 			if key.scan_code in keyboard.key_to_scan_codes('tab'):
 				if self.mode != 'st':
+					clear_newline()
 					return
 				possible = []
-				if not ' ' in input_text:
+				if not ' ' in input_text.strip():
 					for command in get_commands():
 						if input_text in command:
 							possible.append(command)
-					if len(possible) > 1:
+				else:
+					words, word_idx, _ = word_index(input_text, self.cursor)
+					if words[word_idx].startswith('-') or (words[0]=='add' and words[1]=='star'):
+						clear_newline()
+						return
+					command = get_command(words[0])
+					if getattr(command.args[word_idx - 1].type, '__name__', None) == 'path':
+						scan_path = os.getcwd()
+						dir_idx = 0
+						curr_indx = 0
+						if '/' in words[word_idx]:
+							dirs, dir_idx, curr_indx = word_index(words[word_idx], self.cursor - len(words[0]) - 1, '/')
+							new_path = '/'.join(dirs[:-1])
+							if os.path.exists(new_path):
+								scan_path = new_path
+
+						for path in os.scandir(scan_path):
+							if words[word_idx][curr_indx:].strip('"') in (p:=os.path.basename(path)):
+								if dir_idx == 0:
+									res = f'{" ".join(words[:word_idx])} {p}' if not ' ' in p else f'{command.name} "{p}"' 
+								else:
+									res = f'{" ".join(words[:word_idx])} {scan_path}/{p}' if not ' ' in p else f'{command.name} {scan_path}/"{p}"' 
+
+								possible.append(res)
+				
+				if len(possible) > 1:
 						self.output.write('\n')
 						self.output.write('\n'.join(possible) + '\n')
-
-					elif len(possible) == 1:
-						self.input.clear()
-						self.input.write(possible[0])
-						self.cursor = len(possible[0])
+				elif len(possible) == 1:
+					self.input.clear()
+					self.input.write(possible[0])
+					self.cursor = len(possible[0])
 
 			clear_newline()
