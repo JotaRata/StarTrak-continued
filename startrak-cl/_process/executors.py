@@ -13,14 +13,14 @@ class PythonExcecutioner(Executor):
 
 	def execute(self, parsed_data: ParsedOutput) -> str:
 		command, mode, _ = parsed_data
-		if mode != 'none':
+		if mode != ['none']:
 			command = command.replace(chr(0), '')
-		if mode == 'eval':
+		if mode == ['eval']:
 			result = eval(command, self._globals)
-			print(repr(result))
-		elif mode == 'exec':
+			if result is not None:
+				print(repr(result))
+		elif mode == ['exec']:
 			exec(command, self._globals)
-		return ''
 
 class ShellExecutioner(Executor):
 	def __init__(self, execution_context: dict[str, object], **kwargs) -> None:

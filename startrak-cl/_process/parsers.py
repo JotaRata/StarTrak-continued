@@ -18,12 +18,12 @@ class PythonParser(Parser):
 			if any(word == kw for kw in _DISALLOWED_PY_KW):
 				raise STException('Forbidden keywords at input')
 		if not text_input:
-			return ParsedOutput(None, ('none', ))
+			return ParsedOutput(None, ['none'])
 
 		if '=' in text_input and not '==' in text_input:
-			return ParsedOutput(text_input, ('exec', ))
+			return ParsedOutput(text_input, ['exec'])
 		else:
-			return ParsedOutput(text_input, ('eval', ))
+			return ParsedOutput(text_input, ['eval'])
 		
 class ShellParser(Parser):
 	def parse(self, text_input: str) -> ParsedOutput:
