@@ -34,15 +34,14 @@ class ConsoleInput(StringIO):
 		self.write(state)
 		return index, len(state), mode
 	
-	def insert(self, pos : int, text : str):
-		current = self.getvalue()
-		if pos < 0:
-			pos = 0
-		elif pos > len(current):
-			pos = len(current)
-		new_content = current[:pos] + text + current[pos:]
-		self.clear(False)
-		self.write(new_content)
+	def insert(self, pos: int, text: str):
+		current_position = self.tell()
+		self.seek(pos)
+		remaining_content = self.read()
+		self.seek(pos)
+		self.write(text)
+		self.write(remaining_content)
+		self.seek(current_position)
 
 	def clear(self, reset_cursor= True):
 		self.truncate(0)
