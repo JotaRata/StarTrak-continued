@@ -122,7 +122,7 @@ class ShellConsole(ConsoleApp):
 						dir_idx = 0
 						curr_indx = 0
 						if '/' in words[word_idx]:
-							dirs, dir_idx, curr_indx = word_index(words[word_idx], self.cursor - len(words[0]) - 1, '/')
+							dirs, dir_idx, curr_indx = word_index(words[word_idx], self.cursor - len(" ".join(words[:word_idx])) - 1, '/')
 							new_path = '/'.join(dirs[:-1])
 							if os.path.exists(new_path):
 								scan_path = new_path
