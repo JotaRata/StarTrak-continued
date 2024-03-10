@@ -43,23 +43,23 @@ class _CommandInfo:
 			self.args = []
 		if not self._kws:
 			self._kws = []
-		self.printable = True
 		self.keywords = {k.key: k for k in self._kws}
 		self.count_positional = sum(1 for arg in self.args if type(arg) is Positional)
 		self.count_optional = sum(1 for arg in self.args if type(arg) is Optional)
 		self.count_kws = sum(1 + (len(arg.types) if type(arg) is Keyword else 1) for arg in self._kws)
 
-	def __call__(self, args : list[str]):
-		helper = Helper(self, args)
+	def __call__(self, args : list[str], printable= True):
+		helper = Helper(self, args, printable)
 		retval = self.ref(helper)
 		if retval and type(retval) is not ReturnInfo:
 			raise STException(f'Invalid return type for "{self.name}"')
 		return retval
 
 class Helper:
-	def __init__(self, command : _CommandInfo, args : list[str]) -> None:
+	def __init__(self, command : _CommandInfo, args : list[str], printable= True) -> None:
 		self.args = args
 		self.command = command
+		self.printable = printable
 	
 	def get_kw(self, arg : str):
 		key = self.command.keywords[arg]
@@ -103,13 +103,14 @@ class Helper:
 			raise STException(f'Expected argument at position #{pos + 1} of the function "{self.command.name}"')
 		try:
 			value = _type(self.args[pos])
+		except IndexError:
+			raise STException(f'Parameter index out of range for "{self.command.name}"')
 		except:
-			print(pos, self.args, _type)
 			raise STException(f'Invalid argument type for "{self.command.name}" at position #{pos + 1}')
 		return value
 
 	def print(self, *args, **kwargs):
-		if self.command.printable:
+		if self.printable:
 			print(*args, **kwargs)
 
 _REGISTERED_COMMANDS = dict[str, _CommandInfo]()

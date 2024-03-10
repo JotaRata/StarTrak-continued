@@ -1,7 +1,7 @@
 from ast import literal_eval
 import os
 import subprocess
-from .protocols import ChainedOutput, ParsedOutput, STException
+from .protocols import ChainedOutput, Output, ParsedOutput, PipedOutput, STException
 from .protocols import Executor
 import _wrapper.funcs
 from _wrapper import get_command
@@ -44,26 +44,37 @@ class StartrakExecutioner(Executor):
 	def __init__(self, execution_context: dict[str, object], **kwargs) -> None:
 		self.execution_context = execution_context
 
-	def execute(self, parsed_data: ParsedOutput | ChainedOutput) -> str:
+	def execute(self, parsed_data: Output) -> str:
+		varname = None
+		if type(parsed_data) is PipedOutput:
+			varname = parsed_data.varname
+			parsed_data = parsed_data.output
+
 		if type(parsed_data) is ParsedOutput:
 			command, args, printable = parsed_data
 			if not command: return
+
 			call = get_command(command)
-			call.printable = printable
-			call(args)
-			call.printable = True
+			retval = call(args, printable)
 
 		elif type(parsed_data) is ChainedOutput:
 			retval = None
 			for out in parsed_data.outputs:
-				command, args, printable = out
+				if type(out) is ParsedOutput:
+					command, args, printable = out
+				elif type(out) is PipedOutput:
+					command, args, printable = out.output
+					varname = out.varname
 				if not command: return
 				if retval:
 					new_args = args + [retval]
 				else:
 					new_args = args
-				call = get_command(command)
 
-				call.printable = printable
-				retval = call(new_args)
-				call.printable = True
+				call = get_command(command)
+				retval = call(new_args, printable)
+
+		if varname:
+			if not retval or not retval.obj:
+				raise STException(f'Command "{command}" value cannot be exported to Python')
+			self.execution_context[varname] = retval.obj

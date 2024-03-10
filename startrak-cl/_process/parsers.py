@@ -1,4 +1,4 @@
-from .protocols import ChainedOutput, Parser, ParsedOutput, STException
+from .protocols import ChainedOutput, Parser, ParsedOutput, PipedOutput, STException
 from _wrapper import get_command
 
 _DISALLOWED_PY_KW = ('import', 'os', 'sys', 'raise', 
@@ -39,34 +39,52 @@ class StartrakParser(Parser):
 		if not text_input:
 			return ParsedOutput(None, ('none',))
 		words = self.match(text_input.strip())
+		varname = None
+		if '>>' in words:
+			pipe_idx, varname = self.parse_pipe(words)
+			words = words[:pipe_idx]
 
 		if not '|' in words:
-			return self.parse_single(words)
+			return self.parse_single(words, var_name= varname)
 		else:
-			return self.parse_multiple(words)
+			return self.parse_multiple(words, var_name= varname)
 
-	def parse_single(self, words, chained= False, printable= True):
+	def parse_single(self, words, chained= False, printable= True, var_name: str = None):
 		cmd_name, *args = words
 		if not args:
 			args = []
 
 		# Check for arguments
-		extra_arg = 1 if chained else 0
+		chain_char = 1 if chained else 0
 		command = get_command(cmd_name)
 		if not command:
 			raise STException(f'No command named "{cmd_name}"')
-		if (len(args) +  extra_arg) < command.count_positional:
-			raise STException(f'Not enough arguments for "{cmd_name}"')
-		if (len(args) +  extra_arg) > (command.count_positional + command.count_optional + command.count_kws):
-			raise STException(f'Too many arguments for "{cmd_name}"')
 		
-		for a in args:
-			if a.startswith('-') and a not in command.keywords:
-				raise STException(f'Unknown keyword "{a}" in command "{cmd_name}"')
-			
-		return ParsedOutput(cmd_name, args, printable)
+		excess = len(args)
+		for p in command.args:
+				if 0 <= p.index < len(args):
+					excess -= 1
+		
+		for k in command._kws:
+			if type(k).__name__ == 'Keyword':
+				if k.key in args:
+					excess -= len(k.types) + 1
+			if type(k).__name__ == 'OptionalKeyword':
+				if k.key in args:
+					index = args.index(k.key)
+					excess -= 1 if index + 1 >= len(args) else 2
+		
+		if excess > 0:
+			raise STException(f'Too many parameters for "{cmd_name}"')
+		if excess < 0:
+			raise STException(f'Not enough parameters for "{cmd_name}"')
+
+		output = ParsedOutput(cmd_name, args, printable)
+		if var_name:
+			output =  PipedOutput(output, var_name)
+		return output
 	
-	def parse_multiple(self, words : list):
+	def parse_multiple(self, words : list, var_name: str = None):
 		count = words.count('|')
 		outputs = []
 		index = -1
@@ -76,7 +94,15 @@ class StartrakParser(Parser):
 				next_index = words.index('|', index + 1)
 			sliced = words[index + 1: next_index]
 			index = next_index
-			parsed_output = self.parse_single(sliced, i > 0, i == count)
+			parsed_output = self.parse_single(sliced, i > 0, i == count, var_name if i == count else None)
 			outputs.append(parsed_output)
 		return ChainedOutput(outputs)
+
+	def parse_pipe(self, words : list[str], ):
+		if words.count('>>') > 1 or words[-2] != '>>':
+			raise STException('Invalid syntax')
+		index = words.index('>>')
+		name = words[-1]
+		return index, name
+
 

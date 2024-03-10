@@ -1,14 +1,21 @@
+from dataclasses import dataclass
 import re
 from typing import Literal, NamedTuple, Protocol
+
+from isort import output
+
+class Output(Protocol):
+	pass
 
 class ParsedOutput(NamedTuple):
 	command : str
 	args : list[str]
 	printable : bool = True
-
 class ChainedOutput(NamedTuple):
 	outputs : list[ParsedOutput]
-
+class PipedOutput(NamedTuple):
+	output : Output
+	varname : str
 
 class Parser(Protocol):
 	_REG_PATTERN = re.compile(r'\"([^\"]+)\"|(\S+)')

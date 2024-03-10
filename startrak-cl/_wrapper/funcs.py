@@ -33,7 +33,7 @@ def _GET_SESSION(helper):
 	
 	if out:
 		helper.print(session.__pprint__(0, fold))
-	return ReturnInfo(session.name, session.__pprint__(0, 4), session)
+	return ReturnInfo(session.name, session.__pprint__(0, 4), obj= session)
 
 @register('cd', args= [pos(0, path)])
 def _CHANGE_DIR(helper):
@@ -48,7 +48,7 @@ def _CHANGE_DIR(helper):
 def _GET_CWD(helper):
 	path = os.getcwd().replace(r'\\', '/')
 	helper.print(path)
-	return ReturnInfo(os.path.basename(path), path= os.path.abspath(path))
+	return ReturnInfo(os.path.basename(path), path= os.path.abspath(path), obj= path)
 
 @register('ls', args= [opos(0, text)])
 def _LIST_DIR(helper):
@@ -83,12 +83,13 @@ def _FIND_IN_TEXT(helper):
 	string = '\n'.join(lines)
 	helper.print(string)
 	single = lines[0] if len(lines) == 1 else None
-	return ReturnInfo(single, string)
+	return ReturnInfo(single, string, obj= single)
 
 @register('echo', args= [pos(0, text)])
 def _PRINT(helper):
 	value = helper.get_arg(0)
 	helper.print(value)
+	return ReturnInfo(text= value, obj= value)
 
 @register('open', args= [pos(0, path)], kw= [okey('--v', int, 0)])
 def _LOAD_SESSION(helper):
@@ -97,7 +98,7 @@ def _LOAD_SESSION(helper):
 	session = startrak.load_session(path)
 	if out:
 		helper.print(session.__pprint__(0, fold))
-	return ReturnInfo(session.name, session.__pprint__(0, 4), session)
+	return ReturnInfo(session.name, session.__pprint__(0, 4), obj= session)
 
 @register('add', args= [pos(0, str), pos(1, path)], 
 						kw= [okey('--v', int, 0), key('-pos', float, float), key('-ap', int)])
@@ -112,7 +113,7 @@ def _ADD_ITEM(helper):
 			file = startrak.load_file(path, append= True)
 			if out:
 				helper.print(file.__pprint__(0, fold))
-			return ReturnInfo(file.name, file.__pprint__(0, 4), file)
+			return ReturnInfo(file.name, file.__pprint__(0, 4), obj= file)
 		
 		case 'star':
 			name = helper.get_arg(1)
@@ -124,7 +125,7 @@ def _ADD_ITEM(helper):
 			startrak.add_star(star)
 			if out:
 				helper.print(star.__pprint__(0, fold))
-			return ReturnInfo(star.name, star.__pprint__(0, 4), star)
+			return ReturnInfo(star.name, star.__pprint__(0, 4), obj= star)
 		
 		case _:
 			raise STException(f'Invalid argument: "{mode}", supported values are "file" and "star"')
@@ -147,4 +148,4 @@ def _GET_IETM(helper):
 			raise STException(f'Invalid argument: "{mode}", supported values are "file" and "star"')
 	
 	helper.print(item.__pprint__(0, fold if fold else 0))
-	return ReturnInfo(item.name, item.__pprint__(0, 4), item)
+	return ReturnInfo(item.name, item.__pprint__(0, 4), obj= item)
