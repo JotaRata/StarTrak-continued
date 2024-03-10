@@ -113,10 +113,10 @@ class ShellConsole(ConsoleApp):
 							possible.append(command)
 				else:
 					words, word_idx, _ = word_index(input_text, self.cursor)
-					if words[word_idx].startswith('-') or (words[0]=='add' and words[1]=='star'):
+					command = get_command(words[0])
+					if not command or (words[word_idx].startswith('-') or (words[0]=='add' and words[1]=='star')):
 						clear_newline()
 						return
-					command = get_command(words[0])
 					if getattr(command.args[word_idx - 1].type, '__name__', None) == 'path':
 						scan_path = os.getcwd()
 						dir_idx = 0
@@ -128,7 +128,7 @@ class ShellConsole(ConsoleApp):
 								scan_path = new_path
 
 						for path in os.scandir(scan_path):
-							if (p:=os.path.basename(path).lower()).startswith(words[word_idx][curr_indx:].strip('"').lower()):
+							if (p:=os.path.basename(path)).lower().startswith(words[word_idx][curr_indx:].strip('"').lower()):
 								if dir_idx == 0:
 									res = f'{" ".join(words[:word_idx])} {p}' if not ' ' in p else f'{command.name} "{p}"' 
 								else:

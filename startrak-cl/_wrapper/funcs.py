@@ -12,7 +12,6 @@ def _GET_SESSION(helper):
 		raise STException('key "-new" expected argument: name')
 	session : startrak.native.Session
 	session = startrak.get_session()
-	out = (session is not None) | out
 	if new:
 		mode = helper.get_kw('-mode')
 		match mode:
@@ -31,9 +30,9 @@ def _GET_SESSION(helper):
 		if not session:
 			raise STException('There is no session created, use the "-new" keyword to create one.')
 	
-	if out:
+	if out or (len(helper.args) == 0 and session is not None):
 		helper.print(session.__pprint__(0, fold))
-	return ReturnInfo(session.name, session.__pprint__(0, 4), obj= session)
+	return ReturnInfo(session.name, session.__pprint__(0, fold if out else 2), obj= session)
 
 @register('cd', args= [pos(0, path)])
 def _CHANGE_DIR(helper):
@@ -113,7 +112,7 @@ def _ADD_ITEM(helper):
 			file = startrak.load_file(path, append= True)
 			if out:
 				helper.print(file.__pprint__(0, fold))
-			return ReturnInfo(file.name, file.__pprint__(0, 4), obj= file)
+			return ReturnInfo(file.name, file.__pprint__(0, fold if out else 4), obj= file)
 		
 		case 'star':
 			name = helper.get_arg(1)
@@ -125,7 +124,7 @@ def _ADD_ITEM(helper):
 			startrak.add_star(star)
 			if out:
 				helper.print(star.__pprint__(0, fold))
-			return ReturnInfo(star.name, star.__pprint__(0, 4), obj= star)
+			return ReturnInfo(star.name, star.__pprint__(0, fold if out else 4), obj= star)
 		
 		case _:
 			raise STException(f'Invalid argument: "{mode}", supported values are "file" and "star"')
@@ -148,4 +147,4 @@ def _GET_IETM(helper):
 			raise STException(f'Invalid argument: "{mode}", supported values are "file" and "star"')
 	
 	helper.print(item.__pprint__(0, fold if fold else 0))
-	return ReturnInfo(item.name, item.__pprint__(0, 4), obj= item)
+	return ReturnInfo(item.name, item.__pprint__(0, fold if fold else 4), obj= item)
