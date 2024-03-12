@@ -1,4 +1,4 @@
-from io import StringIO
+from io import DEFAULT_BUFFER_SIZE, StringIO
 from typing import TextIO
 from alias import LanguageMode
 
@@ -55,6 +55,13 @@ class ConsoleOutput(StringIO):
 		self.stdout = stdout
 
 	def write(self, __s: str) -> int:
+		if (l:=len(__s)) > DEFAULT_BUFFER_SIZE:
+			for i in range(0, l, DEFAULT_BUFFER_SIZE):
+				_slice = __s[i : i + DEFAULT_BUFFER_SIZE]
+				self.stdout.write(_slice)
+				v = super().write(_slice)
+			return v
+
 		self.stdout.write(__s)
 		return super().write(__s)
 	def flush(self) -> None:
