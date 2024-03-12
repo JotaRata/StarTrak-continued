@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Callable, NamedTuple
+from typing import Any, Callable, NamedTuple
 from _process.protocols import STException
 
 class Positional:
@@ -20,9 +20,22 @@ class OptionalKeyword:
 		self.key = key
 		self.type = kind
 		self.default = default
+
+class TextRetriever:
+	def __init__(self, source : Callable[..., str], *args, **kwargs) -> None:
+		self.source = source
+		self.args = args
+		self.kwargs = kwargs
+	def __str__(self) -> str:
+		if type(self.source) is str:
+			return self.source
+		return self.source(*self.args, **self.kwargs)
+	def __call__(self) -> str:
+		return self.__str__()
+
 class ReturnInfo(NamedTuple):
 	name : str = None
-	text : str = None
+	text : str | TextRetriever = None
 	path : str = None
 	obj : object = None
 	def __str__(self) -> str:
@@ -109,8 +122,12 @@ class Helper:
 			raise STException(f'Invalid argument type for "{self.command.name}" at position #{pos + 1}')
 		return value
 
-	def print(self, *args, **kwargs):
-		if self.printable:
-			print(*args, **kwargs)
+	def print(self, source : str | TextRetriever ,*args, **kwargs):
+		if not self.printable:
+			return
+		if type(source) is str:
+			print(source, *args, **kwargs)
+			return
+		print(str(source), *args, **kwargs)
 
 _REGISTERED_COMMANDS = dict[str, _CommandInfo]()

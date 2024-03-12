@@ -1,4 +1,5 @@
-from .base import _REGISTERED_COMMANDS, _CommandInfo, Keyword, Positional, Optional, OptionalKeyword
+from typing import Callable
+from .base import _REGISTERED_COMMANDS, _CommandInfo, Keyword, Positional, Optional, OptionalKeyword, TextRetriever
 from .base import ReturnInfo
 
 def name(__r : ReturnInfo | str):
@@ -30,6 +31,9 @@ def key(key : str, *kinds : type):
 	return Keyword(key, *kinds)
 def okey(key : str, kind : type, default = None):
 	return OptionalKeyword(key, kind, default)
+
+def get_text(source : Callable[..., str] | str, *args, **kwargs):
+	return TextRetriever(source, *args, **kwargs)
 
 def register(name : str, *, args : list[Positional] = None, kw : list[Keyword] = None):
 	def decorator(func):

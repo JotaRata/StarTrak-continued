@@ -1,7 +1,7 @@
 import os
 import re
 import startrak
-from _wrapper import ReturnInfo, register, pos, key, opos, okey, name, text, obj, path
+from _wrapper import ReturnInfo, get_text, register, pos, key, opos, okey, name, text, obj, path
 from _process.protocols import STException
 
 @register('session', kw= [key('-new', str), key('-mode', str), key('-scan-dir', str), okey('--v', int, 0)])
@@ -32,7 +32,7 @@ def _GET_SESSION(helper):
 	
 	if out or (len(helper.args) == 0 and session is not None):
 		helper.print(session.__pprint__(0, fold))
-	return ReturnInfo(session.name, session.__pprint__(0, fold if out else 2), obj= session)
+	return ReturnInfo(session.name, text= get_text(session.__pprint__, 0, fold if out else 4), obj= session)
 
 @register('cd', args= [pos(0, path)])
 def _CHANGE_DIR(helper):
@@ -49,16 +49,15 @@ def _GET_CWD(helper):
 	helper.print(path)
 	return ReturnInfo(os.path.basename(path), path= os.path.abspath(path), obj= path)
 
-@register('ls', args= [opos(0, text)])
+@register('ls', args= [opos(0, path)])
 def _LIST_DIR(helper):
 	if len(helper.args) == 0:
 		path = os.getcwd()
 	else:
 		path = helper.get_arg(0)
-	paths = []
-	for p in os.scandir(path):
-		paths.append(os.path.basename(p) + ('/' if os.path.isdir(p) else ''))
-	string = '\n'.join(paths)
+	
+	strgen = (os.path.basename(p) + ('/' if os.path.isdir(p) else '') for p in os.scandir(path))
+	string = get_text('\n'.join, strgen)
 	helper.print(string)
 	return ReturnInfo(text= string, path= path)
 
@@ -66,23 +65,22 @@ def _LIST_DIR(helper):
 def _FIND_IN_TEXT(helper):
 	pattern = helper.get_arg(0)
 	pattern = re.escape(pattern).replace(r'\*', r'.*?')
+	source = helper.get_arg(1)
 	try:
-		path = helper.get_arg(1)
-		with open(path, 'r') as file:
+		with open(source, 'r') as file:
 			lines = []
 			for line in file:
 				if re.search(pattern, line):
 					lines.append(line)
 	except (FileNotFoundError, OSError):
-		text = helper.get_arg(1)
 		lines = []
-		for line in text.split('\n'):
+		for line in source.split('\n'):
 			if re.search(pattern, line):
 					lines.append(line)
 	string = '\n'.join(lines)
 	helper.print(string)
 	single = lines[0] if len(lines) == 1 else None
-	return ReturnInfo(single, string, obj= single)
+	return ReturnInfo(single, text= string, obj= single)
 
 @register('echo', args= [pos(0, text)])
 def _PRINT(helper):
@@ -97,7 +95,7 @@ def _LOAD_SESSION(helper):
 	session = startrak.load_session(path)
 	if out:
 		helper.print(session.__pprint__(0, fold))
-	return ReturnInfo(session.name, session.__pprint__(0, 4), obj= session)
+	return ReturnInfo(session.name, text= get_text(session.__pprint__, 0, fold if out else 4), obj= session)
 
 @register('add', args= [pos(0, str), pos(1, path)], 
 						kw= [okey('--v', int, 0), key('-pos', float, float), key('-ap', int)])
@@ -112,7 +110,7 @@ def _ADD_ITEM(helper):
 			file = startrak.load_file(path, append= True)
 			if out:
 				helper.print(file.__pprint__(0, fold))
-			return ReturnInfo(file.name, file.__pprint__(0, fold if out else 4), obj= file)
+			return ReturnInfo(file.name, text= get_text(file.__pprint__, 0, fold if out else 4), obj= file)
 		
 		case 'star':
 			name = helper.get_arg(1)
@@ -124,7 +122,7 @@ def _ADD_ITEM(helper):
 			startrak.add_star(star)
 			if out:
 				helper.print(star.__pprint__(0, fold))
-			return ReturnInfo(star.name, star.__pprint__(0, fold if out else 4), obj= star)
+			return ReturnInfo(star.name, text= get_text(star.__pprint__, 0, fold if out else 4), obj= star)
 		
 		case _:
 			raise STException(f'Invalid argument: "{mode}", supported values are "file" and "star"')
@@ -147,4 +145,4 @@ def _GET_IETM(helper):
 			raise STException(f'Invalid argument: "{mode}", supported values are "file" and "star"')
 	
 	helper.print(item.__pprint__(0, fold if fold else 0))
-	return ReturnInfo(item.name, item.__pprint__(0, fold if fold else 4), obj= item)
+	return ReturnInfo(item.name, text= get_text(item.__pprint__, 0, fold if out else 4), obj= item)
