@@ -156,14 +156,19 @@ def _DEL_ITEM(helper):
 	mode = helper.get_arg(0)
 	index = helper.get_arg(1)
 	forced = helper.get_kw('-f')
-
-	if mode == 'file':
-		item = startrak.get_file(index)
-	elif mode == 'star':
-		item = startrak.get_star(index)
-	else:
-		raise STException(f'Invalid argument: "{mode}", supported values are "file" and "star"') 
 	
+	try:
+		if mode == 'file':
+			item = startrak.get_file(index)
+		elif mode == 'star':
+			item = startrak.get_star(index)
+		else:
+			raise STException(f'Invalid argument: "{mode}", supported values are "file" and "star"') 
+	except IndexError:
+		raise STException(f'No {mode} with index: {index}') 
+	except KeyError:
+		raise STException(f'No {mode} with name: "{index}"') 
+
 	def confirm(key):
 		if key == 'n':
 			return True
@@ -172,7 +177,7 @@ def _DEL_ITEM(helper):
 				startrak.remove_file(item)
 			elif mode == 'star':
 				startrak.remove_star(item)
-			helper.print(f'Deleted: {item.name}')
+			helper.print(f'{item.name} deleted.')
 			return True
 		return False
 	
