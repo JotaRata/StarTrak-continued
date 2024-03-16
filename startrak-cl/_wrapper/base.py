@@ -1,4 +1,5 @@
 from __future__ import annotations
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Callable, NamedTuple
 from _process.protocols import STException
@@ -121,6 +122,14 @@ class Helper:
 		except:
 			raise STException(f'Invalid argument type for "{self.command.name}" at position #{pos + 1}')
 		return value
+	
+	def handle_action(self,  prompt : str, callbacks : list[Callable] = []):
+		from _app.consoleapp import ConsoleApp
+		_app = ConsoleApp.instance()
+		_app.set_mode('action', callbacks= callbacks)
+		_app.input.clear()
+		_app.output.write(prompt)
+		_app.output.flush()
 
 	def print(self, source : str | TextRetriever ,*args, **kwargs):
 		if not self.printable:

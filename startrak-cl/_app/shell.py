@@ -9,7 +9,7 @@ class ShellConsole(ConsoleApp):
 		super().__init__(*args)
 		self._prepare_shell()
 		keyboard.hook(self.on_keyEvent, suppress= False)
-		self._prepare_line(_PREFIXES[self.mode])
+		self._prepare_line(_PREFIXES[self._language_mode])
 		keyboard.wait()
 	
 	def _prepare_shell(self):
@@ -20,6 +20,11 @@ class ShellConsole(ConsoleApp):
 				os.system('cls')
 		self.output.write('\n' * os.get_terminal_size().lines)
 	
+	def set_mode(self, mode, **kwargs):
+		if mode == 'text':
+			self._prepare_line(_PREFIXES[self._language_mode])
+		return super().set_mode(mode, **kwargs)
+	
 	def _prepare_line(self, prompt):
 		self.output.write(prompt)
 		input_text =self.input.getvalue()
@@ -27,10 +32,14 @@ class ShellConsole(ConsoleApp):
 		self.output.flush()
 	
 	def on_keyEvent(self, key : keyboard.KeyboardEvent):
-		input_text = self.input.getvalue()
+		if self._input_mode == 'action':
+			if key.event_type == 'down':
+				self.process_action(key.name)
+			return
 
+		input_text = self.input.getvalue()
 		def clear_newline():
-			prompt = _PREFIXES[self.mode]
+			prompt = _PREFIXES[self._language_mode]
 			new_text = self.input.get_text() 
 			self.output.write('\r' + ' ' * len(prompt + input_text) + '\r' + (prompt + new_text)) 
 			self.output.flush()
@@ -39,12 +48,12 @@ class ShellConsole(ConsoleApp):
 			if len(key.name) == 1:
 				if (key.name == '>' or key.name == '!') and len(input_text.strip()) == 0:
 					if key.name == '>':
-						self.set_mode('py')
+						self.set_language('py')
 					elif key.name == '!':
-						self.set_mode('sh')
+						self.set_language('sh')
 					self.input.clear()
 					self.output.write('\r' + ' ' * len(input_text)) 
-					self._prepare_line(_PREFIXES[self.mode])
+					self._prepare_line(_PREFIXES[self._language_mode])
 					return
 				else:
 					self.input.insert(self.cursor, key.name)
@@ -71,24 +80,24 @@ class ShellConsole(ConsoleApp):
 
 				elif key.scan_code in keyboard.key_to_scan_codes('enter'):
 					output = self.input.getvalue()
-					self.input.save_state(self.mode)
+					self.input.save_state(self._language_mode)
 					self.input.clear()
 					self.index = 0
 					self.cursor = 0
 					self.output.write('\n') 
+					self._prepare_line(_PREFIXES[self._language_mode])
 					self.process(output)
-					self._prepare_line(_PREFIXES[self.mode])
 					return
 			
 			if key.scan_code in keyboard.key_to_scan_codes('up'):
 				self.index, self.cursor, mode = self.input.retrieve_state(self.index + 1)
-				self.set_mode(mode)
+				self.set_language(mode)
 				clear_newline()
 				return
 
 			if key.scan_code in keyboard.key_to_scan_codes('down'):
 				self.index, self.cursor, mode = self.input.retrieve_state(self.index - 1)
-				self.set_mode(mode)
+				self.set_language(mode)
 				clear_newline()
 				return
 
@@ -103,7 +112,7 @@ class ShellConsole(ConsoleApp):
 					self.cursor += 1
 			
 			if key.scan_code in keyboard.key_to_scan_codes('tab'):
-				if self.mode != 'st':
+				if self._language_mode != 'st':
 					clear_newline()
 					return
 				possible = []
