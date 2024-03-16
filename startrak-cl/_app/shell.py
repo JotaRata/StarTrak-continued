@@ -22,6 +22,7 @@ class ShellConsole(ConsoleApp):
 	
 	def set_mode(self, mode, **kwargs):
 		if mode == 'text':
+			self.output.write('\n')
 			self._prepare_line(_PREFIXES[self._language_mode])
 		return super().set_mode(mode, **kwargs)
 	

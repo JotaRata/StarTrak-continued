@@ -151,22 +151,35 @@ def _GET_IETM(helper):
 	return ReturnInfo(getattr(item, 'name', None), text= get_text(item.__pprint__, 0, fold if fold else 4), obj= item)
 
 # todo: add Y/N interactions with CLI
-@register('del', args= [pos(0, str), pos(1, __int_or_str)])
+@register('del', args= [pos(0, str), pos(1, __int_or_str)], kw= [key('-f')])
 def _DEL_ITEM(helper):
 	mode = helper.get_arg(0)
 	index = helper.get_arg(1)
+	forced = helper.get_kw('-f')
 
-	match mode:
-		case 'file':
-			item = startrak.get_file(index)
-			startrak.remove_file(item)
-		case 'star':
-			item = startrak.get_star(index)
-			startrak.remove_star(item)
-		case _:
-			raise STException(f'Invalid argument: "{mode}", supported values are "file" and "star"')
+	if mode == 'file':
+		item = startrak.get_file(index)
+	elif mode == 'star':
+		item = startrak.get_star(index)
+	else:
+		raise STException(f'Invalid argument: "{mode}", supported values are "file" and "star"') 
 	
-	helper.print(f'Deleted: {item.name}')
+	def confirm(key):
+		if key == 'n':
+			return True
+		if key == 'y':
+			if mode == 'file':
+				startrak.remove_file(item)
+			elif mode == 'star':
+				startrak.remove_star(item)
+			helper.print(f'Deleted: {item.name}')
+			return True
+		return False
+	
+	if not forced:
+		helper.handle_action(f'Delete {mode}: {item.name}? (Y/N): ', callbacks= [confirm])
+	else:
+		confirm('y')
 	return ReturnInfo(item.name, text= None, obj= None)
 
 @register('test')
