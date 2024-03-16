@@ -186,15 +186,3 @@ def _DEL_ITEM(helper):
 	else:
 		confirm('y')
 	return ReturnInfo(item.name, text= None, obj= None)
-
-@register('test')
-def _TEST_ACTION(helper):
-	def callback(key):
-		if key == 'y':
-			print('You accepted')
-			return True
-		if key == 'n':
-			print('You declined')
-			return True
-		return False
-	helper.handle_action('Press Y or N: ', callbacks= [callback])
