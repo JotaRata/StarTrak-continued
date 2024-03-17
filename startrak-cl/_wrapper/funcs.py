@@ -191,27 +191,44 @@ def _DEL_ITEM(helper):
 def test(helper):
 	helper.save_buffer()
 	helper.clear_console()
-	q = 0
+	h_index = 0
+	s_index = -1
 	lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit".split()
-
+	values = [''] *  len(lorem)
+	
 	def action(key):
-		nonlocal q
+		nonlocal h_index,s_index
 		if key == 'enter':
 			helper.retrieve_buffer()
-			helper.print(f'You selected "{lorem[q]}"')
+			helper.print(f'You selected "{lorem[h_index]}"')
 			return True
 		
 		if key == 'up':
-			q -= 1
+			h_index -= 1
 		if key == 'down':
-			q += 1
+			h_index += 1
+		if key == 'tab':
+			s_index = h_index
+		if s_index != -1 and (len(key) == 1 or key == 'space' or key == 'backspace'):
+			if key == 'space':
+				values[s_index] += ' '
+			elif key == 'backspace':
+				values[s_index] = values[s_index][:-1]
+			else:
+				values[s_index] += key
 
 		s = ''
-		for i, w in enumerate(lorem):
-			pre = '  ' if i != q else '> '
-			s += pre + w + '\n'
-
+		for i, _ in enumerate(lorem):
+			if i == s_index:
+				s += f' \033[47;30m{lorem[i]} = {values[i]}\033[0m\n'
+			elif i == h_index:
+				s += f'>{lorem[i]} = {values[i]}\n'
+			else:
+				s += f' {lorem[i]} = {values[i]}\n'
+			
 		helper.clear_console()
 		print(s)
+		# print(f'\033[{s_index + 1};0H\r')
+
 		return False
 	helper.handle_action('Select the word', callbacks= [action])
