@@ -64,6 +64,9 @@ class ConsoleOutput(StringIO):
 
 		self.stdout.write(__s)
 		return super().write(__s)
+	def clear(self):
+		self.truncate(0)
+		self.seek(0)
 	def flush(self) -> None:
 		self.stdout.flush()
 		return super().flush()

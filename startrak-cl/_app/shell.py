@@ -35,7 +35,24 @@ class ShellConsole(ConsoleApp):
 	def on_keyEvent(self, key : keyboard.KeyboardEvent):
 		if self._input_mode == 'action':
 			if key.event_type == 'down':
-				self.process_action(key.name)
+				keyname = key.name
+				if key.scan_code in keyboard.key_to_scan_codes('space'):
+					keyname = 'space'
+				elif key.scan_code in keyboard.key_to_scan_codes('backspace'):
+					keyname = 'backspace'
+				elif key.scan_code in keyboard.key_to_scan_codes('enter'):
+					keyname = 'enter'
+				elif key.scan_code in keyboard.key_to_scan_codes('up'):
+					keyname = 'up'
+				elif key.scan_code in keyboard.key_to_scan_codes('down'):
+					keyname = 'down'
+				elif key.scan_code in keyboard.key_to_scan_codes('left'):
+					keyname = 'left'
+				elif key.scan_code in keyboard.key_to_scan_codes('right'):
+					keyname = 'right'
+				elif key.scan_code in keyboard.key_to_scan_codes('tab'):
+					keyname = 'tab'
+				self.process_action(keyname)
 			return
 
 		input_text = self.input.getvalue()

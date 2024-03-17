@@ -6,10 +6,10 @@ from _process import parsers as parser
 from _process import executors as execs
 from alias import InputMode, LanguageMode
 from streams import ConsoleInput, ConsoleOutput
+import _globals
 import startrak
-_PREFIXES = {'st': '[ST]: ', 'py' : '[PY]: ', 'sh' : '[SH]: ' }
-_CONSOLEAPP = None
 
+_PREFIXES = {'st': '[ST]: ', 'py' : '[PY]: ', 'sh' : '[SH]: ' }
 class ConsoleApp:
 	_language_mode : LanguageMode
 	_input_mode : InputMode
@@ -18,14 +18,13 @@ class ConsoleApp:
 	_globals = {var:vars(startrak)[var] for var in dir(startrak) if not var.startswith('_')}
 
 	def __new__(cls, *args, **kwargs):
-		global _CONSOLEAPP
-		if _CONSOLEAPP is None:
-			_CONSOLEAPP = super().__new__(cls)
-		return _CONSOLEAPP
+		if _globals.CONSOLE_INSTANCE is None:
+			_globals.CONSOLE_INSTANCE = super().__new__(cls)
+		return _globals.CONSOLE_INSTANCE
 	
 	@classmethod
 	def instance(cls):
-		return _CONSOLEAPP
+		return _globals.CONSOLE_INSTANCE
 
 	def __init__(self, *args : str) -> None:
 		self.input = ConsoleInput()
