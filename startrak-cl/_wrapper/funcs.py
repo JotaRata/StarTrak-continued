@@ -186,3 +186,32 @@ def _DEL_ITEM(helper):
 	else:
 		confirm('y')
 	return ReturnInfo(item.name, text= None, obj= None)
+
+@register('test')
+def test(helper):
+	helper.save_buffer()
+	helper.clear_console()
+	q = 0
+	lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit".split()
+
+	def action(key):
+		nonlocal q
+		if key == 'enter':
+			helper.retrieve_buffer()
+			helper.print(f'You selected "{lorem[q]}"')
+			return True
+		
+		if key == 'up':
+			q -= 1
+		if key == 'down':
+			q += 1
+
+		s = ''
+		for i, w in enumerate(lorem):
+			pre = '  ' if i != q else '> '
+			s += pre + w + '\n'
+
+		helper.clear_console()
+		print(s)
+		return False
+	helper.handle_action('Select the word', callbacks= [action])

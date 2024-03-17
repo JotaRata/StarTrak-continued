@@ -1,8 +1,9 @@
 from __future__ import annotations
-from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Callable, NamedTuple
+import os
+from typing import Callable, NamedTuple
 from _process.protocols import STException
+import _globals
 
 class Positional:
 	def __init__(self, index, kind) -> None:
@@ -71,6 +72,7 @@ class _CommandInfo:
 
 class Helper:
 	def __init__(self, command : _CommandInfo, args : list[str], printable= True) -> None:
+		self._app = _globals.CONSOLE_INSTANCE
 		self.args = args
 		self.command = command
 		self.printable = printable
@@ -123,13 +125,30 @@ class Helper:
 			raise STException(f'Invalid argument type for "{self.command.name}" at position #{pos + 1}')
 		return value
 	
+	def save_buffer(self):
+		self._buffer = self._app.output.getvalue()
+	
+	def retrieve_buffer(self):
+		self.clear_console()
+		self._app.output.write(self._buffer)
+		del self._buffer
+
+	def clear_console(self):
+		match os.name:
+			case 'posix':
+				os.system('clear')
+			case 'nt' | 'java':
+				os.system('cls')
+		self._app.output.clear()
+
+	def flush_console(self):
+		self._app.output.flush()
+
 	def handle_action(self,  prompt : str, callbacks : list[Callable] = []):
-		from _app.consoleapp import ConsoleApp
-		_app = ConsoleApp.instance()
-		_app.set_mode('action', callbacks= callbacks)
-		_app.input.clear()
-		_app.output.write(prompt)
-		_app.output.flush()
+		self._app.set_mode('action', callbacks= callbacks)
+		self._app.input.clear()
+		self._app.output.write(prompt)
+		self._app.output.flush()
 
 	def print(self, source : str | TextRetriever ,*args, **kwargs):
 		if not self.printable:
