@@ -1,0 +1,271 @@
+:root
+{
+	primary: #1f1f1f
+	primary-dark: #1a1a1a
+	primary-light: #353535
+	secondary: #2994ff
+	secondary-light: #1e5c99
+	secondary-dark: #102f4e
+	highlighted: #f4d62b
+	highlighted-dark: #907b00
+	panel-5: rgba(255, 255, 255, 12)
+	panel-10: rgba(255, 255, 255, 25)
+	panel-20: rgba(255, 255, 255, 50)
+	panel-50: rgba(255, 255, 255, 125)
+	danger-50: rgba(211, 25, 25, 125)
+	danger-100: rgba(225, 25, 25, 255)
+	shadow-5: rgba(0, 0, 0, 12)
+}
+
+QWidget{
+	border: 0px;
+	background: @primary;
+	color: white;
+}
+
+QToolBar,
+QMenuBar,
+QLabel[objectName$= "_title"]{
+	background: @primary-dark
+}
+QMenu::item,
+QMenuBar::item{
+	background: @primary;
+}
+QMenu::item:selected,
+QMenuBar::item:selected{
+	background: @secondary;
+}
+
+QHeaderView::section{
+	background: @primary-light;
+}
+QHeaderView #update_btn{
+	background: transparent;
+	width: 16px;
+	height: 16px;
+	icon: url('res:update-button.png')
+}
+
+QHeaderView #update_btn:hover{
+	background: @secondary;
+}
+
+QSplitter::handle{
+	background: @shadow-5;
+}
+QSplitter::handle:horizontal {
+	image: url("res:splitter_h.png");
+	width: 4px;
+}
+
+QSplitter::handle:vertical {
+	image: url("res:splitter_v.png");
+	height: 4px;
+}
+
+QStatusBar{
+	background: @primary-dark;
+}
+/* QSplitter > QFrame{
+	border: 1px solid @primary-dark;
+} */
+
+QScrollBar{
+	background: @primary;
+	border-radius: 4px;
+}
+QScrollBar:horizontal{
+	height: 4px;
+}
+QScrollBar:vertical{
+	width: 4px;
+}
+QScrollBar::add-page, QScrollBar::sub-page {
+	background: none;
+}
+
+QScrollBar::handle{
+	background: @secondary-dark;
+	border-radius: 4px;
+}
+
+QScrollBar::handle:horizontal{
+	height: 8px;
+}
+QScrollBar::handle:vertical{
+	width: 8px;
+}
+QScrollBar::handle:hover{
+	background: @secondary;
+}
+
+QRadioButton{
+	background: transparent;
+}
+
+InspectorView QFrame[objectName $= "_panel"]{
+	background: @panel-10;
+	border-radius: 8px
+}
+InspectorView QFrame[objectName ^= "frame_"]{
+	background: transparent;
+}
+
+InspectorView QLabel {
+	background: transparent;
+}
+
+/* Clickable frames */
+.QFrame[focusPolicy= "2"]{
+	border: 0px; 
+	background: @panel-10; 
+}
+.QFrame[focusPolicy= "2"]:hover{
+	background: @panel-20; 
+}
+.QFrame[focusPolicy= "2"]:focus{
+	border: 1px solid @secondary; 
+	background: @panel-20; 
+}
+
+QRangeSlider{
+	background: transparent;
+	height: 30px;
+}
+QRangeSlider::groove{
+	height: 4px;
+	background: @panel-10;
+}
+QRangeSlider::handle{
+	top: -4px;
+	bottom: -4px;
+	width: 8px;
+	background: @secondary;
+	border-radius: 2px;
+}
+
+QRangeSlider::handle:hover{
+	background: @secondary;
+}
+
+ImageViewer QGraphicsView{
+	background: black;
+}
+ImageViewer QFrame#lvl_panel{
+	background: @primary-dark;
+	border-bottom-right-radius: 4px;
+	border-bottom-left-radius: 4px;
+}
+ImageViewer QFrame#lvl_panel > *{
+	background: transparent;
+}
+
+QBreadCrumb{
+	background: @panel-10;
+	border-radius: 4px;
+	padding-left: 4px;
+	padding-right: 4px;
+}
+QBreadCrumb:hover{
+	background: @panel-50;
+}
+QBreadCrumb:disabled{
+	background: @panel-20;
+	border: 1px solid @secondary;
+}
+
+QRadioButton {
+	spacing: 0px;
+	height: 16px;
+	width: 16px;
+}
+QRadioButton::indicator {
+	height: 12px;
+	width: 12px;
+}
+QRadioButton::indicator:unchecked {
+	image: url("res:radioButton_off.png");
+}
+QRadioButton::indicator:unchecked:hover {
+	image: url("res:radioButton_hover.png");
+}
+QRadioButton::indicator:checked {
+	image: url("res:radioButton_on.png");
+}
+
+ConsoleView QAbstractScrollArea,
+ConsoleView QLineEdit{
+	background: @primary-dark;
+	color: white;
+	border-radius: 4px;
+	padding-left: 16px;
+}
+
+QListView{
+	background: @primary-dark;
+	padding-right: 8px;
+	padding-left: 16px;
+	show-decoration-selected: 0;
+}
+
+QListView::item
+{
+	background: transparent;
+	border-radius: 4px;
+}
+QListView::item:selected
+{
+	background: @secondary-dark;
+	border: 1px solid @secondary;
+}
+QListView::item:selected:!active
+{
+	background: @secondary-dark;
+	border: none;
+}
+QListView::item:hover
+{
+	background: @panel-10;
+}
+QListView::item:selected:hover
+{
+	background: @secondary-dark;
+}
+
+ListItem #remove-button{
+	icon: url('res:remove-button.png');
+	icon-size: 12px;
+	width: 16px;
+	height: 16px;
+	margin: 0px;
+	background: transparent;
+	border-radius: 4px;
+}
+ListItem #remove-button:hover{
+	background: @danger-50;
+	border: 1px solid @danger-100;
+}
+
+ConsoleView QLineEdit{
+	margin: 0px;
+	margin-left: 1px;
+	padding: 0px;
+}
+ConsoleView QComboBox{
+	background: @primary-dark;
+	padding: 0px;
+	padding-left: 4px;
+}
+ConsoleView QComboBox::down-arrow{
+	image: none;
+	border-width: 0px;
+	padding: 0px;
+	margin: 0px;
+	width: 0px;
+}
+
+QComboBox QAbstractItemView {
+	min-width: 100px;
+	selection-background-color: @panel-10;
+}

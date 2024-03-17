@@ -9,6 +9,7 @@ from startrak.types.importers import TextImporter
 __all__ = ['new_session', 
 				'load_session', 
 				'get_session', 
+				'load_session',
 				'save_session', 
 				'SessionType',
 				'add_file',
