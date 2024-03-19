@@ -52,6 +52,8 @@ class ShellConsole(ConsoleApp):
 					keyname = 'right'
 				elif key.scan_code in keyboard.key_to_scan_codes('tab'):
 					keyname = 'tab'
+				elif key.scan_code in keyboard.key_to_scan_codes('escape'):
+					keyname = 'esc'
 				self.process_action(keyname)
 			return
 

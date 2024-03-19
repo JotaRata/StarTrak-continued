@@ -148,14 +148,30 @@ class Helper:
 		self._app.set_mode('action', callbacks= callbacks)
 		self._app.input.clear()
 		self._app.output.write(prompt)
-		self._app.output.flush()
 
-	def print(self, source : str | TextRetriever ,*args, **kwargs):
+	def print(self, source : str | TextRetriever):
 		if not self.printable:
 			return
 		if type(source) is str:
-			print(source, *args, **kwargs)
+			self._app.output.write(source)
 			return
-		print(str(source), *args, **kwargs)
+		self._app.output.write(str(source))
+
+
+def highlighted_text(text):
+	highlighted_text = f"\033[1m{text}\033[0m"
+	return highlighted_text
+
+def underlined_text(text):
+	underlined_text = f"\033[4m{text}\033[0m"
+	return underlined_text
+
+def inverse_text(text):
+	inverse_text = f"\033[7m{text}\033[0m"
+	return inverse_text
+
+def blinking_text(text):
+	blinking_text = f"\033[5m{text}\033[0m"
+	return blinking_text
 
 _REGISTERED_COMMANDS = dict[str, _CommandInfo]()
