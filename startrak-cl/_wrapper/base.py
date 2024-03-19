@@ -149,13 +149,14 @@ class Helper:
 		self._app.input.clear()
 		self._app.output.write(prompt)
 
-	def print(self, source : str | TextRetriever):
+	def print(self, source : str | TextRetriever, newline= True):
 		if not self.printable:
 			return
+		n = '\n' if newline else ''
 		if type(source) is str:
-			self._app.output.write(source)
+			self._app.output.write(source + n)
 			return
-		self._app.output.write(str(source))
+		self._app.output.write(str(source) + n)
 
 
 def highlighted_text(text):

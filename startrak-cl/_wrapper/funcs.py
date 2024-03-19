@@ -313,7 +313,7 @@ def _EDIT_ITEM(helper : Helper):
 		output += (inverse_text(footer + ' ' * (cols - len(footer))))
 
 		helper.clear_console()
-		helper.print(output)
+		helper.print(output, False)
 		helper.flush_console()
 		return False
 	on_action('')
