@@ -295,9 +295,9 @@ def _EDIT_ITEM(helper : Helper):
 		elif line_edit == -1:
 			footer = 'SELECT'
 		elif line_edit == -2:
-			footer = 'ESC    ' + escape
-		if unsaved:
-			footer +=  ' UNSAVED'
+			footer = 'ESC ' + escape
+		
+		unsaved_flag = 'UNSAVED' if unsaved else ''
 		header = f'Edit attributes for {mode}: "{item.name}"'
 		output += (inverse_text(header + ' ' * (cols - len(header))) + '\n' * 4)
 		indent = ' ' * 4
@@ -310,7 +310,7 @@ def _EDIT_ITEM(helper : Helper):
 				line = f'{key}:' + ' ' * (30 - len(key)) + f'{value}\n'
 			output += (indent + line)
 		output += ('\n' * (rows - (5 + i + 2)))
-		output += (inverse_text(footer + ' ' * (cols - len(footer))))
+		output += (inverse_text(footer + ' ' * (cols - len(footer) - len(unsaved_flag)) + unsaved_flag))
 
 		helper.clear_console()
 		helper.print(output, False)
