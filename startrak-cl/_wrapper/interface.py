@@ -2,12 +2,48 @@ import os
 import re
 import startrak
 from _wrapper import Helper
-from _wrapper.base import underlined_text, inverse_text
+from _wrapper.base import highlighted_text, underlined_text, inverse_text
 from _process.protocols import STException
 from startrak.native import FileInfo, Star
 
-def INTERACTIVE_EDIT(mode : str, item):
-	
+def INTERACTIVE_LIST(helper : Helper, path : str):
+	helper.save_buffer()
+	paths = os.listdir(path)
+	line_view = 0
+	line_selected = -1
+	def on_action(key : str):
+		nonlocal line_selected, line_view
+		h = os.get_terminal_size().lines - 1
+		buffer = ''
+		if key == 'up' and line_selected > 0:
+			line_selected -= 1
+			if line_selected < line_view:
+				line_view = max(0, line_view - h)
+		if key == 'down' and line_selected < len(paths) - 1:
+			line_selected += 1
+			if line_selected >= line_view + h:
+				line_view = min(len(paths), line_view + h - 1)
+		if key == 'enter':
+			helper.retrieve_buffer()
+			return True
+		
+		for i, p in enumerate(paths):
+			if not (max(0, line_view) <= i < min(len(paths), line_view + h)):
+				continue
+			if i == line_selected:
+				buffer += inverse_text(p)
+			else:
+				buffer += p
+			
+			buffer += '\n'
+		helper.clear_console()
+		helper.print(buffer, False)
+		helper.flush_console()
+		return False
+	on_action('')
+	helper.handle_action('', callbacks= [on_action])
+
+def INTERACTIVE_EDIT(helper: Helper, mode : str, item):
 	def save_item(attrs : list[list[str, str]]):
 		nonlocal item
 		session = startrak.get_session()

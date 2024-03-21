@@ -3,7 +3,7 @@ import re
 import startrak
 from _wrapper import ReturnInfo, get_text, register, pos, key, opos, okey, name, text, obj, path, Helper
 from _wrapper.base import highlighted_text, underlined_text, inverse_text
-from _wrapper.interface import INTERACTIVE_EDIT
+from _wrapper.interface import INTERACTIVE_EDIT, INTERACTIVE_LIST
 from _process.protocols import STException
 from startrak.native import FileInfo, Star
 
@@ -52,12 +52,15 @@ def _GET_CWD(helper : Helper):
 	helper.print(path)
 	return ReturnInfo(os.path.basename(path), path= os.path.abspath(path), obj= path)
 
-@register('ls', args= [opos(0, path)])
+@register('ls', args= [opos(0, path)], kw= [key('--i')])
 def _LIST_DIR(helper : Helper):
 	if len(helper.args) == 0:
 		path = os.getcwd()
 	else:
 		path = helper.get_arg(0)
+	
+	if helper.get_kw('--i'):
+		return INTERACTIVE_LIST(helper, path)
 	
 	strgen = (os.path.basename(p) + ('/' if os.path.isdir(p) else '') for p in os.scandir(path))
 	string = get_text('\n'.join, strgen)
@@ -206,4 +209,4 @@ def _EDIT_ITEM(helper : Helper):
 	except KeyError:
 		raise STException(f'No {mode} with name: "{index}"') 
 	
-	INTERACTIVE_EDIT(mode, item)
+	INTERACTIVE_EDIT(helper, mode, item)
