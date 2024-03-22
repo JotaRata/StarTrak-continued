@@ -20,7 +20,7 @@ def INTERACTIVE_LIST(helper : Helper, path : str):
 	line_selected = -1
 	def on_action(key : str):
 		nonlocal line_selected, line_view
-		h = os.get_terminal_size().lines - 1
+		h = helper.console.size()[0] - 1
 		buffer = ''
 		if key == 'up' and line_selected > 0:
 			line_selected -= 1
@@ -94,7 +94,7 @@ def INTERACTIVE_EDIT(helper: Helper, mode : str, item, new = False):
 	def on_action(key : str):
 		nonlocal line_selected, line_edit, escape, unsaved
 		output = ''
-		rows, cols = os.get_terminal_size().lines, os.get_terminal_size().columns
+		rows, cols = helper.console.size()
 		if line_edit != -2:
 			if key == 'esc':
 				line_selected = -1

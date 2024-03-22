@@ -18,7 +18,7 @@ class ShellConsole(ConsoleApp):
 				os.system('clear')
 			case 'nt' | 'java':
 				os.system('cls')
-		self.output.write('\n' * os.get_terminal_size().lines)
+		self.output.write('\n' * self.size()[0])
 	
 	def set_mode(self, mode, **kwargs):
 		if mode == 'text':

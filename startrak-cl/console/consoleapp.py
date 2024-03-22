@@ -1,3 +1,4 @@
+import os
 import sys
 from time import sleep
 from typing import Callable
@@ -25,6 +26,9 @@ class ConsoleApp:
 	@classmethod
 	def instance(cls):
 		return _globals.CONSOLE_INSTANCE
+	
+	def size(self):
+		return os.get_terminal_size().lines, os.get_terminal_size().columns
 
 	def __init__(self, *args : str) -> None:
 		self.input = ConsoleInput()
