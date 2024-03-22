@@ -1,11 +1,18 @@
 import os
 import re
 import startrak
-from _wrapper import ReturnInfo, get_text, register, pos, key, opos, okey, name, text, obj, path
+from _wrapper import ReturnInfo, get_text, register, pos, key, opos, okey, name, text, obj, path, Helper
+from _wrapper.base import highlighted_text, underlined_text, inverse_text
+from _wrapper.interface import INTERACTIVE_ADD, INTERACTIVE_EDIT, INTERACTIVE_LIST
 from _process.protocols import STException
+from startrak.native import FileInfo, Star
+
+def check_interactivity(helper):
+	if not helper.printable:	# Only false when command is chained
+			raise STException('Cannot chain interactive command.')
 
 @register('session', kw= [key('-new', str), key('-mode', str), key('-scan-dir', str), okey('--v', int, 0)])
-def _GET_SESSION(helper):
+def _GET_SESSION(helper : Helper):
 	new = helper.get_kw('-new')
 	out, fold = helper.get_kw('--v')
 	if '-new' in helper.args and not new:
@@ -35,7 +42,7 @@ def _GET_SESSION(helper):
 	return ReturnInfo(session.name, text= get_text(session.__pprint__, 0, fold if out else 4), obj= session)
 
 @register('cd', args= [pos(0, path)])
-def _CHANGE_DIR(helper):
+def _CHANGE_DIR(helper : Helper):
 	path = helper.get_arg(0)
 	os.chdir(path)
 	new_path = os.getcwd()
@@ -44,17 +51,21 @@ def _CHANGE_DIR(helper):
 
 @register('cwd')
 @register('pwd')
-def _GET_CWD(helper):
+def _GET_CWD(helper : Helper):
 	path = os.getcwd().replace(r'\\', '/')
 	helper.print(path)
 	return ReturnInfo(os.path.basename(path), path= os.path.abspath(path), obj= path)
 
-@register('ls', args= [opos(0, path)])
-def _LIST_DIR(helper):
+@register('ls', args= [opos(0, path)], kw= [key('--i')])
+def _LIST_DIR(helper : Helper):
 	if len(helper.args) == 0:
 		path = os.getcwd()
 	else:
 		path = helper.get_arg(0)
+	
+	if helper.get_kw('--i'):
+		check_interactivity(helper)
+		return INTERACTIVE_LIST(helper, path)
 	
 	strgen = (os.path.basename(p) + ('/' if os.path.isdir(p) else '') for p in os.scandir(path))
 	string = get_text('\n'.join, strgen)
@@ -62,7 +73,7 @@ def _LIST_DIR(helper):
 	return ReturnInfo(text= string, path= path)
 
 @register('grep', args= [pos(0, str), pos(1, text)])
-def _FIND_IN_TEXT(helper):
+def _FIND_IN_TEXT(helper : Helper):
 	pattern = helper.get_arg(0)
 	pattern = re.escape(pattern).replace(r'\*', r'.*?')
 	source = helper.get_arg(1)
@@ -83,13 +94,13 @@ def _FIND_IN_TEXT(helper):
 	return ReturnInfo(single, text= string, obj= single)
 
 @register('echo', args= [pos(0, text)])
-def _PRINT(helper):
+def _PRINT(helper : Helper):
 	value = helper.get_arg(0)
 	helper.print(value)
 	return ReturnInfo(text= value, obj= value)
 
 @register('open', args= [pos(0, path)], kw= [okey('--v', int, 0)])
-def _LOAD_SESSION(helper):
+def _LOAD_SESSION(helper : Helper):
 	path = helper.get_arg(0)
 	out, fold = helper.get_kw('--v')
 	session = startrak.load_session(path)
@@ -97,13 +108,18 @@ def _LOAD_SESSION(helper):
 		helper.print(session.__pprint__(0, fold))
 	return ReturnInfo(session.name, text= get_text(session.__pprint__, 0, fold if out else 4), obj= session)
 
-@register('add', args= [pos(0, str), pos(1, path)], 
-						kw= [okey('--v', int, 0), key('-pos', float, float), key('-ap', int)])
-def _ADD_ITEM(helper):
+@register('add', args= [pos(0, str), opos(1, path)], 
+						kw= [okey('--v', int, 0), key('-pos', float, float), key('-ap', int), key('--i')])
+def _ADD_ITEM(helper : Helper):
 	mode = helper.get_arg(0)
 	out, fold = helper.get_kw('--v')
 	if not startrak.get_session():
 		raise STException('No session to add to, create one using "session -new"')
+	if helper.get_kw('--i'):
+		check_interactivity(helper)
+		INTERACTIVE_ADD(helper, mode)
+		return
+
 	match mode:
 		case 'file':
 			path = helper.get_arg(1)
@@ -131,7 +147,7 @@ def __int_or_str(value):
 	if value.isdigit(): return int(value)
 	else: return str(value)
 @register('get', args= [pos(0, str), pos(1, __int_or_str)], kw= [key('--v', int)])
-def _GET_IETM(helper):
+def _GET_IETM(helper : Helper):
 	mode = helper.get_arg(0)
 	index = helper.get_arg(1)
 	fold = helper.get_kw('--v')
@@ -150,9 +166,8 @@ def _GET_IETM(helper):
 	helper.print(item.__pprint__(0, fold if fold else 0))
 	return ReturnInfo(getattr(item, 'name', None), text= get_text(item.__pprint__, 0, fold if fold else 4), obj= item)
 
-# todo: add Y/N interactions with CLI
 @register('del', args= [pos(0, str), pos(1, __int_or_str)], kw= [key('-f')])
-def _DEL_ITEM(helper):
+def _DEL_ITEM(helper : Helper):
 	mode = helper.get_arg(0)
 	index = helper.get_arg(1)
 	forced = helper.get_kw('-f')
@@ -186,3 +201,23 @@ def _DEL_ITEM(helper):
 	else:
 		confirm('y')
 	return ReturnInfo(item.name, text= None, obj= None)
+
+@register('edit', args= [pos(0, str), pos(1, __int_or_str)])
+def _EDIT_ITEM(helper : Helper):
+	check_interactivity(helper)
+	mode = helper.get_arg(0)
+	index = helper.get_arg(1)
+
+	try:
+		if mode == 'file':
+			item = startrak.get_file(index)
+		elif mode == 'star':
+			item = startrak.get_star(index)
+		else:
+			raise STException(f'Invalid argument: "{mode}", supported values are "file" and "star"') 
+	except IndexError:
+		raise STException(f'No {mode} with index: {index}') 
+	except KeyError:
+		raise STException(f'No {mode} with name: "{index}"') 
+	
+	INTERACTIVE_EDIT(helper, mode, item)

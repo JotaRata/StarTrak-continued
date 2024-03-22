@@ -1,8 +1,9 @@
 from __future__ import annotations
-from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Callable, NamedTuple
+import os
+from typing import Callable, NamedTuple
 from _process.protocols import STException
+import _globals
 
 class Positional:
 	def __init__(self, index, kind) -> None:
@@ -71,6 +72,7 @@ class _CommandInfo:
 
 class Helper:
 	def __init__(self, command : _CommandInfo, args : list[str], printable= True) -> None:
+		self._app = _globals.CONSOLE_INSTANCE
 		self.args = args
 		self.command = command
 		self.printable = printable
@@ -123,20 +125,54 @@ class Helper:
 			raise STException(f'Invalid argument type for "{self.command.name}" at position #{pos + 1}')
 		return value
 	
-	def handle_action(self,  prompt : str, callbacks : list[Callable] = []):
-		from _app.consoleapp import ConsoleApp
-		_app = ConsoleApp.instance()
-		_app.set_mode('action', callbacks= callbacks)
-		_app.input.clear()
-		_app.output.write(prompt)
-		_app.output.flush()
+	def save_buffer(self):
+		self._buffer = self._app.output.getvalue()
+	
+	def retrieve_buffer(self):
+		self.clear_console()
+		self._app.output.write(self._buffer)
+		del self._buffer
 
-	def print(self, source : str | TextRetriever ,*args, **kwargs):
+	def clear_console(self):
+		match os.name:
+			case 'posix':
+				os.system('clear')
+			case 'nt' | 'java':
+				os.system('cls')
+		self._app.output.clear()
+
+	def flush_console(self):
+		self._app.output.flush()
+
+	def handle_action(self,  prompt : str, callbacks : list[Callable] = []):
+		self._app.set_mode('action', callbacks= callbacks)
+		self._app.input.clear()
+		self._app.output.write(prompt)
+
+	def print(self, source : str | TextRetriever, newline= True):
 		if not self.printable:
 			return
+		n = '\n' if newline else ''
 		if type(source) is str:
-			print(source, *args, **kwargs)
+			self._app.output.write(source + n)
 			return
-		print(str(source), *args, **kwargs)
+		self._app.output.write(str(source) + n)
+
+
+def highlighted_text(text):
+	highlighted_text = f"\033[1m{text}\033[0m"
+	return highlighted_text
+
+def underlined_text(text):
+	underlined_text = f"\033[4m{text}\033[0m"
+	return underlined_text
+
+def inverse_text(text):
+	inverse_text = f"\033[7m{text}\033[0m"
+	return inverse_text
+
+def blinking_text(text):
+	blinking_text = f"\033[5m{text}\033[0m"
+	return blinking_text
 
 _REGISTERED_COMMANDS = dict[str, _CommandInfo]()
