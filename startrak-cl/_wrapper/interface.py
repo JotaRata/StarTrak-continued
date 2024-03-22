@@ -6,6 +6,13 @@ from _wrapper.base import highlighted_text, underlined_text, inverse_text
 from _process.protocols import STException
 from startrak.native import FileInfo, Star
 
+def INTERACTIVE_ADD(helper : Helper, mode : str):
+	if mode == 'star':
+		item = Star('star', (0, 0))
+	elif mode == 'file':
+		item = FileInfo('', False, None, None)
+	INTERACTIVE_EDIT(helper, mode, item, new= True)
+
 def INTERACTIVE_LIST(helper : Helper, path : str):
 	helper.save_buffer()
 	paths = os.listdir(path)
@@ -43,18 +50,24 @@ def INTERACTIVE_LIST(helper : Helper, path : str):
 	on_action('')
 	helper.handle_action('', callbacks= [on_action])
 
-def INTERACTIVE_EDIT(helper: Helper, mode : str, item):
+def INTERACTIVE_EDIT(helper: Helper, mode : str, item, new = False):
 	def save_item(attrs : list[list[str, str]]):
 		nonlocal item
 		session = startrak.get_session()
 		if mode == 'file':
-			i = session.included_files._dict[item.name]
-			session.included_files.remove(item)
+			if not new:
+				i = session.included_files._dict[item.name]
+				session.included_files.remove(item)
+			else:
+				i = len(session.included_files)
 			item = FileInfo.new(attrs[0][1])
 			session.included_files.insert(i, item)
 		if mode == 'star':
-			i = session.included_stars._dict[item.name]
-			session.included_stars.remove(item)
+			if not new:
+				i = session.included_stars._dict[item.name]
+				session.included_stars.remove(item)
+			else:
+				i = len(session.included_stars)
 			pattern = r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?"
 			pos = re.findall(pattern, attrs[1][1])
 			item = Star(attrs[0][1],  tuple(float(p) for p in pos), int(attrs[2][1]), item.photometry)
@@ -118,9 +131,14 @@ def INTERACTIVE_EDIT(helper: Helper, mode : str, item):
 					helper.retrieve_buffer()
 					return True
 				elif escape == ':wq':
-					save_item(attrs)
-					helper.retrieve_buffer()
-					helper.print(f'Saved {mode}: {item.name}')
+					try:
+						save_item(attrs)
+						out = f'Saved {mode}: {item.name}'
+					except:
+						out = f'Failed to create {mode}'
+					finally:
+						helper.retrieve_buffer()
+						helper.print(out)
 					return True
 				else:
 					line_selected = 0

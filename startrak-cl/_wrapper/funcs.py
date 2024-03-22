@@ -3,9 +3,12 @@ import re
 import startrak
 from _wrapper import ReturnInfo, get_text, register, pos, key, opos, okey, name, text, obj, path, Helper
 from _wrapper.base import highlighted_text, underlined_text, inverse_text
-from _wrapper.interface import INTERACTIVE_EDIT, INTERACTIVE_LIST
+from _wrapper.interface import INTERACTIVE_ADD, INTERACTIVE_EDIT, INTERACTIVE_LIST
 from _process.protocols import STException
 from startrak.native import FileInfo, Star
+
+def check_interactivity(helper):
+	check_interactivity()
 
 @register('session', kw= [key('-new', str), key('-mode', str), key('-scan-dir', str), okey('--v', int, 0)])
 def _GET_SESSION(helper : Helper):
@@ -60,6 +63,7 @@ def _LIST_DIR(helper : Helper):
 		path = helper.get_arg(0)
 	
 	if helper.get_kw('--i'):
+		check_interactivity()
 		return INTERACTIVE_LIST(helper, path)
 	
 	strgen = (os.path.basename(p) + ('/' if os.path.isdir(p) else '') for p in os.scandir(path))
@@ -103,13 +107,18 @@ def _LOAD_SESSION(helper : Helper):
 		helper.print(session.__pprint__(0, fold))
 	return ReturnInfo(session.name, text= get_text(session.__pprint__, 0, fold if out else 4), obj= session)
 
-@register('add', args= [pos(0, str), pos(1, path)], 
-						kw= [okey('--v', int, 0), key('-pos', float, float), key('-ap', int)])
+@register('add', args= [pos(0, str), opos(1, path)], 
+						kw= [okey('--v', int, 0), key('-pos', float, float), key('-ap', int), key('--i')])
 def _ADD_ITEM(helper : Helper):
 	mode = helper.get_arg(0)
 	out, fold = helper.get_kw('--v')
 	if not startrak.get_session():
 		raise STException('No session to add to, create one using "session -new"')
+	if helper.get_kw('--i'):
+		check_interactivity()
+		INTERACTIVE_ADD(helper, mode)
+		return
+
 	match mode:
 		case 'file':
 			path = helper.get_arg(1)
@@ -194,6 +203,7 @@ def _DEL_ITEM(helper : Helper):
 
 @register('edit', args= [pos(0, str), pos(1, __int_or_str)])
 def _EDIT_ITEM(helper : Helper):
+	check_interactivity()
 	mode = helper.get_arg(0)
 	index = helper.get_arg(1)
 

@@ -66,6 +66,8 @@ class ConsoleApp:
 			self._exc.execute(data)
 		except STException as e:
 			print('Error:', e)
+			if self._input_mode == 'action':
+				self.set_mode('text')
 		except Exception as e:
 			raise
 			print('Python Error:', e)

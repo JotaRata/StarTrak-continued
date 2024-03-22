@@ -62,7 +62,7 @@ class StartrakParser(Parser):
 		
 		excess = len(args)
 		for p in command.args:
-				if 0 <= p.index < len(args):
+				if 0 <= p.index < len(args) and not args[p.index].startswith('-'):
 					excess -= 1
 		
 		for k in command._kws:
