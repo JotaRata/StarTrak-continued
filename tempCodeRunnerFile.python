@@ -1,4 +1,48 @@
-from ast import literal_eval
+import curses
 
+def main(stdscr):
+    # Turn off echoing of keys, and enter cbreak mode
+    curses.cbreak()
+    stdscr.keypad(True)
 
-literal_eval("'../../astrodata/insp.trak'")
+    # Clear the screen
+    stdscr.clear()
+
+    # Initialize variables
+    input_buffer = ""
+    output_lines = []
+
+    # Main loop
+    while True:
+        # Draw output lines above the input prompt
+        for i, line in enumerate(reversed(output_lines)):
+            stdscr.addstr(i, 0, line)
+
+        # Draw input prompt at the bottom
+        stdscr.addstr(curses.LINES - 1, 0, "> " + input_buffer)
+
+        # Get user input
+        key = stdscr.getch()
+
+        # Check if user wants to quit
+        if key == ord('q'):
+            break
+
+        # Process Enter key
+        elif key == curses.KEY_ENTER or key == 10 or key == 13:
+            output_lines.append(f"You entered: {input_buffer}")
+            input_buffer = ""
+
+        # Process backspace
+        elif key == curses.KEY_BACKSPACE or key == 127:
+            input_buffer = input_buffer[:-1]
+
+        # Process other keys
+        else:
+            input_buffer += chr(key)
+
+        # Refresh the screen
+        stdscr.refresh()
+
+# Run the main function using curses wrapper
+curses.wrapper(main)

@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import os
 from typing import Callable, NamedTuple
-from _process.protocols import STException
+from processing.protocols import STException
 import _globals
 
 class Positional:
@@ -72,7 +72,7 @@ class _CommandInfo:
 
 class Helper:
 	def __init__(self, command : _CommandInfo, args : list[str], printable= True) -> None:
-		self._app = _globals.CONSOLE_INSTANCE
+		self.console = _globals.CONSOLE_INSTANCE
 		self.args = args
 		self.command = command
 		self.printable = printable
@@ -126,11 +126,11 @@ class Helper:
 		return value
 	
 	def save_buffer(self):
-		self._buffer = self._app.output.getvalue()
+		self._buffer = self.console.output.getvalue()
 	
 	def retrieve_buffer(self):
 		self.clear_console()
-		self._app.output.write(self._buffer)
+		self.console.output.write(self._buffer)
 		del self._buffer
 
 	def clear_console(self):
@@ -139,24 +139,24 @@ class Helper:
 				os.system('clear')
 			case 'nt' | 'java':
 				os.system('cls')
-		self._app.output.clear()
+		self.console.output.clear()
 
 	def flush_console(self):
-		self._app.output.flush()
+		self.console.output.flush()
 
 	def handle_action(self,  prompt : str, callbacks : list[Callable] = []):
-		self._app.set_mode('action', callbacks= callbacks)
-		self._app.input.clear()
-		self._app.output.write(prompt)
+		self.console.set_mode('action', callbacks= callbacks)
+		self.console.input.clear()
+		self.console.output.write(prompt)
 
 	def print(self, source : str | TextRetriever, newline= True):
 		if not self.printable:
 			return
 		n = '\n' if newline else ''
 		if type(source) is str:
-			self._app.output.write(source + n)
+			self.console.output.write(source + n)
 			return
-		self._app.output.write(str(source) + n)
+		self.console.output.write(str(source) + n)
 
 
 def highlighted_text(text):

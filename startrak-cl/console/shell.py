@@ -1,5 +1,5 @@
 from .consoleapp import ConsoleApp, _PREFIXES
-from _wrapper import get_command, get_commands
+from base import get_command, get_commands
 from _utils import word_index, common_string
 import keyboard
 import os

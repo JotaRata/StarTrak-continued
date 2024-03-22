@@ -1,10 +1,10 @@
 import os
 import re
 import startrak
-from _wrapper import ReturnInfo, get_text, register, pos, key, opos, okey, name, text, obj, path, Helper
-from _wrapper.base import highlighted_text, underlined_text, inverse_text
-from _wrapper.interface import INTERACTIVE_ADD, INTERACTIVE_EDIT, INTERACTIVE_LIST
-from _process.protocols import STException
+from base import ReturnInfo, get_text, register, pos, key, opos, okey, name, text, obj, path, Helper
+from base.classes import highlighted_text, underlined_text, inverse_text
+from base.interface import INTERACTIVE_ADD, INTERACTIVE_EDIT, INTERACTIVE_LIST
+from processing.protocols import STException
 from startrak.native import FileInfo, Star
 
 def check_interactivity(helper):

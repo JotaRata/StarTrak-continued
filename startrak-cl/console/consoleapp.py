@@ -1,9 +1,9 @@
 import sys
 from time import sleep
 from typing import Callable
-from _process.protocols import Executor, Parser, STException
-from _process import parsers as parser
-from _process import executors as execs
+from processing.protocols import Executor, Parser, STException
+from processing import parsers as parser
+from processing import executors as execs
 from alias import InputMode, LanguageMode
 from streams import ConsoleInput, ConsoleOutput
 import _globals

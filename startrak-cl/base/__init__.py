@@ -1,6 +1,6 @@
 from typing import Callable
-from .base import _REGISTERED_COMMANDS, _CommandInfo, Keyword, Positional, Optional, OptionalKeyword, TextRetriever
-from .base import ReturnInfo, Helper
+from .classes import _REGISTERED_COMMANDS, _CommandInfo, Keyword, Positional, Optional, OptionalKeyword, TextRetriever
+from .classes import ReturnInfo, Helper
 
 def name(__r : ReturnInfo | str):
 	''' Name of an object or string'''

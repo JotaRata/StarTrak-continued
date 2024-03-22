@@ -1,5 +1,5 @@
 from .protocols import ChainedOutput, Parser, ParsedOutput, PipedOutput, STException
-from _wrapper import get_command
+from base import get_command
 
 _DISALLOWED_PY_KW = ('import', 'os', 'sys', 'raise', 
 							'input', 'class', 'open', 'with', 

@@ -1,9 +1,9 @@
 import os
 import re
 import startrak
-from _wrapper import Helper
-from _wrapper.base import highlighted_text, underlined_text, inverse_text
-from _process.protocols import STException
+from base import Helper
+from base.classes import highlighted_text, underlined_text, inverse_text
+from processing.protocols import STException
 from startrak.native import FileInfo, Star
 
 def INTERACTIVE_ADD(helper : Helper, mode : str):
