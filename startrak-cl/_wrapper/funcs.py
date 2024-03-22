@@ -8,7 +8,8 @@ from _process.protocols import STException
 from startrak.native import FileInfo, Star
 
 def check_interactivity(helper):
-	check_interactivity()
+	if not helper.printable:	# Only false when command is chained
+			raise STException('Cannot chain interactive command.')
 
 @register('session', kw= [key('-new', str), key('-mode', str), key('-scan-dir', str), okey('--v', int, 0)])
 def _GET_SESSION(helper : Helper):
@@ -63,7 +64,7 @@ def _LIST_DIR(helper : Helper):
 		path = helper.get_arg(0)
 	
 	if helper.get_kw('--i'):
-		check_interactivity()
+		check_interactivity(helper)
 		return INTERACTIVE_LIST(helper, path)
 	
 	strgen = (os.path.basename(p) + ('/' if os.path.isdir(p) else '') for p in os.scandir(path))
@@ -115,7 +116,7 @@ def _ADD_ITEM(helper : Helper):
 	if not startrak.get_session():
 		raise STException('No session to add to, create one using "session -new"')
 	if helper.get_kw('--i'):
-		check_interactivity()
+		check_interactivity(helper)
 		INTERACTIVE_ADD(helper, mode)
 		return
 
@@ -203,7 +204,7 @@ def _DEL_ITEM(helper : Helper):
 
 @register('edit', args= [pos(0, str), pos(1, __int_or_str)])
 def _EDIT_ITEM(helper : Helper):
-	check_interactivity()
+	check_interactivity(helper)
 	mode = helper.get_arg(0)
 	index = helper.get_arg(1)
 
