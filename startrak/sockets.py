@@ -1,11 +1,9 @@
-from io import StringIO
 import socket
 import threading
 import time
 from startrak.sessionutils import set_session, get_session
-import asyncio
 from startrak.types.exporters import BytesExporter
-from startrak.types.importers import JSONImporter, TextImporter
+from startrak.types.importers import JSONImporter
 
 _is_server = False
 
@@ -77,9 +75,8 @@ class SocketServer:
 	def __init__(self, host='localhost', port=8080):
 		self.host = host
 		self.port = port
+		self.session_hash = hash(get_session())
 		self.clients = []
-		self.server_socket = None
-		self.server_thread = None
 
 	def handle_client(self, client_socket, address):
 		print(f"Client connected: {address}")
@@ -104,10 +101,13 @@ class SocketServer:
 	def broadcast(self):
 		while True:
 			for client_socket in self.clients:
+				if self.session_hash == (newhash := hash(get_session())):
+					continue
 				try:
 					with BytesExporter() as exp:
 						exp.write(get_session())
 					client_socket.sendall(exp.data())
+					self.session_hash = newhash
 				except Exception as e:
 					print(f"Error broadcasting data to client: {e}")
 			time.sleep(1)
