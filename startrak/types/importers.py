@@ -1,5 +1,7 @@
 
 from ast import literal_eval
+from io import BytesIO
+import json
 from typing import  Any, List, Self, Tuple
 from startrak.native.abstract import STImporter
 from startrak.native.ext import AttrDict, STObject, get_stobject
@@ -76,6 +78,29 @@ class TextImporter(STImporter):
 					sub_dict = attributes[attr]
 					attributes[attr] = process_(sub_dict)
 			
+			cls = get_stobject(main_type)
+			return cls.__import__(attributes)
+		return process_(parsed_data)
+	
+class JSONImporter(STImporter):
+	def __init__(self, source : bytes) -> None:
+		self._buffer = BytesIO(source)
+	
+	def __enter__(self) -> Self:
+		return self
+	
+	def __exit__(self, *args) -> None:
+		self._buffer.close()
+	
+	def read(self) -> STObject:
+		parsed_data = json.loads(self._buffer.read().decode())
+
+		def process_(attributes : AttrDict):
+			main_type = attributes.pop('_type')
+			for attr, value in attributes.items():
+				if type(value) is dict:
+					sub_dict = attributes[attr]
+					attributes[attr] = process_(sub_dict)
 			cls = get_stobject(main_type)
 			return cls.__import__(attributes)
 			
