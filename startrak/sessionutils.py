@@ -90,6 +90,13 @@ def save_session(output_path : str | Path):
 		with RelativeContext(__session__.working_dir):
 			out.write(__session__)
 
+def set_session(session : Session):
+	''' Overwrite the current session with a session object. WARNING: This operation is unsafe and may lead to unexpected behavior'''
+	global __session__
+	assert session is not None
+	assert isinstance(session, Session)
+	__session__ = session
+
 # Wrapper functions around current session methods
 def add_file(file : FileInfo | Collection[FileInfo]):
 	''' Adds a file or list of files to the current session '''
