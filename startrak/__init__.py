@@ -6,4 +6,4 @@ from .starutils import detect_stars, visualize_stars
 from .sessionutils import *
 from .native.utils import geomutils
 from .io import *
-from .sockets import connect, start_server
+from .sockets import connect, start_server, socket_log

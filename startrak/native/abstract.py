@@ -167,10 +167,12 @@ class Session(STObject, metaclass= ABCMeta):
 	def __pprint__(self, indent: int, expand_tree : int) -> str:
 		return super().__pprint__(indent, expand_tree)
 	
-	def __eq__(self, other : Session):
-		return self.__export__() == other.__export__()
+	def __eq__(self, other):
+		if not isinstance(other, Session):
+			return False
+		return hash(self) == hash(other)
 	def __hash__(self):
-		return hash(self.__export__())
+		return hash(self.__pprint__(0, 5))
 
 #endregion
 
