@@ -82,7 +82,7 @@ class TextImporter(STImporter):
 			return cls.__import__(attributes)
 		return process_(parsed_data)
 	
-class JSONImporter(STImporter):
+class BytesImporter(STImporter):
 	def __init__(self, source : bytes) -> None:
 		self._buffer = BytesIO(source)
 	
@@ -93,7 +93,7 @@ class JSONImporter(STImporter):
 		self._buffer.close()
 	
 	def read(self) -> STObject:
-		parsed_data = json.loads(self._buffer.read().decode())
+		parsed_data = literal_eval(self._buffer.read().decode().replace(chr(0), ''))
 
 		def process_(attributes : AttrDict):
 			main_type = attributes.pop('_type')

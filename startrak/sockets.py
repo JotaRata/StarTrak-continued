@@ -1,11 +1,12 @@
-from io import StringIO
-import socket
+from io import BytesIO, StringIO
+from json import JSONDecodeError
+import socket as sockets
 import threading
 import time
 from startrak.internals.exceptions import InstantiationError
 from startrak.sessionutils import set_session, get_session
 from startrak.types.exporters import BytesExporter
-from startrak.types.importers import JSONImporter
+from startrak.types.importers import BytesImporter
 
 _CLIENT = None
 _SERVER = None
@@ -46,7 +47,7 @@ class SocketObject:
 	host : str
 	port : int
 	session_hash : int
-	socket : socket.socket | None
+	socket : sockets.socket | None
 
 	def __init__(self, host: str = 'localhost', port: int = 8080, quiet : bool = True):
 		if type(self) is SocketObject:
@@ -76,7 +77,7 @@ class SocketClient(SocketObject):
 	def connect(self):
 		if self.socket:
 			raise ConnectionError('Client already connected')
-		self.socket = socket.create_connection((self.host, self.port), timeout=self.timeout)
+		self.socket = sockets.create_connection((self.host, self.port), timeout=self.timeout)
 		threading.Thread(target=self.receive_loop, daemon=True).start()
 		time.sleep(0.5)
 		threading.Thread(target=self.write_loop, daemon=True).start()
@@ -87,11 +88,12 @@ class SocketClient(SocketObject):
 			session_hash = self.get_hash()
 			if self.session_hash == session_hash:
 				continue
+			self.print('Session is changed in client')
 			try:
 				with BytesExporter() as exp:
 					exp.write(get_session())
 
-				self.socket.sendall(exp.data())
+				self.socket.sendall(exp.data() + b'\n')
 				self.session_hash = session_hash
 			except Exception as e:
 				self.print(f'Error sending data: {e}')
@@ -100,16 +102,26 @@ class SocketClient(SocketObject):
 	def receive_loop(self):
 		while not self.stop_event.is_set():
 			try:
-				data = self.socket.recv(1024)
-				if not data:
-					continue
-				with JSONImporter(data) as imp:
-					obj = imp.read()
+				buffer = BytesIO()
+				while True:
+					data = self.socket.recv(1024)
+					if data:
+						buffer.write(data)
+						if b'\n' not in data:
+							continue
+
+					buffer.seek(0)
+					with BytesImporter(buffer.read().rstrip(b'\n')) as imp:
+						obj = imp.read()
 					set_session(obj)
 					self.session_hash = self.get_hash()
+					buffer.truncate(0)
 					self.print('Session changed in the server')
+
+			except OSError:
+				raise
 			except Exception as e:
-				self.print(f'Error receiving data: {e}')
+				self.print(f'Error receiving data: {type(e).__name__}: {e}')
 			time.sleep(0.1)
 
 	def stop(self):
@@ -117,28 +129,33 @@ class SocketClient(SocketObject):
 		self.socket.close()
 
 class SocketServer(SocketObject):
-	clients : list[socket.socket]
+	clients : list[sockets.socket]
 	def __init__(self, host: str = 'localhost', port: int = 8080, quiet: bool = True):
 		super().__init__(host, port, quiet)
 		self.clients = []
 
-	def handle_client(self, client_socket : socket.socket, address):
+	def handle_client(self, client_socket : sockets.socket, address):
 		self.clients.append(client_socket)
 		self.print(f"Client connected: {address}")
 		try:
+			buffer = BytesIO()
 			while True:
 				data = client_socket.recv(1024)
-				if not data:
-					break
-				
-				with JSONImporter(data) as imp:
+				if data:
+					buffer.write(data)
+					if b'\n' not in data:
+						continue
+
+				buffer.seek(0)
+				with BytesImporter(buffer.read().rstrip(b'\n')) as imp:
 					obj = imp.read()
 				set_session(obj)
 				self.session_hash = self.get_hash()
+				buffer.truncate(0)
 				self.print('Session changed in one of the clients')
 
 		except Exception as e:
-			self.print(f"Error handling client: {e}")
+			self.print(f"Error handling client: {type(e).__name__}: {e}")
 		finally:
 			self.clients.remove(client_socket)
 			client_socket.close()
@@ -154,15 +171,15 @@ class SocketServer(SocketObject):
 				try:
 					with BytesExporter() as exp:
 						exp.write(get_session())
-					client_socket.sendall(exp.data())
+					client_socket.sendall(exp.data() + b'\n')
 					self.session_hash = session_hash
 				
 				except Exception as e:
-					self.print(f"Error broadcasting data to client: {e}")
+					self.print(f"Error broadcasting data to client: {type(e).__name__}: {e}")
 			time.sleep(1)
 
 	def listen(self):
-		self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.socket = sockets.socket(sockets.AF_INET, sockets.SOCK_STREAM)
 		self.socket.bind((self.host, self.port))
 		self.socket.listen()
 

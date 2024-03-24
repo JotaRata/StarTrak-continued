@@ -70,6 +70,6 @@ class BytesExporter(STExporter):
 		return attrs
 
 	def write(self, obj: STObject):
-		block = str(self.convert(obj)).replace("'", '"').replace('True', 'true').replace('False', 'false').replace('None', 'null')
+		block = str(self.convert(obj))
 		self._buffer.write(block.encode())
 		self._data = self._buffer.getvalue()
