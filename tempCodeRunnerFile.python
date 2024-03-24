@@ -1,48 +1,20 @@
-import curses
+from enum import IntEnum
 
-def main(stdscr):
-    # Turn off echoing of keys, and enter cbreak mode
-    curses.cbreak()
-    stdscr.keypad(True)
 
-    # Clear the screen
-    stdscr.clear()
+class ClientFlags(IntEnum):
+	ALLOW_READ =		1 << 0
+	ALLOW_WRITE =		1 << 1
+	JOE         =		1 << 2
 
-    # Initialize variables
-    input_buffer = ""
-    output_lines = []
+value = ClientFlags.ALLOW_READ | ClientFlags.JOE
 
-    # Main loop
-    while True:
-        # Draw output lines above the input prompt
-        for i, line in enumerate(reversed(output_lines)):
-            stdscr.addstr(i, 0, line)
+match (value):
+	case ClientFlags.ALLOW_READ:
+		print('Read is allowed')
+	case ClientFlags.ALLOW_WRITE:
+		print('Write is allowed')
+	case ClientFlags.JOE:
+		print('And Joe is here too')
+	case _:
+		print('Nothing selected')
 
-        # Draw input prompt at the bottom
-        stdscr.addstr(curses.LINES - 1, 0, "> " + input_buffer)
-
-        # Get user input
-        key = stdscr.getch()
-
-        # Check if user wants to quit
-        if key == ord('q'):
-            break
-
-        # Process Enter key
-        elif key == curses.KEY_ENTER or key == 10 or key == 13:
-            output_lines.append(f"You entered: {input_buffer}")
-            input_buffer = ""
-
-        # Process backspace
-        elif key == curses.KEY_BACKSPACE or key == 127:
-            input_buffer = input_buffer[:-1]
-
-        # Process other keys
-        else:
-            input_buffer += chr(key)
-
-        # Refresh the screen
-        stdscr.refresh()
-
-# Run the main function using curses wrapper
-curses.wrapper(main)

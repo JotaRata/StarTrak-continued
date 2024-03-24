@@ -1,5 +1,6 @@
+from __future__ import annotations
+from enum import IntEnum
 from io import BytesIO, StringIO
-from json import JSONDecodeError
 import socket as sockets
 import threading
 import time
@@ -10,67 +11,84 @@ from startrak.types.importers import BytesImporter
 
 _CLIENT = None
 _SERVER = None
-__all__ = ['connect', 'start_server', 'socket_log']
+__all__ = ['connect', 'start_server', 'socket_log', 'ServerFlags', 'ClientFlags']
 
+class ServerFlags(IntEnum):
+	ALLOW_RECIEVE = 		1 << 0
+	ALLOW_BROADCAST =	1 << 1
 
-def connect(host : str = 'localhost', port : int = 8080, timeout : float = None, quiet = True):
+class ClientFlags(IntEnum):
+	ALLOW_READ =		1 << 0
+	ALLOW_WRITE =		1 << 1
+
+def connect(host : str = 'localhost', port : int = 8080, flags : ClientFlags = ClientFlags.ALLOW_READ | ClientFlags.ALLOW_WRITE,
+				timeout : float = None, quiet = True):
 	if _SERVER:
 		raise ConnectionError('Server used as client')
 	global _CLIENT
 
-	client = SocketClient(host, port, quiet= quiet, timeout= timeout)
+	client = SocketClient(host, port, flags, quiet= quiet, timeout= timeout)
 	client.connect()
 	_CLIENT = client
 
-def start_server(host : str = 'localhost', port : int = 8080, quiet = True, block = False):
+def start_server(host : str = 'localhost', port : int = 8080, flags : ServerFlags = ServerFlags.ALLOW_BROADCAST | ServerFlags.ALLOW_RECIEVE,
+					quiet = True, block = False):
 	if _CLIENT:
 		raise ConnectionError('Client used as server')
 	global _SERVER
 
-	server = SocketServer(host, port, quiet= quiet)
+	server = SocketServer(host, port, flags, quiet= quiet)
 	server.start(block)
 	_SERVER = server
 
-def get_socket_log() -> str | None:
+def get_socket() -> SocketObject | None:
 	if _CLIENT:
-		return _CLIENT._out.getvalue()
+		return _CLIENT
 	elif _SERVER:
-		return _SERVER._out.getvalue()
+		return _SERVER
 	else:
 		return None
 
 def socket_log():
-	print(get_socket_log())
+	socket = get_socket()
+	if socket:
+		print(socket.out.getvalue())
 
 
 class SocketObject:
 	host : str
 	port : int
+	flags : int
+	out : StringIO
 	session_hash : int
 	socket : sockets.socket | None
 
-	def __init__(self, host: str = 'localhost', port: int = 8080, quiet : bool = True):
+	def __init__(self, host: str, port: int, flags : int, quiet : bool = True):
 		if type(self) is SocketObject:
 			raise InstantiationError(self)
+		if not flags:
+			raise ValueError('Invalid flags')
 		self.host = host
 		self.port = port
-		self._quiet = quiet
+		self.flags = flags
 		self.socket = None
-		self._out = StringIO()
+		self.out = StringIO()
+
+		self._quiet = quiet
 		self.session_hash = self.get_hash()
 
 	def get_hash(self):
 		return hash(get_session())
 	
 	def print(self, message : str):
-		self._out.write(message + '\n')
+		self.out.write(message + '\n')
 		if not self._quiet:
 			print(message)
 	
 
 class SocketClient(SocketObject):
-	def __init__(self, host: str = 'localhost', port: int = 8080, quiet: bool = True, timeout: float = None):
-		super().__init__(host, port, quiet)
+	def __init__(self, host: str, port: int, flags : int, quiet: bool = True, timeout: float = None):
+		super().__init__(host, port, flags, quiet)
 		self.timeout = timeout
 		self.stop_event = threading.Event()
 
@@ -78,12 +96,15 @@ class SocketClient(SocketObject):
 		if self.socket:
 			raise ConnectionError('Client already connected')
 		self.socket = sockets.create_connection((self.host, self.port), timeout=self.timeout)
-		threading.Thread(target=self.receive_loop, daemon=True).start()
-		time.sleep(0.5)
-		threading.Thread(target=self.write_loop, daemon=True).start()
+
+		if self.flags & ClientFlags.ALLOW_READ:
+			threading.Thread(target=self.receive_loop, daemon=True).start()
+		if self.flags & ClientFlags.ALLOW_WRITE:
+			threading.Thread(target=self.write_loop, daemon=True).start()
 		print(f'Connected to {self.host}:{self.port}')
 
 	def write_loop(self):
+		time.sleep(0.05)
 		while not self.stop_event.is_set():
 			session_hash = self.get_hash()
 			if self.session_hash == session_hash:
@@ -130,8 +151,8 @@ class SocketClient(SocketObject):
 
 class SocketServer(SocketObject):
 	clients : list[sockets.socket]
-	def __init__(self, host: str = 'localhost', port: int = 8080, quiet: bool = True):
-		super().__init__(host, port, quiet)
+	def __init__(self, host: str, port: int, flags : int, quiet: bool = True):
+		super().__init__(host, port, flags, quiet)
 		self.clients = []
 
 	def handle_client(self, client_socket : sockets.socket, address):
@@ -182,14 +203,16 @@ class SocketServer(SocketObject):
 		self.socket = sockets.socket(sockets.AF_INET, sockets.SOCK_STREAM)
 		self.socket.bind((self.host, self.port))
 		self.socket.listen()
-
-		threading.Thread(target=self.broadcast).start()
 		print(f"Server listening on {self.host}:{self.port}")
+
+		if self.flags & ServerFlags.ALLOW_BROADCAST:
+			threading.Thread(target=self.broadcast).start()
 		
-		while True:
-			client_socket, address = self.socket.accept()
-			client_thread = threading.Thread(target=self.handle_client, args=(client_socket, address))
-			client_thread.start()
+		if self.flags & ServerFlags.ALLOW_RECIEVE:
+			while True:
+				client_socket, address = self.socket.accept()
+				client_thread = threading.Thread(target=self.handle_client, args=(client_socket, address))
+				client_thread.start()
 
 	def start(self, block : bool = False):
 		if block:
