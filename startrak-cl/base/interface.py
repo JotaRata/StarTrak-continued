@@ -1,3 +1,4 @@
+from io import StringIO
 import os
 import re
 import startrak
@@ -172,5 +173,51 @@ def INTERACTIVE_EDIT(helper: Helper, mode : str, item, new = False):
 		helper.print(output, False)
 		helper.flush_console()
 		return False
+	on_action('')
+	helper.handle_action('', callbacks= [on_action])
+
+def INTERACTIVE_SERVER(helper : Helper, server_out : StringIO):
+	helper.save_buffer()
+	mode = 0
+
+	def on_action(key : str):
+		nonlocal mode
+		rows, cols = helper.console.size()
+		buffer = StringIO()
+		escape = ''
+		header = 'Startrak session server log'
+		buffer.write(inverse_text(header + ' ' * (cols - len(header)) + '\n'))
+		buffer.write('\n' * 2)
+
+		lines = server_out.getvalue().split('\n')
+		for line in lines:
+			buffer.write(' ' + line + '\n')
+		
+		if key == 'esc':
+			if mode == 0:
+				mode = 1
+			elif mode == 1:
+				escape = ''
+				mode = 0
+			
+		if mode == 1:
+			if len(key) == 1:
+				escape += key
+			elif key == 'enter':
+				if escape == ':q':
+					return True
+				mode = 0
+
+		footer = 'READ' if mode == 0 else 'ESC ' + escape
+
+		buffer.write('\n' * (rows - 4 - len(lines)))
+		buffer.write(inverse_text(footer + ' ' * (cols - len(footer)) ))
+
+		helper.clear_console()
+		helper.print(buffer.getvalue(), False)
+		helper.flush_console()
+		return False
+
+
 	on_action('')
 	helper.handle_action('', callbacks= [on_action])

@@ -3,7 +3,7 @@ import re
 import startrak
 from base import ReturnInfo, get_text, register, pos, key, opos, okey, name, text, obj, path, Helper
 from base.classes import highlighted_text, underlined_text, inverse_text
-from base.interface import INTERACTIVE_ADD, INTERACTIVE_EDIT, INTERACTIVE_LIST
+from base.interface import INTERACTIVE_ADD, INTERACTIVE_EDIT, INTERACTIVE_LIST, INTERACTIVE_SERVER
 from processing.protocols import STException
 from startrak.native import FileInfo, Star
 
@@ -244,8 +244,15 @@ def _SOCKET_SERVER(helper : Helper):
 				flags &= -(1 << 1)
 			if helper.get_kw('--no-recieve'):
 				flags &= -(1 << 0)
+			
+			startrak.start_server(host, port, flags)
+			server = startrak.sockets.get_socket()
+			
+			if block:
+				check_interactivity(helper)
+				INTERACTIVE_SERVER(helper, server.out)
 
-			startrak.start_server(host, port, flags, quiet=  not block, block= block)
+
 		case 'stop':
 			so = startrak.sockets.get_socket()
 			so.stop()
