@@ -221,3 +221,52 @@ def _EDIT_ITEM(helper : Helper):
 		raise STException(f'No {mode} with name: "{index}"') 
 	
 	INTERACTIVE_EDIT(helper, mode, item)
+
+@register('server', args= [pos(0, str), opos(1, text)], kw= [key('--b'), key('--block'), key('--no-broadcast'), key('--no-recieve')])
+def _SOCKET_SERVER(helper : Helper):
+	action = helper.get_arg(0)
+	match action:
+		case 'start':
+			if len(helper.args) > 1:
+				address : str = helper.get_arg(1)
+			if address:
+				print(address)
+				host, port = address.split(':')
+				port = int(port)
+			else:
+				host = 'localhost'
+				port = 8888
+			
+			flags = 1 << 0 | 1 << 1
+			block = helper.get_kw('--block') | helper.get_kw('--b')
+
+			if helper.get_kw('--no-broadcast'):
+				flags &= -(1 << 1)
+			if helper.get_kw('--no-recieve'):
+				flags &= -(1 << 0)
+
+			startrak.start_server(host, port, flags, quiet=  not block, block= block)
+		case 'stop':
+			so = startrak.sockets.get_socket()
+			so.stop()
+		case _:
+			raise STException(f'Unknown parameter "{_}"')
+		
+@register('connect', args= [opos(0, text)])
+def _SOCKET_CLIENT(helper : Helper):
+	if len(helper.args) > 0:
+		address : str = helper.get_arg(0)
+		host, port = address.split(':')
+		port = int(port)
+	else:
+		host = 'localhost'
+		port = 8888
+	
+	startrak.connect(host, port)
+
+@register('disconnect')
+def _SOCKET_DISCONNECT(helper : Helper):
+	so = startrak.sockets.get_socket()
+	if type(so).__name__ != 'SocketClient':
+		raise STException('No client to disconect')
+	so.stop()

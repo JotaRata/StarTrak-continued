@@ -117,6 +117,8 @@ class Helper:
 			if type(self.command.args[pos]) is Optional:
 					return None
 			raise STException(f'Expected argument at position #{pos + 1} of the function "{self.command.name}"')
+		if self.args[pos].startswith('-') and type(self.command.args[pos]) is Optional:
+			return None
 		try:
 			value = _type(self.args[pos])
 		except IndexError:
