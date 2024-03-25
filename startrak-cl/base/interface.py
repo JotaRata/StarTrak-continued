@@ -1,6 +1,8 @@
 from io import StringIO
 import os
 import re
+import threading
+import time
 import startrak
 from base import Helper
 from base.classes import highlighted_text, underlined_text, inverse_text
@@ -179,12 +181,12 @@ def INTERACTIVE_EDIT(helper: Helper, mode : str, item, new = False):
 def INTERACTIVE_SERVER(helper : Helper, server_out : StringIO):
 	helper.save_buffer()
 	mode = 0
+	escape = ''
 
 	def on_action(key : str):
-		nonlocal mode
+		nonlocal mode, escape
 		rows, cols = helper.console.size()
 		buffer = StringIO()
-		escape = ''
 		header = 'Startrak session server log'
 		buffer.write(inverse_text(header + ' ' * (cols - len(header)) + '\n'))
 		buffer.write('\n' * 2)
@@ -216,8 +218,14 @@ def INTERACTIVE_SERVER(helper : Helper, server_out : StringIO):
 		helper.clear_console()
 		helper.print(buffer.getvalue(), False)
 		helper.flush_console()
+		
 		return False
+	
+	def update_routine():
+		ret = on_action('')
+		while not ret:
+			ret = on_action('')
+			time.sleep(1)
 
-
-	on_action('')
 	helper.handle_action('', callbacks= [on_action])
+	threading.Thread(target= update_routine).start()
