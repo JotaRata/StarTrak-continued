@@ -163,3 +163,4 @@ cython_debug/
 *.drawio
 # tests/temp_data/*
 tempCodeRunnerFile.py
+temp*.python
