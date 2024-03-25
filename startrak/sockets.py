@@ -4,7 +4,9 @@ from io import BytesIO, StringIO
 import socket as sockets
 import threading
 import time
+from typing import NamedTuple
 from startrak.internals.exceptions import InstantiationError
+from startrak.native import Session
 from startrak.sessionutils import set_session, get_session
 from startrak.types.exporters import BytesExporter
 from startrak.types.importers import BytesImporter
@@ -60,8 +62,20 @@ class SocketObject:
 	port : int
 	flags : int
 	out : StringIO
-	session_hash : int
 	socket : sockets.socket | None
+	state : SocketObject.SessionState
+
+	class SessionState(NamedTuple):
+		name : str
+		files : int
+		stars : int
+		hash : int
+
+		@classmethod
+		def new (cls, session : Session):
+			return cls(session.name, len(session.included_files), len(session.included_stars), hash(session))
+		def compare(self, other : SocketObject.SessionState):
+			return SocketObject.SessionState(other.name, other.files - self.files, other.stars - self.stars, other.hash)
 
 	def __init__(self, host: str, port: int, flags : int, quiet : bool = True):
 		if type(self) is SocketObject:
@@ -75,17 +89,16 @@ class SocketObject:
 		self.out = StringIO()
 
 		self._quiet = quiet
-		self.session_hash = self.get_hash()
-
-	def get_hash(self):
-		return hash(get_session())
+		self.state = SocketObject.SessionState.new(get_session())
 	
-	def print(self, message : str):
+	def print(self, message : str, override_quiet = False):
 		self.out.write(message + '\n')
-		if not self._quiet:
+		if not self._quiet or override_quiet:
 			print(message)
-	
 
+	def get_state(self, session : Session):
+		return SocketObject.SessionState.new(session)
+	
 class SocketClient(SocketObject):
 	def __init__(self, host: str, port: int, flags : int, quiet: bool = True, timeout: float = None):
 		super().__init__(host, port, flags, quiet)
@@ -106,18 +119,18 @@ class SocketClient(SocketObject):
 	def write_loop(self):
 		time.sleep(0.05)
 		while not self.stop_event.is_set():
-			session_hash = self.get_hash()
-			if self.session_hash == session_hash:
+			state = self.get_state(get_session())
+			if self.state.hash == state.hash:
 				continue
-			self.print('Session is changed in client')
+			self.print('[CLIENT] Pushing changes to server')
 			try:
 				with BytesExporter() as exp:
 					exp.write(get_session())
 
 				self.socket.sendall(exp.data() + b'\n')
-				self.session_hash = session_hash
+				self.state = state
 			except Exception as e:
-				self.print(f'Error sending data: {e}')
+				self.print(f'[CLIENT] Error sending data: {e}')
 			time.sleep(0.1)
 
 	def receive_loop(self):
@@ -133,16 +146,35 @@ class SocketClient(SocketObject):
 
 					buffer.seek(0)
 					with BytesImporter(buffer.read().rstrip(b'\n')) as imp:
-						obj = imp.read()
-					set_session(obj)
-					self.session_hash = self.get_hash()
-					buffer.truncate(0)
-					self.print('Session changed in the server')
+						session = imp.read()
 
+					set_session(session)
+					new_state = self.get_state(session)
+
+					diff = self.state.compare(new_state)
+					report = []
+					if diff.name != self.state.name:
+						report.append(f' {diff.name}')
+					if diff.files > 0:
+						report.append(f' {diff.files} files added')
+					if diff.files < 0:
+						report.append(f' {-diff.files} files removed')
+					if diff.stars > 0:
+						report.append(f' {diff.stars} stars added')
+					if diff.stars < 0:
+						report.append(f' {-diff.stars} stars removed')
+
+					self.state = new_state
+
+					self.print('[CLIENT] Change in server: ' + ', '.join(report))
+					buffer.truncate(0)
+
+			except ConnectionAbortedError:
+				self.print(' ')
 			except OSError:
 				raise
 			except Exception as e:
-				self.print(f'Error receiving data: {type(e).__name__}: {e}')
+				self.print(f'[CLIENT] Error receiving data: {type(e).__name__}: {e}')
 			time.sleep(0.1)
 
 	def stop(self):
@@ -157,7 +189,7 @@ class SocketServer(SocketObject):
 
 	def handle_client(self, client_socket : sockets.socket, address):
 		self.clients.append(client_socket)
-		self.print(f"Client connected: {address}")
+		self.print(f"[SERVER] Client connected: {address} (#{len(self.clients)})")
 		try:
 			buffer = BytesIO()
 			while True:
@@ -169,41 +201,58 @@ class SocketServer(SocketObject):
 
 				buffer.seek(0)
 				with BytesImporter(buffer.read().rstrip(b'\n')) as imp:
-					obj = imp.read()
-				set_session(obj)
-				self.session_hash = self.get_hash()
-				buffer.truncate(0)
-				self.print('Session changed in one of the clients')
+					session = imp.read()
+				set_session(session)
+				new_state = self.get_state(session)
 
+				diff = self.state.compare(new_state)
+				report = []
+				if diff.name != self.state.name:
+					report.append(f' {diff.name}')
+				if diff.files > 0:
+					report.append(f' {diff.files} files added')
+				if diff.files < 0:
+					report.append(f' {-diff.files} files removed')
+				if diff.stars > 0:
+					report.append(f' {diff.stars} stars added')
+				if diff.stars < 0:
+					report.append(f' {-diff.stars} stars removed')
+
+				self.state = new_state
+				self.print('[SERVER] Session change from clients: ' + ', '.join(report))
+				buffer.truncate(0)
+
+		except ConnectionResetError:
+			self.print(' ')
 		except Exception as e:
-			self.print(f"Error handling client: {type(e).__name__}: {e}")
+			self.print(f"[SERVER] Error handling client: {type(e).__name__}: {e}")
 		finally:
 			self.clients.remove(client_socket)
 			client_socket.close()
-			self.print(f"Client disconnected: {address}")
+			self.print(f"[SERVER] Client disconnected: {address}")
 
 	def broadcast(self):
 		while True:
-			session_hash = self.get_hash()
+			state = self.get_state(get_session())
 			for client_socket in self.clients:
-				if self.session_hash == session_hash:
+				if self.state.hash == state.hash:
 					continue
 				
 				try:
 					with BytesExporter() as exp:
 						exp.write(get_session())
 					client_socket.sendall(exp.data() + b'\n')
-					self.session_hash = session_hash
+					self.session_hash = state
 				
 				except Exception as e:
-					self.print(f"Error broadcasting data to client: {type(e).__name__}: {e}")
+					self.print(f"[SERVER] Error broadcasting data to client: {type(e).__name__}: {e}")
 			time.sleep(1)
 
 	def listen(self):
 		self.socket = sockets.socket(sockets.AF_INET, sockets.SOCK_STREAM)
 		self.socket.bind((self.host, self.port))
 		self.socket.listen()
-		print(f"Server listening on {self.host}:{self.port}")
+		self.print(f"[SERVER] Server listening on {self.host}:{self.port}", True)
 
 		if self.flags & ServerFlags.ALLOW_BROADCAST:
 			threading.Thread(target=self.broadcast).start()

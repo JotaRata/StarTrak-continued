@@ -229,6 +229,8 @@ def _SOCKET_SERVER(helper : Helper):
 		case 'start':
 			if len(helper.args) > 1:
 				address : str = helper.get_arg(1)
+			else:
+				address = None
 			if address:
 				print(address)
 				host, port = address.split(':')
@@ -247,7 +249,7 @@ def _SOCKET_SERVER(helper : Helper):
 			
 			startrak.start_server(host, port, flags)
 			server = startrak.sockets.get_socket()
-			
+
 			if block:
 				check_interactivity(helper)
 				INTERACTIVE_SERVER(helper, server.out)
