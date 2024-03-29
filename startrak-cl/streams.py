@@ -2,6 +2,12 @@ from io import DEFAULT_BUFFER_SIZE, StringIO
 from typing import TextIO
 from alias import LanguageMode
 
+class NoStream(StringIO):
+	def write(self, __s: str):
+		pass
+	def flush(self) :
+		pass
+
 class ConsoleInput(StringIO):
 	def __init__(self) -> None:
 		super().__init__()
@@ -52,7 +58,7 @@ class ConsoleInput(StringIO):
 class ConsoleOutput(StringIO):
 	def __init__(self, stdout : TextIO) -> None:
 		super().__init__()
-		self.stdout = stdout
+		self.stdout = stdout if stdout else NoStream()
 
 	def write(self, __s: str) -> int:
 		if (l:=len(__s)) > DEFAULT_BUFFER_SIZE:

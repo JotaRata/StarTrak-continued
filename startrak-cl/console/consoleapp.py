@@ -88,3 +88,10 @@ class ConsoleApp:
 				exit_flag &= flag
 		if exit_flag:
 			self.set_mode('text')
+	
+	def write(self, __s : str):
+		return self.output.write(__s)
+	def read(self):
+		return self.output.getvalue()
+	def flush(self):
+		return self.output.flush()

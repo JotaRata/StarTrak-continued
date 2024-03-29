@@ -128,11 +128,11 @@ class Helper:
 		return value
 	
 	def save_buffer(self):
-		self._buffer = self.console.output.getvalue()
+		self._buffer = self.console.read()
 	
 	def retrieve_buffer(self):
 		self.clear_console()
-		self.console.output.write(self._buffer)
+		self.console.write(self._buffer)
 		del self._buffer
 
 	def clear_console(self):
@@ -144,21 +144,21 @@ class Helper:
 		self.console.output.clear()
 
 	def flush_console(self):
-		self.console.output.flush()
+		self.console.flush()
 
 	def handle_action(self,  prompt : str, callbacks : list[Callable] = []):
 		self.console.set_mode('action', callbacks= callbacks)
 		self.console.input.clear()
-		self.console.output.write(prompt)
+		self.console.write(prompt)
 
 	def print(self, source : str | TextRetriever, newline= True):
 		if not self.printable:
 			return
 		n = '\n' if newline else ''
 		if type(source) is str:
-			self.console.output.write(source + n)
+			self.console.write(source + n)
 			return
-		self.console.output.write(str(source) + n)
+		self.console.write(str(source) + n)
 
 
 def highlighted_text(text):
