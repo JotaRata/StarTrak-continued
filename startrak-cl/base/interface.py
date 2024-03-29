@@ -182,9 +182,10 @@ def INTERACTIVE_SERVER(helper : Helper, server_out : StringIO):
 	helper.save_buffer()
 	mode = 0
 	escape = ''
+	exit_signal = False
 
 	def on_action(key : str):
-		nonlocal mode, escape
+		nonlocal mode, escape, exit_signal
 		rows, cols = helper.console.size()
 		buffer = StringIO()
 		header = 'Startrak session server log'
@@ -207,6 +208,7 @@ def INTERACTIVE_SERVER(helper : Helper, server_out : StringIO):
 				escape += key
 			elif key == 'enter':
 				if escape == ':q':
+					exit_signal = True
 					return True
 				mode = 0
 
@@ -222,9 +224,9 @@ def INTERACTIVE_SERVER(helper : Helper, server_out : StringIO):
 		return False
 	
 	def update_routine():
-		ret = on_action('')
-		while not ret:
-			ret = on_action('')
+		on_action('')
+		while not exit_signal:
+			on_action('')
 			time.sleep(1)
 
 	helper.handle_action('', callbacks= [on_action])

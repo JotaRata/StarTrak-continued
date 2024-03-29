@@ -102,4 +102,4 @@ def listen():
 		for event in _callbacks:
 			event(norm)
 		
-threading.Thread(target= listen).start()
+threading.Thread(name= 'Keyboard listener', target= listen).start()
