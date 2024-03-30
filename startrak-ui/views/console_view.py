@@ -9,16 +9,17 @@ from PySide6 import QtWidgets
 UI_CONSOLE, _ = load_class('console_view')
 class ConsoleView(QtWidgets.QFrame, UI_CONSOLE):	#type:ignore
 	mode : int
+	console_event : UIEvent
 	def __init__(self, parent: QtWidgets.QWidget = None):
 		super().__init__(parent)
 		self.setupUi(self)
+		self.console_event = UIEvent(self)
 
 		self.terminal = get_child(self, 'terminal', QTerminal)
 		self.line_input = get_child(self, 'line_input', QtWidgets.QLineEdit)
 		self.mode_selector = get_child(self, 'mode_selector', QtWidgets.QComboBox)
-		block_format = QTextBlockFormat()
-		block_format.setLineHeight(1.5, 0x4)
-		self.terminal.textCursor().setBlockFormat(block_format)
+		
+		self.terminal.on_sessionUpdate.connect(self.console_event('session_edit', None))
 
 	def keyPressEvent(self, event: QKeyEvent):
 		key = self.terminal.convert_key(event)

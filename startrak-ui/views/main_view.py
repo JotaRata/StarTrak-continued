@@ -41,6 +41,7 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 		self.session_view.session_event += self.on_sessionEvent
 		self.inspector_view.inspector_event += self.on_inspectorEvent
 		self.image_view.viewer_event += self.on_viewerEvent
+		self.console_view.console_event += self.on_consoleEvent
 		self.fix_splitterWidth() 
 
 	def on_inspectorEvent(self, code : EventCode, value : Any):
@@ -110,6 +111,13 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 			case 'session_focus':
 				self.inspector_view.create_inspector(value)
 				# self.session_view.setCurrentIndex(value)
+			case _:
+				print('Invalid code', code)
+
+	def on_consoleEvent(self, code : EventCode, value : Any):
+		match code:
+			case 'session_edit':
+				self.session_view.rebuild_model()
 			case _:
 				print('Invalid code', code)
 

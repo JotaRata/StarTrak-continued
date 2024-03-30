@@ -5,8 +5,8 @@ import sys
 from typing import Callable
 
 from PySide6 import QtGui
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QKeyEvent
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QKeyEvent, QTextBlockFormat
 from PySide6.QtWidgets import QTextEdit, QWidget
 
 sys.path.append(os.getcwd() + '/startrak-cl')
@@ -14,9 +14,13 @@ consoleapp = SourceFileLoader('consoleapp', 'startrak-cl/console/consoleapp.py')
 ConsoleApp = consoleapp.ConsoleApp
 
 class QTerminal(ConsoleApp, QTextEdit):
+	on_sessionUpdate = Signal()
 	def __init__(self, parent : QWidget) -> None:
 		QTextEdit.__init__(self, parent)
 		ConsoleApp.__init__(self,)
+		block_format = QTextBlockFormat()
+		block_format.setLineHeight(1.5, 0x4)
+		self.textCursor().setBlockFormat(block_format)
 
 		self.output = TerminalOutput(self)
 		sys.stdout = self.output
@@ -31,7 +35,22 @@ class QTerminal(ConsoleApp, QTextEdit):
 		if self._input_mode == 'action':
 			self.process_action(key)
 			return
+		
+	def process(self, string : str):
+		super().process(string)
 
+		if string.startswith('add') or \
+			string.startswith('del') or \
+			string.startswith('open') or \
+			(string.startswith('session') and '-new' in string):
+			self.on_sessionUpdate.emit()
+	
+	def set_mode(self, mode : str, **kwargs):
+		old_mode = getattr(self, '_input_mode', 'text')
+		super().set_mode(mode, **kwargs)
+		if mode == 'text' and old_mode == 'action':
+			self.on_sessionUpdate.emit()
+			
 	def convert_key(self, event : QKeyEvent) -> str:
 		match event.key():
 			case Qt.Key.Key_Enter | Qt.Key.Key_Return:
