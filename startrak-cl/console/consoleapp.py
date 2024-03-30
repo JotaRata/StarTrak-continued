@@ -1,7 +1,7 @@
 import os
 import sys
 from time import sleep
-from typing import Callable
+from typing import Callable, Literal
 from processing.protocols import Executor, Parser, STException
 from processing import parsers as parser
 from processing import executors as execs
@@ -10,6 +10,7 @@ from streams import ConsoleInput, ConsoleOutput
 import _globals
 import startrak
 
+FormatMode = Literal['highlight', 'underline', 'bold', 'blink', 'red', 'yellow', 'blue', 'green', 'magenta']
 _PREFIXES = {'st': '[ST]: ', 'py' : '[PY]: ', 'sh' : '[SH]: ' }
 class ConsoleApp:
 	_language_mode : LanguageMode
@@ -98,3 +99,10 @@ class ConsoleApp:
 		return self.output.getvalue()
 	def flush(self):
 		return self.output.flush()
+	
+	def format(self, text : str, format : FormatMode):
+		match format:
+			case 'highlight':
+				return f'[{text}]'
+			case _:
+				return text

@@ -1,5 +1,5 @@
 from distutils.command import clean
-from .consoleapp import ConsoleApp, _PREFIXES
+from .consoleapp import ConsoleApp, _PREFIXES, FormatMode
 from base import get_command, get_commands
 from _utils import word_index, common_string
 # import keyboard
@@ -168,3 +168,16 @@ class ShellConsole(ConsoleApp):
 			case 'nt' | 'java':
 				os.system('cls')
 		return super().clear()
+	
+	def format(self, text : str, format : FormatMode) -> str:
+		match format:
+			case 'highlight':
+				return f"\033[7m{text}\033[0m"
+			case 'bold':
+				return f"\033[1m{text}\033[0m"
+			case 'underline':
+				return f"\033[4m{text}\033[0m"
+			case 'blink':
+				return f"\033[5m{text}\033[0m"
+			case _:
+				return text

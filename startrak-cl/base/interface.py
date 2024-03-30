@@ -5,8 +5,6 @@ import threading
 import time
 import startrak
 from base import Helper
-from base.classes import highlighted_text, underlined_text, inverse_text
-from processing.protocols import STException
 from startrak.native import FileInfo, Star
 
 def INTERACTIVE_ADD(helper : Helper, mode : str):
@@ -41,7 +39,7 @@ def INTERACTIVE_LIST(helper : Helper, path : str):
 			if not (max(0, line_view) <= i < min(len(paths), line_view + h)):
 				continue
 			if i == line_selected:
-				buffer += inverse_text(p)
+				buffer += helper.format(p, 'highlight')
 			else:
 				buffer += p
 			
@@ -158,18 +156,18 @@ def INTERACTIVE_EDIT(helper: Helper, mode : str, item, new = False):
 		
 		unsaved_flag = 'UNSAVED' if unsaved else ''
 		header = f'Edit attributes for {mode}: "{item.name}"'
-		output += (inverse_text(header + ' ' * (cols - len(header))) + '\n' * 4)
+		output += (helper.format(header + ' ' * (cols - len(header)), 'highlight') + '\n' * 4)
 		indent = ' ' * 4
 		for i, [key, value] in enumerate(attrs):
 			if line_edit == i:
-				line =  inverse_text(f'{key}:') + ' ' * (30 - len(key)) + inverse_text(f'{value}\n')
+				line =  helper.format(f'{key}:', 'highlight') + ' ' * (30 - len(key)) + helper.format(f'{value}\n', 'highlight')
 			elif line_selected == i:
-				line = inverse_text(f'{key}:') + ' ' * (30 - len(key)) + underlined_text(f'{value}\n')
+				line = helper.format(f'{key}:', 'highlight') + ' ' * (30 - len(key)) + helper.format(f'{value}\n', 'underline')
 			else:
 				line = f'{key}:' + ' ' * (30 - len(key)) + f'{value}\n'
 			output += (indent + line)
 		output += ('\n' * (rows - (5 + i + 2)))
-		output += (inverse_text(footer + ' ' * (cols - len(footer) - len(unsaved_flag)) + unsaved_flag))
+		output += (helper.format(footer + ' ' * (cols - len(footer) - len(unsaved_flag)) + unsaved_flag, 'highlight'))
 
 		helper.clear_console()
 		helper.print(output, False)
@@ -189,7 +187,7 @@ def INTERACTIVE_SERVER(helper : Helper, server_out : StringIO):
 		rows, cols = helper.console.size()
 		buffer = StringIO()
 		header = 'Startrak session server log'
-		buffer.write(inverse_text(header + ' ' * (cols - len(header)) + '\n'))
+		buffer.write(helper.format(header + ' ' * (cols - len(header)) + '\n', 'highlight'))
 		buffer.write('\n' * 2)
 
 		lines = server_out.getvalue().split('\n')
@@ -215,7 +213,7 @@ def INTERACTIVE_SERVER(helper : Helper, server_out : StringIO):
 		footer = 'READ' if mode == 0 else 'ESC ' + escape
 
 		buffer.write('\n' * (rows - 4 - len(lines)))
-		buffer.write(inverse_text(footer + ' ' * (cols - len(footer)) ))
+		buffer.write(helper.format(footer + ' ' * (cols - len(footer)) , 'highlight'))
 
 		helper.clear_console()
 		helper.print(buffer.getvalue(), False)

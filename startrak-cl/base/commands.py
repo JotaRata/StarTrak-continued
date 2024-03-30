@@ -1,11 +1,9 @@
 import os
 import re
 import startrak
-from base import ReturnInfo, get_text, register, pos, key, opos, okey, name, text, obj, path, Helper
-from base.classes import highlighted_text, underlined_text, inverse_text
+from base import ReturnInfo, get_text, register, pos, key, opos, okey, text, path, Helper
 from base.interface import INTERACTIVE_ADD, INTERACTIVE_EDIT, INTERACTIVE_LIST, INTERACTIVE_SERVER
 from processing.protocols import STException
-from startrak.native import FileInfo, Star
 
 def check_interactivity(helper):
 	if not helper.printable:	# Only false when command is chained

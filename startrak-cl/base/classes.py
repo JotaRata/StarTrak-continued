@@ -1,9 +1,12 @@
 from __future__ import annotations
 from dataclasses import dataclass
-import os
-from typing import Callable, NamedTuple
+from typing import Callable, NamedTuple, TYPE_CHECKING
+import typing
 from processing.protocols import STException
 import _globals
+
+if TYPE_CHECKING:
+	from console.consoleapp import ConsoleApp, FormatMode
 
 class Positional:
 	def __init__(self, index, kind) -> None:
@@ -71,6 +74,8 @@ class _CommandInfo:
 		return retval
 
 class Helper:
+	console : ConsoleApp
+
 	def __init__(self, command : _CommandInfo, args : list[str], printable= True) -> None:
 		self.console = _globals.CONSOLE_INSTANCE
 		self.args = args
@@ -155,21 +160,7 @@ class Helper:
 			return
 		self.console.write(str(source) + n)
 
-
-def highlighted_text(text):
-	highlighted_text = f"\033[1m{text}\033[0m"
-	return highlighted_text
-
-def underlined_text(text):
-	underlined_text = f"\033[4m{text}\033[0m"
-	return underlined_text
-
-def inverse_text(text):
-	inverse_text = f"\033[7m{text}\033[0m"
-	return inverse_text
-
-def blinking_text(text):
-	blinking_text = f"\033[5m{text}\033[0m"
-	return blinking_text
+	def format(self, text : str, format : FormatMode):
+		return self.console.format(text, format)
 
 _REGISTERED_COMMANDS = dict[str, _CommandInfo]()

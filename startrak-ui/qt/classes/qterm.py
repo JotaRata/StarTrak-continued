@@ -1,5 +1,6 @@
 from importlib.machinery import SourceFileLoader
 import os
+import re
 import sys
 from typing import Callable
 
@@ -19,10 +20,10 @@ class QTerminal(ConsoleApp, QTextEdit):
 
 		self.output = TerminalOutput(self)
 		sys.stdout = self.output
-		# sys.stderr = self.output
+		sys.stderr = self.output
 
 	def size(self):
-		line_width = self.fontMetrics().lineWidth()
+		line_width = self.fontMetrics().horizontalAdvance('A') + 1
 		line_height = self.fontMetrics().height()
 		return self.height() // line_height, self.width() // line_width
 
@@ -59,12 +60,26 @@ class QTerminal(ConsoleApp, QTextEdit):
 				key = event.text()
 		return key
 	
+	def format(self, text : str, format : str):
+		match format:
+			case 'bold':
+				return f'<b>{text}</b>'
+			case 'underline':
+				return f'<u>{text}</u>'
+			case 'highlight':
+				return f'<span style="background-color: #f0f0f0; color: #000000;"> {text} </span>'
+			case _:
+				return text
+	
 class TerminalOutput:
 	def __init__(self, parent : QTextEdit) -> None:
 		self.parent = parent
 
 	def write(self, string : str):
-		self.parent.insertPlainText(string)
+		html = string.replace('\n', '<br>').replace('  ', "&nbsp; ")
+		# html = re.sub(r" {4,}", "&nbsp;", html)
+
+		self.parent.insertHtml(html)
 		self.parent.moveCursor(QtGui.QTextCursor.MoveOperation.End)
 	def flush(self):
 		pass
