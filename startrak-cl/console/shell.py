@@ -1,3 +1,4 @@
+from distutils.command import clean
 from .consoleapp import ConsoleApp, _PREFIXES
 from base import get_command, get_commands
 from _utils import word_index, common_string
@@ -159,3 +160,11 @@ class ShellConsole(ConsoleApp):
 				self.cursor = len(possible[0])
 
 		clear_newline()
+
+	def clear(self):
+		match os.name:
+			case 'posix':
+				os.system('clear')
+			case 'nt' | 'java':
+				os.system('cls')
+		return super().clear()

@@ -136,12 +136,7 @@ class Helper:
 		del self._buffer
 
 	def clear_console(self):
-		match os.name:
-			case 'posix':
-				os.system('clear')
-			case 'nt' | 'java':
-				os.system('cls')
-		self.console.output.clear()
+		self.console.clear()
 
 	def flush_console(self):
 		self.console.flush()

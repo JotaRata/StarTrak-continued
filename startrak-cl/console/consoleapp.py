@@ -38,6 +38,7 @@ class ConsoleApp:
 		self.set_language('st')
 		self.set_mode('text')
 		sys.stdout = self.output
+		sys.stderr = self.output
 
 	def set_mode(self, mode : InputMode, **kwargs):
 		self.input.clear()
@@ -89,6 +90,8 @@ class ConsoleApp:
 		if exit_flag:
 			self.set_mode('text')
 	
+	def clear(self):
+		self.output.clear()
 	def write(self, __s : str):
 		return self.output.write(__s)
 	def read(self):

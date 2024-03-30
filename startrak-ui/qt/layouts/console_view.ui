@@ -10,6 +10,9 @@
     <height>448</height>
    </rect>
   </property>
+  <property name="focusPolicy">
+   <enum>Qt::StrongFocus</enum>
+  </property>
   <property name="windowTitle">
    <string>Frame</string>
   </property>
@@ -30,13 +33,16 @@
     <number>2</number>
    </property>
    <item>
-    <widget class="QTextEdit" name="scroll_text">
+    <widget class="QTerminal" name="terminal">
      <property name="font">
       <font>
        <family>Courier</family>
        <pointsize>10</pointsize>
-       <fontweight>Medium</fontweight>
+       <bold>true</bold>
       </font>
+     </property>
+     <property name="focusPolicy">
+      <enum>Qt::NoFocus</enum>
      </property>
      <property name="frameShape">
       <enum>QFrame::NoFrame</enum>
@@ -123,7 +129,7 @@
          <font>
           <family>Courier</family>
           <pointsize>10</pointsize>
-          <fontweight>Medium</fontweight>
+          <bold>true</bold>
          </font>
         </property>
         <property name="frame">
@@ -149,6 +155,13 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QTerminal</class>
+   <extends>QTextEdit</extends>
+   <header location="global">qt.classes.qterm</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections>
   <connection>
