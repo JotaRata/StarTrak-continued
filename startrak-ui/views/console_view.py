@@ -7,8 +7,12 @@ from PySide6.QtCore import QObject, Qt, Signal, Slot
 from PySide6.QtGui import QFont, QTextBlockFormat
 from qt.extensions import *
 from PySide6 import QtWidgets
-
+from importlib.machinery import SourceFileLoader
 import startrak
+
+sys.path.append(os.getcwd() + '/startrak-cl')
+qterm = SourceFileLoader('qterm', 'startrak-cl/console/qterm.py').load_module()
+QTerminal = qterm.QTerminal
 
 UI_CONSOLE, _ = load_class('console_view')
 class ConsoleView(QtWidgets.QFrame, UI_CONSOLE):	#type:ignore
@@ -17,37 +21,20 @@ class ConsoleView(QtWidgets.QFrame, UI_CONSOLE):	#type:ignore
 		super().__init__(parent)
 		self.setupUi(self)
 
-		self.scroll_text = get_child(self, 'scroll_text', QtWidgets.QTextEdit)
+		self.console_text = get_child(self, 'scroll_text', QtWidgets.QTextEdit)
 		self.line_input = get_child(self, 'line_input', QtWidgets.QLineEdit)
 		self.mode_selector = get_child(self, 'mode_selector', QtWidgets.QComboBox)
-
-		# todo: replace with actual output from Startrak CL
-		self.scroll_text.textCursor().clearSelection()
-		self.scroll_text.insertPlainText('Startrak ' + startrak.VERSION + '\n')	#type:ignore
-		self.scroll_text.insertPlainText('=' * 40 + '\n')
-
-		self.stdout = StdoutListener()
-		self.stderr = StderrListener()
-		sys.stdout = self.stdout		#type: ignore
-		sys.stderr = self.stderr		#type: ignore
-		self.stdout.write_event.connect(self.update_console)
-		self.stderr.write_event.connect(self.update_console)
-
-		self.mode = 0
-		self.mode_selector.addItem('>', 'Python')
-		self.mode_selector.addItem('!', 'Bash/CMD')
-		self.mode_selector.setItemDelegate(SelectorBoxDelegate())
-
 		block_format = QTextBlockFormat()
 		block_format.setLineHeight(1.5, 0x4)
-		self.scroll_text.textCursor().setBlockFormat(block_format)
-		self._globals = {val: getattr(startrak, val) for val in dir(startrak) if '__' not in val}
+		self.console_text.textCursor().setBlockFormat(block_format)
 
-	def update_console(self, text : str):
-		self.scroll_text.moveCursor(QtGui.QTextCursor.MoveOperation.End)
-		self.scroll_text.insertPlainText(text)
-		self.scroll_text.moveCursor(QtGui.QTextCursor.MoveOperation.End)
-
+		def on_write():
+			self.console_text.clear()
+			self.console_text.setText(self.console.read())
+			self.console_text.moveCursor(QtGui.QTextCursor.MoveOperation.End)
+		self.console = QTerminal(write_event= on_write)
+		# self.console.process('connect')
+		
 	@Slot(int)
 	def set_mode(self, mode : int):
 		self.mode = mode
@@ -65,56 +52,9 @@ class ConsoleView(QtWidgets.QFrame, UI_CONSOLE):	#type:ignore
 	@Slot()
 	def command_sent(self):
 		text = self.line_input.text()
-		if self.mode == 0:
-			if not text:
-				self.update_console('> ' + '\n')
-				return
-			self.update_console('> ' + text + '\n')
-			try:
-				result = eval(text, self._globals)
-			except SyntaxError:
-				exec(text, self._globals)
-				result = None
-			finally:
-				self.line_input.clear()
-			if result:
-				self.update_console(repr(result) + '\n')
-		
-		elif self.mode == 1:
-			if not text:
-				return
-			self.update_console('! ' + text + '\n')
-			result = subprocess.check_output(text, shell=True, text= True, env= os.environ)
-			if result:
-				self.update_console(result + '\n')
-			self.line_input.clear()
-			self.mode_selector.setCurrentIndex(0)
+		self.console.process(text)
+		self.line_input.clear()
 
-class StdoutListener(QtCore.QObject):
-	write_event = Signal(str)
-	def __init__(self) -> None:
-		super().__init__()
-		self.__stdout__ = sys.stdout
-	
-	def write(self, s: str):
-		self.__stdout__.write(s)
-		if not s == '\n':
-			self.write_event.emit(s + '\n')
-	def flush(self):
-		self.__stdout__.flush()
-
-class StderrListener(QtCore.QObject):
-	write_event = Signal(str)
-	def __init__(self) -> None:
-		super().__init__()
-		self.__stderr__ = sys.stderr
-	
-	def write(self, s: str):
-		self.__stderr__.write(s)
-		if not s == '\n':
-			self.write_event.emit(s + '\n')
-	def flush(self):
-		self.__stderr__.flush()
 
 class SelectorBoxDelegate(QtWidgets.QStyledItemDelegate):
 	def paint(self, painter, option, index):

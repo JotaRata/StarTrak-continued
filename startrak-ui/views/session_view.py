@@ -4,6 +4,7 @@ from PySide6.QtCore import QModelIndex, Qt
 from PySide6.QtGui import QIcon, QMouseEvent, QStandardItem, QStandardItemModel
 import startrak.native
 import startrak.native.ext
+import startrak
 
 from views.application import Application
 from qt.extensions import *
@@ -20,7 +21,7 @@ class SessionTreeView(QtWidgets.QTreeView):
 		header = SessionHeader(Qt.Orientation.Horizontal, self)
 		self.setHeader(header)
 
-		self.session = app.st_module.get_session()
+		self.session = startrak.get_session()
 		self.setModel(self.session)
 		self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
 	
@@ -34,6 +35,7 @@ class SessionTreeView(QtWidgets.QTreeView):
 		model = self.model()
 		model.clear()
 		model._map.clear()
+		self.session = startrak.get_session()
 		model.rootItem = model.add_item(self.session, self.session.name, model)
 		model.build_tree(self.session, model.rootItem)
 		self.expand(model.index(0, 0, QtCore.QModelIndex()))
