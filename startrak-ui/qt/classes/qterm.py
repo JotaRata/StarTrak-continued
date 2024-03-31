@@ -7,24 +7,30 @@ from typing import Callable
 from PySide6 import QtGui
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QKeyEvent, QTextBlockFormat
-from PySide6.QtWidgets import QTextEdit, QWidget
+from PySide6.QtWidgets import QLineEdit, QTextEdit, QWidget
 
 sys.path.append(os.getcwd() + '/startrak-cl')
 consoleapp = SourceFileLoader('consoleapp', 'startrak-cl/console/consoleapp.py').load_module()
 ConsoleApp = consoleapp.ConsoleApp
+_PREFIXES = consoleapp._PREFIXES
 
 class QTerminal(ConsoleApp, QTextEdit):
 	on_sessionUpdate = Signal()
 	def __init__(self, parent : QWidget) -> None:
 		QTextEdit.__init__(self, parent)
-		ConsoleApp.__init__(self,)
+		# ConsoleApp.__init__(self,)
 		block_format = QTextBlockFormat()
 		block_format.setLineHeight(1.5, 0x4)
 		self.textCursor().setBlockFormat(block_format)
 
-		self.output = TerminalOutput(self)
+		self.output = QTerminalOutput(self)
 		sys.stdout = self.output
 		sys.stderr = self.output
+	
+	def set_stdin(self, input : QLineEdit):
+		self.input = QterminalInput(input)
+		self.set_language('st')
+		self.set_mode('text')
 
 	def size(self):
 		line_width = self.fontMetrics().horizontalAdvance('A') + 1
@@ -34,10 +40,17 @@ class QTerminal(ConsoleApp, QTextEdit):
 	def on_keyEvent(self, key : str):
 		if self._input_mode == 'action':
 			self.process_action(key)
-			return
+		elif self._input_mode == 'text':
+			if not self.input.parent.hasFocus():
+				self.input.write(key)
+				self.input.parent.setFocus()
 		
 	def process(self, string : str):
+		prompt = _PREFIXES[self._language_mode]
+		self.output.write(f'<b>{prompt}</b>')
+		self.output.write(string + '<br>')
 		super().process(string)
+		self.input.clear()
 
 		if string.startswith('add') or \
 			string.startswith('del') or \
@@ -48,6 +61,12 @@ class QTerminal(ConsoleApp, QTextEdit):
 	def set_mode(self, mode : str, **kwargs):
 		old_mode = getattr(self, '_input_mode', 'text')
 		super().set_mode(mode, **kwargs)
+		if mode == 'text':
+			self.input.parent.setReadOnly(False)
+			self.input.parent.setFocus()
+		elif mode == 'action':
+			self.input.parent.setReadOnly(True)
+			self.parent().setFocus()
 		if mode == 'text' and old_mode == 'action':
 			self.on_sessionUpdate.emit()
 			
@@ -90,7 +109,7 @@ class QTerminal(ConsoleApp, QTextEdit):
 			case _:
 				return text
 	
-class TerminalOutput:
+class QTerminalOutput:
 	def __init__(self, parent : QTextEdit) -> None:
 		self.parent = parent
 
@@ -108,3 +127,18 @@ class TerminalOutput:
 		return self.read()
 	def clear(self):
 		QTextEdit.clear(self.parent)
+
+class QterminalInput:
+	def __init__(self, parent : QLineEdit) -> None:
+		self.parent = parent
+
+	def write(self, string : str):
+		self.parent.insert(string)
+	def flush(self):
+		pass
+	def read(self):
+		return self.parent.text()
+	def getvalue(self):
+		return self.read()
+	def clear(self):
+		QLineEdit.clear(self.parent)

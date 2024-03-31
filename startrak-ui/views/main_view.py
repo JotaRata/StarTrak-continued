@@ -118,6 +118,8 @@ class MainView(QtWidgets.QMainWindow, UI_MainWindow):	#type: ignore[valid-type, 
 		match code:
 			case 'session_edit':
 				self.session_view.rebuild_model()
+				self.inspector_view.redraw_inspector()
+				self.image_view.redraw_viewer()
 			case _:
 				print('Invalid code', code)
 

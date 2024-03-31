@@ -1,6 +1,6 @@
 
-from PySide6.QtCore import Qt, Slot
-from PySide6.QtGui import QKeyEvent, QTextBlockFormat
+from PySide6.QtCore import QEvent, Qt, Slot
+from PySide6.QtGui import QKeyEvent
 from qt.extensions import *
 from qt.classes.qterm import QTerminal
 from PySide6 import QtWidgets
@@ -8,7 +8,6 @@ from PySide6 import QtWidgets
 
 UI_CONSOLE, _ = load_class('console_view')
 class ConsoleView(QtWidgets.QFrame, UI_CONSOLE):	#type:ignore
-	mode : int
 	console_event : UIEvent
 	def __init__(self, parent: QtWidgets.QWidget = None):
 		super().__init__(parent)
@@ -17,8 +16,13 @@ class ConsoleView(QtWidgets.QFrame, UI_CONSOLE):	#type:ignore
 
 		self.terminal = get_child(self, 'terminal', QTerminal)
 		self.line_input = get_child(self, 'line_input', QtWidgets.QLineEdit)
+		self.terminal.set_stdin(self.line_input)
 		self.mode_selector = get_child(self, 'mode_selector', QtWidgets.QComboBox)
-		
+		self.mode_selector.addItem('[ST]', 'Startrak')
+		self.mode_selector.addItem('[PY]', 'Python')
+		self.mode_selector.addItem('[SH]', 'Shell')
+		self.mode_selector.setItemDelegate(SelectorBoxDelegate())
+
 		self.terminal.on_sessionUpdate.connect(self.console_event('session_edit', None))
 
 	def keyPressEvent(self, event: QKeyEvent):
@@ -28,16 +32,22 @@ class ConsoleView(QtWidgets.QFrame, UI_CONSOLE):	#type:ignore
 	
 	@Slot(int)
 	def set_mode(self, mode : int):
-		self.mode = mode
+		match mode:
+			case 0:
+				self.terminal.set_language('st')
+			case 1:
+				self.terminal.set_language('py')
+			case 2:
+				self.terminal.set_language('sh')
 
 	@Slot(str)
 	def text_edited(self, text : str):
 		lstrip = text.lstrip()
 		if lstrip.startswith('>'):
-			self.mode_selector.setCurrentIndex(0)
+			self.mode_selector.setCurrentIndex(1)
 			self.line_input.setText(lstrip[1:])
 		if lstrip.startswith('!'):
-			self.mode_selector.setCurrentIndex(1)
+			self.mode_selector.setCurrentIndex(2)
 			self.line_input.setText(lstrip[1:])
 
 	@Slot()
@@ -45,6 +55,7 @@ class ConsoleView(QtWidgets.QFrame, UI_CONSOLE):	#type:ignore
 		text = self.line_input.text()
 		self.terminal.process(text)
 		self.line_input.clear()
+		self.mode_selector.setCurrentIndex(0)
 
 
 class SelectorBoxDelegate(QtWidgets.QStyledItemDelegate):
