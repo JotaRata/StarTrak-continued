@@ -1,5 +1,5 @@
 
-from PySide6.QtCore import QEvent, QTimer, Qt, Slot
+from PySide6.QtCore import QEvent, QObject, QTimer, Qt, Slot
 from PySide6.QtGui import QKeyEvent
 from qt.extensions import *
 from qt.classes.qterm import QTerminal
@@ -24,11 +24,12 @@ class ConsoleView(QtWidgets.QFrame, UI_CONSOLE):	#type:ignore
 		self.mode_selector.setItemDelegate(SelectorBoxDelegate())
 		self.terminal.on_sessionUpdate.connect(self.console_event('session_edit', None))
 		QTimer.singleShot(500, self, self.terminal.prepare)
+		
+		terminal_filter = TerminalEventFilter(self)
+		input_filter = InputEventFilter(self)
+		self.installEventFilter(terminal_filter)
+		self.line_input.installEventFilter(input_filter)
 
-	def keyPressEvent(self, event: QKeyEvent):
-		key = self.terminal.convert_key(event)
-		self.terminal.on_keyEvent(key)
-		return super().keyPressEvent(event)
 	
 	@Slot(int)
 	def set_mode(self, mode : int):
@@ -54,9 +55,24 @@ class ConsoleView(QtWidgets.QFrame, UI_CONSOLE):	#type:ignore
 	def command_sent(self):
 		text = self.line_input.text()
 		self.terminal.process(text)
-		self.line_input.clear()
 		self.mode_selector.setCurrentIndex(0)
 
+class TerminalEventFilter(QObject):
+	def eventFilter(self, obj,  event):
+		if event.type() == QEvent.Type.KeyPress:
+				key = self.parent().terminal.convert_key(event)
+				self.parent().terminal.on_keyEvent(key)
+
+				if event.key() == Qt.Key.Key_Tab:
+					return True
+		return super().eventFilter(obj, event)
+class InputEventFilter(QObject):
+	def eventFilter(self, obj,  event):
+		if event.type() == QEvent.Type.KeyPress:
+				if event.key() == Qt.Key.Key_Tab:
+					self.parent().terminal.on_keyEvent('tab')
+					return True
+		return super().eventFilter(obj, event)
 
 class SelectorBoxDelegate(QtWidgets.QStyledItemDelegate):
 	def paint(self, painter, option, index):

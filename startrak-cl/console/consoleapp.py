@@ -7,6 +7,8 @@ from processing import parsers as parser
 from processing import executors as execs
 from alias import InputMode, LanguageMode
 from streams import ConsoleInput, ConsoleOutput
+from base import get_command, get_commands
+from _utils import word_index, common_string
 import _globals
 import startrak
 
@@ -75,7 +77,6 @@ class ConsoleApp:
 			if self._input_mode == 'action':
 				self.set_mode('text')
 		except Exception as e:
-			raise
 			print('Python Error:', e)
 		if self._language_mode != 'st':
 			self.set_language('st')
@@ -90,6 +91,54 @@ class ConsoleApp:
 				exit_flag &= flag
 		if exit_flag:
 			self.set_mode('text')
+
+	def complete_name(self, input_text : str):
+		if self._language_mode != 'st':
+				return False
+		possible = []
+		if not ' ' in input_text.strip():
+			for command in get_commands():
+				if command.lower().startswith(input_text.lower()):
+					possible.append(command)
+		else:
+			words, word_idx, _ = word_index(input_text, self.cursor)
+			command = get_command(words[0])
+			if not command or (words[word_idx].startswith('-') or (words[0]=='add' and words[1]=='star')):
+				return False
+			if getattr(command.args[word_idx - 1].type, '__name__', None) == 'path':
+				scan_path = os.getcwd()
+				dir_idx = 0
+				curr_indx = 0
+				if '/' in words[word_idx]:
+					dirs, dir_idx, curr_indx = word_index(words[word_idx], self.cursor - len(" ".join(words[:word_idx])) - 1, '/')
+					new_path = '/'.join(dirs[:-1])
+					if os.path.exists(new_path):
+						scan_path = new_path
+
+				for path in os.scandir(scan_path):
+					if (p:=os.path.basename(path)).lower().startswith(words[word_idx][curr_indx:].strip('"').lower()):
+						if dir_idx == 0:
+							res = f'{" ".join(words[:word_idx])} {p}' if not ' ' in p else f'{command.name} "{p}"' 
+						else:
+							res = f'{" ".join(words[:word_idx])} {scan_path}/{p}' if not ' ' in p else f'{command.name} {scan_path}/"{p}"' 
+
+						possible.append(res)
+		
+		if len(possible) > 1:
+				self.output.write('\n')
+				self.output.write('\n'.join(possible) + '\n')
+
+				common = common_string(possible)
+				if common:
+					self.input.clear()
+					self.input.write(common)
+					self.cursor = len(common)
+		elif len(possible) == 1:
+			self.input.clear()
+			self.input.write(possible[0])
+			self.cursor = len(possible[0])
+		return True
+
 	
 	def clear(self):
 		self.output.clear()

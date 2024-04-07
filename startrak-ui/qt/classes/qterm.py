@@ -46,6 +46,13 @@ class QTerminal(ConsoleApp, QTextEdit):
 		self.set_language('st')
 		self.set_mode('text')
 	
+	@property
+	def cursor(self):
+		return self.input.parent.cursorPosition()
+	@cursor.setter
+	def cursor(self, value : int):
+		self.input.parent.setCursorPosition(value)
+
 	def size(self):
 		line_width = self.fontMetrics().horizontalAdvance('A') + 1
 		line_height = self.fontMetrics().height()
@@ -62,6 +69,12 @@ class QTerminal(ConsoleApp, QTextEdit):
 			if key == 'down':
 				self.history_index, _, lang = self.input.retrieve_state(self.history_index - 1)
 				self.set_language(lang)
+			if key == 'tab':
+				completed = self.complete_name(self.input.getvalue())
+				if not completed:
+					prompt = _PREFIXES[self._language_mode]
+					new_text = self.input.get_text() 
+					self.output.write(prompt + new_text + '\n')
 
 			if not self.input.parent.hasFocus() and len(key) == 1:
 				self.input.write(key)
@@ -69,10 +82,10 @@ class QTerminal(ConsoleApp, QTextEdit):
 		
 	def process(self, string : str):
 		prompt = _PREFIXES[self._language_mode]
-		self.output.write(f'<b>{prompt}</b>')
-		self.output.write(string + '<br>')
 		self.input.save_state(self._language_mode)
 		self.input.clear()
+		self.output.write(f'<b>{prompt}</b>')
+		self.output.write(string + '<br>')
 		self.history_index = 0
 		super().process(string)
 

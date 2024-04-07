@@ -129,8 +129,17 @@
           <bold>true</bold>
          </font>
         </property>
+        <property name="focusPolicy">
+         <enum>Qt::ClickFocus</enum>
+        </property>
+        <property name="inputMethodHints">
+         <set>Qt::ImhLatinOnly</set>
+        </property>
         <property name="frame">
          <bool>false</bool>
+        </property>
+        <property name="clearButtonEnabled">
+         <bool>true</bool>
         </property>
        </widget>
       </item>
@@ -159,6 +168,11 @@
    <header location="global">qt.classes.qterm</header>
   </customwidget>
  </customwidgets>
+ <tabstops>
+  <tabstop>line_input</tabstop>
+  <tabstop>toolButton</tabstop>
+  <tabstop>mode_selector</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>
