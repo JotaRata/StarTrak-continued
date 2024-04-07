@@ -1,7 +1,7 @@
 from __future__ import annotations
 from PySide6 import QtCore, QtWidgets
 from PySide6.QtCore import QModelIndex, Qt
-from PySide6.QtGui import QIcon, QMouseEvent, QStandardItem, QStandardItemModel
+from PySide6.QtGui import QIcon, QMouseEvent, QShowEvent, QStandardItem, QStandardItemModel
 import startrak.native
 import startrak.native.ext
 import startrak
@@ -25,6 +25,11 @@ class SessionTreeView(QtWidgets.QTreeView):
 		self.setModel(self.session)
 		self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
 	
+	def showEvent(self, event: QShowEvent) -> None:
+		self.setColumnWidth(0, 0.75 * self.width())
+		self.setColumnWidth(1, 0.25 * self.width())
+		return super().showEvent(event)
+	
 	def setModel(self, session):
 		model = SessionModel(session)
 		super().setModel(model)
@@ -33,12 +38,24 @@ class SessionTreeView(QtWidgets.QTreeView):
 
 	def rebuild_model(self):
 		model = self.model()
+		files_exp = self.isExpanded(model.get_index(self.session.included_files))
+		stars_exp = self.isExpanded(model.get_index(self.session.included_stars))
+		col_widths = self.columnWidth(0), self.columnWidth(1)
+
 		model.clear()
 		model._map.clear()
 		self.session = startrak.get_session()
 		model.rootItem = model.add_item(self.session, self.session.name, model)
 		model.build_tree(self.session, model.rootItem)
 		self.expand(model.index(0, 0, QtCore.QModelIndex()))
+
+		if files_exp:
+			self.expand(model.get_index(self.session.included_files))
+		if stars_exp:
+			self.expand(model.get_index(self.session.included_stars))
+		self.setColumnWidth(0, col_widths[0])
+		self.setColumnWidth(1, col_widths[1])
+		
 	
 	def model(self) -> SessionModel:
 		return cast(SessionModel, super().model())
