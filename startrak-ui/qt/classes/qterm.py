@@ -14,7 +14,10 @@ import startrak
 
 sys.path.append(os.getcwd() + '/startrak-cl')
 consoleapp = SourceFileLoader('consoleapp', 'startrak-cl/console/consoleapp.py').load_module()
+streams = SourceFileLoader('consoleapp', 'startrak-cl/streams.py').load_module()
 ConsoleApp = consoleapp.ConsoleApp
+ConsoleOutput = streams.ConsoleOutput
+ConsoleInput = streams.ConsoleInput
 _PREFIXES = consoleapp._PREFIXES
 
 class QTerminal(ConsoleApp, QTextEdit):
@@ -27,6 +30,7 @@ class QTerminal(ConsoleApp, QTextEdit):
 		self.textCursor().setBlockFormat(block_format)
 
 		self.output = QTerminalOutput(self)
+		self.history_index = 0
 		sys.stdout = self.output
 		sys.stderr = self.output
 
@@ -38,7 +42,7 @@ class QTerminal(ConsoleApp, QTextEdit):
 		self.output.write(' \n' * (self.size()[0] - 4))
 	
 	def set_stdin(self, input : QLineEdit):
-		self.input = QterminalInput(input)
+		self.input = QTerminalInput(input)
 		self.set_language('st')
 		self.set_mode('text')
 	
@@ -51,7 +55,15 @@ class QTerminal(ConsoleApp, QTextEdit):
 		if self._input_mode == 'action':
 			self.process_action(key)
 		elif self._input_mode == 'text':
-			if not self.input.parent.hasFocus():
+			lang = self._language_mode
+			if key == 'up':
+				self.history_index, _, lang = self.input.retrieve_state(self.history_index + 1)
+				self.set_language(lang)
+			if key == 'down':
+				self.history_index, _, lang = self.input.retrieve_state(self.history_index - 1)
+				self.set_language(lang)
+
+			if not self.input.parent.hasFocus() and len(key) == 1:
 				self.input.write(key)
 				self.input.parent.setFocus()
 		
@@ -59,8 +71,10 @@ class QTerminal(ConsoleApp, QTextEdit):
 		prompt = _PREFIXES[self._language_mode]
 		self.output.write(f'<b>{prompt}</b>')
 		self.output.write(string + '<br>')
-		super().process(string)
+		self.input.save_state(self._language_mode)
 		self.input.clear()
+		self.history_index = 0
+		super().process(string)
 
 		if string.startswith('add') or \
 			string.startswith('del') or \
@@ -121,16 +135,15 @@ class QTerminal(ConsoleApp, QTextEdit):
 			case _:
 				return text
 	
-class QTerminalOutput:
+class QTerminalOutput(ConsoleOutput):
 	def __init__(self, parent : QTextEdit) -> None:
 		self.parent = parent
 
 	def write(self, string : str):
 		html = string.replace('\n', '<br>').replace('  ', "&nbsp; ")
-		# html = re.sub(r" {4,}", "&nbsp;", html)
-
 		self.parent.insertHtml(html)
 		self.parent.moveCursor(QtGui.QTextCursor.MoveOperation.End)
+
 	def flush(self):
 		pass
 	def read(self):
@@ -140,9 +153,10 @@ class QTerminalOutput:
 	def clear(self):
 		QTextEdit.clear(self.parent)
 
-class QterminalInput:
+class QTerminalInput(ConsoleInput):
 	def __init__(self, parent : QLineEdit) -> None:
 		self.parent = parent
+		super().__init__()
 
 	def write(self, string : str):
 		self.parent.insert(string)
