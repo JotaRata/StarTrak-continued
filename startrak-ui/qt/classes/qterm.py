@@ -1,5 +1,6 @@
 from importlib.machinery import SourceFileLoader
 import os
+import platform
 import re
 import sys
 from typing import Callable
@@ -8,6 +9,8 @@ from PySide6 import QtGui
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QKeyEvent, QTextBlockFormat
 from PySide6.QtWidgets import QLineEdit, QTextEdit, QWidget
+
+import startrak
 
 sys.path.append(os.getcwd() + '/startrak-cl')
 consoleapp = SourceFileLoader('consoleapp', 'startrak-cl/console/consoleapp.py').load_module()
@@ -26,12 +29,19 @@ class QTerminal(ConsoleApp, QTextEdit):
 		self.output = QTerminalOutput(self)
 		sys.stdout = self.output
 		sys.stderr = self.output
+
+	def prepare(self):
+		self.output.write(f'Current working directory: {os.path.basename(os.getcwd())}/\n')
+		self.output.write(f'Version: {startrak.VERSION} {platform.platform()} python {platform.python_version()} \n')
+		self.output.write('Welcome to startrak.\n')
+
+		self.output.write(' \n' * (self.size()[0] - 4))
 	
 	def set_stdin(self, input : QLineEdit):
 		self.input = QterminalInput(input)
 		self.set_language('st')
 		self.set_mode('text')
-
+	
 	def size(self):
 		line_width = self.fontMetrics().horizontalAdvance('A') + 1
 		line_height = self.fontMetrics().height()
@@ -64,7 +74,9 @@ class QTerminal(ConsoleApp, QTextEdit):
 		if mode == 'text':
 			self.input.parent.setReadOnly(False)
 			self.input.parent.setFocus()
+			self.input.parent.parent().show()
 		elif mode == 'action':
+			self.input.parent.parent().hide()
 			self.input.parent.setReadOnly(True)
 			self.parent().setFocus()
 		if mode == 'text' and old_mode == 'action':

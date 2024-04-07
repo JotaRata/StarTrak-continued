@@ -1,5 +1,5 @@
 
-from PySide6.QtCore import QEvent, Qt, Slot
+from PySide6.QtCore import QEvent, QTimer, Qt, Slot
 from PySide6.QtGui import QKeyEvent
 from qt.extensions import *
 from qt.classes.qterm import QTerminal
@@ -22,8 +22,8 @@ class ConsoleView(QtWidgets.QFrame, UI_CONSOLE):	#type:ignore
 		self.mode_selector.addItem('[PY]', 'Python')
 		self.mode_selector.addItem('[SH]', 'Shell')
 		self.mode_selector.setItemDelegate(SelectorBoxDelegate())
-
 		self.terminal.on_sessionUpdate.connect(self.console_event('session_edit', None))
+		QTimer.singleShot(500, self, self.terminal.prepare)
 
 	def keyPressEvent(self, event: QKeyEvent):
 		key = self.terminal.convert_key(event)
