@@ -1,36 +1,31 @@
 from typing import Callable
-from .classes import _REGISTERED_COMMANDS, _CommandInfo, Keyword, Positional, Optional, OptionalKeyword, TextRetriever
+from .classes import _REGISTERED_COMMANDS, _CommandInfo, Keyword, Positional, Optional, OptionalKeyword, TextRetriever, ArgList
 from .classes import ReturnInfo, Helper
 
+# Parameter types
 def name(__r : ReturnInfo | str):
-	''' Name of an object or string'''
 	if type(__r) is str:
 		return __r
 	return str(__r.name)
+
 def text(__r : ReturnInfo | str):
-	''' Text in an object or string'''
 	if type(__r) is str:
 		return __r
 	return str(__r.text)
+
 def path(__r : ReturnInfo | str):
-	''' path in an object or string or name if it's not available'''
 	if type(__r) is str:
 		return __r
 	if __r.path:
 		return str(__r.path)
 	return str(__r.name)
+
 def obj(__r : ReturnInfo):
-	''' Strictly the object of ReturnInfo '''
 	return str(__r.obj)
 
-def pos(index : int, kind : type):
-	return Positional(index, kind)
-def opos(index : int, kind : type):
-	return Optional(index, kind)
-def key(key : str, *kinds : type):
-	return Keyword(key, *kinds)
-def okey(key : str, kind : type, default = None):
-	return OptionalKeyword(key, kind, default)
+
+PositionalArg = Positional | Optional
+KeywordArg = Keyword | OptionalKeyword
 
 def get_text(source : Callable[..., str] | str, *args, **kwargs):
 	return TextRetriever(source, *args, **kwargs)

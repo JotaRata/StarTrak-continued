@@ -1,7 +1,8 @@
 import os
 import re
 import startrak
-from base import ReturnInfo, get_text, register, pos, key, opos, okey, text, path, Helper
+from base import ReturnInfo, get_text, register, text, path
+from base import Helper, Positional,Optional, Keyword, OptionalKeyword, ArgList
 from base.interface import INTERACTIVE_ADD, INTERACTIVE_EDIT, INTERACTIVE_LIST, INTERACTIVE_SERVER
 from processing.protocols import STException
 
@@ -9,12 +10,12 @@ def check_interactivity(helper):
 	if not helper.printable:	# Only false when command is chained
 			raise STException('Cannot chain interactive command.')
 
-@register('session', kw= [key('-new', str), key('-mode', str), key('-scan-dir', str), okey('--v', int, 0)])
+@register('session', kw= [Keyword('-new', str), Keyword('-mode', str), Keyword('-scan-dir', str), OptionalKeyword('--v', int, 0)])
 def _GET_SESSION(helper : Helper):
 	new = helper.get_kw('-new')
 	out, fold = helper.get_kw('--v')
 	if '-new' in helper.args and not new:
-		raise STException('key "-new" expected argument: name')
+		raise STException('Keyword "-new" expected argument: name')
 	session : startrak.native.Session
 	session = startrak.get_session()
 	if new:
@@ -39,7 +40,7 @@ def _GET_SESSION(helper : Helper):
 		helper.print(session.__pprint__(0, fold))
 	return ReturnInfo(session.name, text= get_text(session.__pprint__, 0, fold if out else 4), obj= session)
 
-@register('cd', args= [pos(0, path)])
+@register('cd', args= [Positional(0, path)])
 def _CHANGE_DIR(helper : Helper):
 	path = helper.get_arg(0)
 	os.chdir(path)
@@ -54,7 +55,7 @@ def _GET_CWD(helper : Helper):
 	helper.print(path)
 	return ReturnInfo(os.path.basename(path), path= os.path.abspath(path), obj= path)
 
-@register('ls', args= [opos(0, path)], kw= [key('--i')])
+@register('ls', args= [Optional(0, path)], kw= [Keyword('--i')])
 def _LIST_DIR(helper : Helper):
 	if len(helper.args) == 0:
 		path = os.getcwd()
@@ -70,7 +71,7 @@ def _LIST_DIR(helper : Helper):
 	helper.print(string)
 	return ReturnInfo(text= string, path= path)
 
-@register('grep', args= [pos(0, str), pos(1, text)])
+@register('grep', args= [Positional(0, str), Positional(1, text)])
 def _FIND_IN_TEXT(helper : Helper):
 	pattern = helper.get_arg(0)
 	pattern = re.escape(pattern).replace(r'\*', r'.*?')
@@ -91,13 +92,13 @@ def _FIND_IN_TEXT(helper : Helper):
 	single = lines[0] if len(lines) == 1 else None
 	return ReturnInfo(single, text= string, obj= single)
 
-@register('echo', args= [pos(0, text)])
+@register('echo', args= [Positional(0, text)])
 def _PRINT(helper : Helper):
 	value = helper.get_arg(0)
 	helper.print(value)
 	return ReturnInfo(text= value, obj= value)
 
-@register('open', args= [pos(0, path)], kw= [okey('--v', int, 0)])
+@register('open', args= [Positional(0, path)], kw= [OptionalKeyword('--v', int, 0)])
 def _LOAD_SESSION(helper : Helper):
 	path = helper.get_arg(0)
 	out, fold = helper.get_kw('--v')
@@ -106,8 +107,8 @@ def _LOAD_SESSION(helper : Helper):
 		helper.print(session.__pprint__(0, fold))
 	return ReturnInfo(session.name, text= get_text(session.__pprint__, 0, fold if out else 4), obj= session)
 
-@register('add', args= [pos(0, str), opos(1, path)], 
-						kw= [okey('--v', int, 0), key('-pos', float, float), key('-ap', int), key('--i')])
+@register('add', args= [Positional(0, str), Optional(1, path)], 
+						kw= [OptionalKeyword('--v', int, 0), Keyword('-Positional', float, float), Keyword('-ap', int), Keyword('--i')])
 def _ADD_ITEM(helper : Helper):
 	mode = helper.get_arg(0)
 	out, fold = helper.get_kw('--v')
@@ -128,11 +129,11 @@ def _ADD_ITEM(helper : Helper):
 		
 		case 'star':
 			name = helper.get_arg(1)
-			if '-pos' not in helper.args:
-				raise STException('Missing required keyword: "-pos x y"')
-			pos = helper.get_kw('-pos')
+			if '-Positional' not in helper.args:
+				raise STException('Missing required keyword: "-Positional x y"')
+			Positional = helper.get_kw('-Positional')
 			apert = helper.get_kw('-ap')
-			star = startrak.Star(name, pos, apert if apert else 16)
+			star = startrak.Star(name, Positional, apert if apert else 16)
 			startrak.add_star(star)
 			if out:
 				helper.print(star.__pprint__(0, fold))
@@ -144,7 +145,7 @@ def _ADD_ITEM(helper : Helper):
 def __int_or_str(value):
 	if value.isdigit(): return int(value)
 	else: return str(value)
-@register('get', args= [pos(0, str), pos(1, __int_or_str)], kw= [key('--v', int)])
+@register('get', args= [Positional(0, str), Positional(1, __int_or_str)], kw= [Keyword('--v', int)])
 def _GET_IETM(helper : Helper):
 	mode = helper.get_arg(0)
 	index = helper.get_arg(1)
@@ -164,7 +165,7 @@ def _GET_IETM(helper : Helper):
 	helper.print(item.__pprint__(0, fold if fold else 0))
 	return ReturnInfo(getattr(item, 'name', None), text= get_text(item.__pprint__, 0, fold if fold else 4), obj= item)
 
-@register('del', args= [pos(0, str), pos(1, __int_or_str)], kw= [key('-f')])
+@register('del', args= [Positional(0, str), Positional(1, __int_or_str)], kw= [Keyword('-f')])
 def _DEL_ITEM(helper : Helper):
 	mode = helper.get_arg(0)
 	index = helper.get_arg(1)
@@ -182,10 +183,10 @@ def _DEL_ITEM(helper : Helper):
 	except KeyError:
 		raise STException(f'No {mode} with name: "{index}"') 
 
-	def confirm(key):
-		if key == 'n':
+	def confirm(Keyword):
+		if Keyword == 'n':
 			return True
-		if key == 'y':
+		if Keyword == 'y':
 			if mode == 'file':
 				startrak.remove_file(item)
 			elif mode == 'star':
@@ -200,7 +201,7 @@ def _DEL_ITEM(helper : Helper):
 		confirm('y')
 	return ReturnInfo(item.name, text= None, obj= None)
 
-@register('edit', args= [pos(0, str), pos(1, __int_or_str)])
+@register('edit', args= [Positional(0, str), Positional(1, __int_or_str)])
 def _EDIT_ITEM(helper : Helper):
 	check_interactivity(helper)
 	mode = helper.get_arg(0)
@@ -220,7 +221,7 @@ def _EDIT_ITEM(helper : Helper):
 	
 	INTERACTIVE_EDIT(helper, mode, item)
 
-@register('server', args= [pos(0, str), opos(1, text)], kw= [key('--b'), key('--block'), key('--no-broadcast'), key('--no-recieve')])
+@register('server', args= [Positional(0, str), Optional(1, text)], kw= [Keyword('--b'), Keyword('--block'), Keyword('--no-broadcast'), Keyword('--no-recieve')])
 def _SOCKET_SERVER(helper : Helper):
 	action = helper.get_arg(0)
 	match action:
@@ -259,7 +260,7 @@ def _SOCKET_SERVER(helper : Helper):
 		case _:
 			raise STException(f'Unknown parameter "{_}"')
 		
-@register('connect', args= [opos(0, text)])
+@register('connect', args= [Optional(0, text)])
 def _SOCKET_CLIENT(helper : Helper):
 	if len(helper.args) > 0:
 		address : str = helper.get_arg(0)

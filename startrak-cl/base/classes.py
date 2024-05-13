@@ -1,30 +1,31 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Callable, NamedTuple, TYPE_CHECKING
-import typing
+from typing import Any, Callable, NamedTuple, TYPE_CHECKING
 from processing.protocols import STException
 import _globals
-
 if TYPE_CHECKING:
 	from console.consoleapp import ConsoleApp, FormatMode
 
-class Positional:
-	def __init__(self, index, kind) -> None:
-		self.index = index
-		self.type = kind
-class Optional(Positional):
-	pass
-class Keyword:
-	def __init__(self, key, *kinds) -> None:
-		self.key = key
-		self.types = kinds
-		if not self.types:
-			self.types = tuple()
-class OptionalKeyword:
-	def __init__(self, key, kind, default) -> None:
-		self.key = key
-		self.type = kind
-		self.default = default
+class Positional(NamedTuple):
+	index : int
+	kind : type | Callable
+
+class Optional(NamedTuple):
+	index : int
+	kind : type | Callable
+
+class ArgList(NamedTuple):
+	index : int
+	kind : type | Callable
+
+class Keyword(NamedTuple):
+	key : str
+	kinds : tuple[type | Callable] = tuple[type | Callable]()
+
+class OptionalKeyword(NamedTuple):
+	key : str
+	kind : type | Callable
+	default : Any
 
 class TextRetriever:
 	def __init__(self, source : Callable[..., str], *args, **kwargs) -> None:
@@ -64,7 +65,7 @@ class _CommandInfo:
 		self.keywords = {k.key: k for k in self._kws}
 		self.count_positional = sum(1 for arg in self.args if type(arg) is Positional)
 		self.count_optional = sum(1 for arg in self.args if type(arg) is Optional)
-		self.count_kws = sum(1 + (len(arg.types) if type(arg) is Keyword else 1) for arg in self._kws)
+		self.count_kws = sum(1 + (len(arg.kinds) if type(arg) is Keyword else 1) for arg in self._kws)
 
 	def __call__(self, args : list[str], printable= True):
 		helper = Helper(self, args, printable)
