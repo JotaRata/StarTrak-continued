@@ -6,7 +6,7 @@ import os
 import re
 import sys
 from typing import Callable, Generic, NamedTuple, Type, TypeVar
-sys.path.append(os.getcwd() + '/startrak-cl')
+# sys.path.append(os.getcwd() + '/startrak-cl')
 
 from io import StringIO
 from types import CodeType
@@ -16,8 +16,7 @@ from base.interface import INTERACTIVE_ADD, INTERACTIVE_EDIT, INTERACTIVE_LIST, 
 from processing.protocols import STException
 
 
-EXEC_GLOBALS =  {'startrak.' + var : vars(startrak)[var] for var in dir(startrak)} |\
-					{'os.' + var : vars(os)[var] for var in ['getcwd']} |\
+EXEC_GLOBALS =  {var : vars(startrak)[var] for var in dir(startrak)} |\
 					{var : vars(base)[var] for var in dir(base)} | {'STException' : STException}
 
 SYMBOL_PATTERN = re.compile(r'\$([\w-]*\b|\d*\b)')
@@ -25,20 +24,28 @@ SYMBOL_PATTERN = re.compile(r'\$([\w-]*\b|\d*\b)')
 @dataclass(frozen= True)
 class Command:
 	name : str
+	file : str
 	arguments : list[Argument]
-	docstring : StringIO
+	doc_offsets : tuple[int, int]
 	code : CodeType
+
+	def docstring(self):
+		with open(self.file, 'r') as f:
+			f.seek(self.doc_offsets[0])
+			text = f.read(self.doc_offsets[1] - self.doc_offsets[0])
+		return text
 	
-	def __call__(self, helper : base.Helper):
-		args = {'ARG_' + i : helper.get_arg(i) for i in range(len(self.arguments))}
-		kws = {arg.key.replace('-','_').upper() : helper.get_kw(arg.key) for arg in self.keywords}
-		
-		locals = args | kws
-		exec(self.code, EXEC_GLOBALS, locals)
-		return locals.get('RETVAL', None)
+	def __call__(self, *params : str):
+
+		args = {('ARG_' + arg.key) if type(arg.key) is int else 
+					(arg.key.removeprefix('-').replace('-','_').upper()) : arg.get_value(params)
+					for arg in self.arguments}
+		print(args)
+		exec(self.code, EXEC_GLOBALS, args)
+		return args.get('RETVAL', None)
 	
 	def __repr__(self) -> str:
-		return f'{self.name} {" ".join(arg.kind for arg in self.arguments)}  {" ".join(arg.key for arg in self.keywords)}'
+		return f'{self.name} {" ".join(arg.key for arg in self.arguments)}'
 
 T = TypeVar('T')
 class Argument(Generic[T]):
@@ -59,18 +66,24 @@ class Argument(Generic[T]):
 			index = self.key
 		else:
 			if not self.key in arg_list:
-				return self.default
+				return None
 			index = arg_list.index(self.key) + 1
 
-		if index > len(arg_list):
-			if self.default != None and positional:
-				return self.default
-			raise STException(f'Expected argument at position #{index + 1}')
+		if index >= len(arg_list):
+			if self.default == None:
+				raise STException(f'Expected argument at position #{index + 1}')
+			raw_value = self.default
+		else:
+			raw_value = arg_list[index]
+		
 		try:
-			value = self.caster(arg_list[index])
+			value = self.caster(raw_value)
 		except:
 			raise STException(f'Invalid argument type at position #{index + 1}')
 		return value
+	
+	def __repr__(self) -> str:
+		return f'({self.key} : {self.caster.__name__} : {self.default})'
 
 @dataclass(frozen= True, slots= True)
 class ReturnValue:
@@ -152,14 +165,18 @@ def load_definition(path : str) -> Command:
 	with open(path, 'r') as f:
 		status = -1
 		header = ''
-		body = StringIO()
-		doc = StringIO()
 		
-		for line in f:
+		current_byte = 0
+		doc_start = 0
+		doc_end = 0
+		body = StringIO()
+		
+		for line in iter(f.readline, ''):
 			if not line or line.startswith('#'):
 				continue
-			if 'import' in line:
-				continue
+			#! Danger zone
+			# if 'import' in line:
+			# 	continue
 
 			if status == -1:
 				header = line
@@ -170,21 +187,24 @@ def load_definition(path : str) -> Command:
 					continue
 				if '<!DOC>' in line:
 					status = 2
+					doc_start = f.tell()
 					continue
 				if '<!END>' in line:
+					if status == 2:
+						doc_end = current_byte
 					status = 0
 					continue
+			current_byte = f.tell()
 			
-			if status == 1:
-				if line.startswith('return'):
-					line = line.replace('return', 'RETVAL = ')
-				body.write(line)
-			elif status == 2: 
-				doc.write(line)
-			elif status == 0:
-				continue
-			else:
-				raise IOError('Invalid syntax in command definition.')
+			match status:
+				case 0 | 2:
+					continue
+				case 1:
+					if line.startswith('return'):
+						line = line.replace('return', 'RETVAL = ')
+					body.write(line)
+				case _:
+					raise IOError('Invalid syntax in command definition.')
 	body.seek(0)
 
 	# Second pass: Extract definition from header
@@ -195,9 +215,8 @@ def load_definition(path : str) -> Command:
 		assert ':' in token, 'Invalid syntax in command header'
 		key, kind, *extras = token.split(':')
 
-		if key.startswith('&'):
-			assert len(key) > 1, f'Missing index for token: {key}'
-			args.append(Argument(key[1:], arg_type[kind] ))
+		assert len(key) > 1, f'Missing index for token: {key}'
+		args.append(Argument(key[1:], arg_type[kind], extras[0] if extras else None))
 		
 
 	# Third pass: Format body tags
@@ -213,13 +232,14 @@ def load_definition(path : str) -> Command:
 				if group.isnumeric():
 					newline = newline.replace('$'+ group, 'ARG_' + group)
 				else:
-					newline = newline.replace('$'+ group, group.replace('-', '_').upper())
+					newline = newline.replace('$'+ group, group.removeprefix('-').replace('-', '_').upper())
 
 			body.seek(offset)
+			if len(newline) < len(line):
+				newline = newline.rstrip() + ' ' * (len(line) - len(newline)) + '\n'
+
 			body.write(newline)
 		offset = body.tell()
 
 	code = compile(body.getvalue(), filename= name, mode= 'exec')
-	return Command(name, arguments=args, keywords= kws, docstring= doc, code= code)
-
-cmd = load_definition(r"C:\Users\jjbar\Documents\GitHub\StarTrak-continued\startrak-cl\base\commands\session.stc")
+	return Command(name, file = path, arguments = args, doc_offsets = (doc_start, doc_end), code= code)

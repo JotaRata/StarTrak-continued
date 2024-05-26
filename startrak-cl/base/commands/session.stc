@@ -1,8 +1,9 @@
+# Starttrak command format version 1.0
+# Header (name + arg:type:default)
 session -new:str -mode:str -scan-dir:str --v:int:0
 
+# Documentation
 <!DOC>
-Command: $session$
-
 Usage:
  session -new NAME -mode [inspect, scan]
 
@@ -14,38 +15,34 @@ Decsription:
  If $-new$ is given, then the name of the new session must be followed. Names containing a space should be encolosed using double quotes.
  By default $-mode$ is set to $inspect$, you can currently select two options: $inspect$ and $scan$.
 
- inspect: Creates a new inspection sesison to read and analyse local stored files
+ inspect: Creates a new inspection session to read and analyse local stored files
  scan: Creates a session that will constanly read changes from a given directory, if this option is selected then passing a proper $-scan-dir$ is mandatory.
 <!END>
 
+# Python-like code
 <!BODY>
-new = helper.get_kw('-new')
-out, fold = helper.get_kw('--v')
-if '-new' in helper.args and not new:
-	raise STException('Keyword "-new" expected argument: name')
-
-session = startrak.get_session()
+import os
+session = get_session()
 
 if $new:
 	match $mode:
-		case False:
-			session = startrak.new_session($new, 'inspect')
+		case None:
+			session = new_session($new, 'inspect')
 		case 'inspect' | 'insp' | 'InspectionSession':
-			session = startrak.new_session($new, 'inspect')
+			session = new_session($new, 'inspect')
 		case 'scan' | 'ScanSession':
-			_dir = helper.get_kw('-scan-dir')
 			dir = $scan-dir
 			if not dir:
 				dir = os.getcwd()
-			session = startrak.new_session($new, 'scan', dir)
+			session = new_session($new, 'scan', dir)
 		case _:
 			raise STException(f'Unknown mode "{$mode}"')
 else:
 	if not session:
 		raise STException('There is no session created, use the "-new" keyword to create one.')
 
-if out or (len(helper.args) == 0 and session is not None):
-	helper.print(session.__pprint__(0, fold))
-return ReturnInfo(session.name, text= get_text(session.__pprint__, 0, fold if out else 4), obj= session)
+if $v != None:
+	print(session.__pprint__(0, $v))
+return ReturnInfo(session.name, text= get_text(session.__pprint__, 0, $v if $v else 4), obj= session)
 
 <!END>
