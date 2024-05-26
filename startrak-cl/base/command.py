@@ -28,21 +28,21 @@ class Command:
 	arguments : list[Argument]
 	doc_offsets : tuple[int, int]
 	code : CodeType
+	
+	def execute(self, *params : str):
 
+		args = {('ARG_' + arg.key) if type(arg.key) is int else 
+					(arg.key.removeprefix('-').replace('-','_').upper()) : arg.get_value(params)
+					for arg in self.arguments}
+		exec(self.code, EXEC_GLOBALS, args)
+		return args.get('RETVAL', None)
+	
+	@property
 	def docstring(self):
 		with open(self.file, 'r') as f:
 			f.seek(self.doc_offsets[0])
 			text = f.read(self.doc_offsets[1] - self.doc_offsets[0])
 		return text
-	
-	def __call__(self, *params : str):
-
-		args = {('ARG_' + arg.key) if type(arg.key) is int else 
-					(arg.key.removeprefix('-').replace('-','_').upper()) : arg.get_value(params)
-					for arg in self.arguments}
-		print(args)
-		exec(self.code, EXEC_GLOBALS, args)
-		return args.get('RETVAL', None)
 	
 	def __repr__(self) -> str:
 		return f'{self.name} {" ".join(arg.key for arg in self.arguments)}'
@@ -160,7 +160,7 @@ class _Types:
 
 arg_type = { key : getattr(_Types, key) for key in dir(_Types) if not key.startswith('_')}
 
-def load_definition(path : str) -> Command:
+def load_definition(path : str, allow_imports : bool = True) -> Command:
 	# First pass: Read and parse file by sections
 	with open(path, 'r') as f:
 		status = -1
@@ -174,9 +174,9 @@ def load_definition(path : str) -> Command:
 		for line in iter(f.readline, ''):
 			if not line or line.startswith('#'):
 				continue
-			#! Danger zone
-			# if 'import' in line:
-			# 	continue
+
+			if 'import' in line and not allow_imports:
+				continue
 
 			if status == -1:
 				header = line
