@@ -12,7 +12,7 @@ import base
 from processing.protocols import STException
 __all__ = ['load_definition']
 
-SYMBOL_PATTERN = re.compile(r'\$([\w-]*\b|\d*\b)')
+SYMBOL_PATTERN = re.compile(r'\$([\w-]+\b|\d+\b)')
 FUNCTION_PARAMS = re.compile(r'(.+)\s*\((.*?)\)')
 
 @dataclass(frozen= True)
@@ -25,7 +25,7 @@ class Command:
 	
 	def execute(self, *params : str):
 
-		args = {('ARG_' + arg.key) if type(arg.key) is int else 
+		args = {('ARG_' + str(arg.key)) if type(arg.key) is int else 
 					(arg.key.removeprefix('-').replace('-','_').upper()) : arg.get_value(params)
 					for arg in self.arguments}
 		exec(self.code, EXEC_GLOBALS, args)
@@ -60,7 +60,9 @@ class Argument(Generic[T]):
 			index = self.key
 		else:
 			if not self.key in arg_list:
-				return None
+				return False if self.caster is bool else None
+			elif self.caster is bool:
+				return True
 			index = arg_list.index(self.key) + 1
 
 		if index >= len(arg_list):
@@ -124,6 +126,12 @@ class _Types:
 			return str(value)
 		return None
 	@staticmethod
+	def bool(ret : _ReturnValue | bool):
+		value = ret if type(ret) is bool else ret.value
+		if value:
+			return bool(value)
+		return False
+	@staticmethod
 	def vector(ret : _ReturnValue | str):
 		value = ret if type(ret) is str else ret.value
 		if type(value) is tuple:
@@ -178,10 +186,10 @@ def load_definition(path : str, allow_imports : bool = True) -> Command:
 					continue
 				case 1:			# Parsing Body
 					if '$' in line:
-						match = SYMBOL_PATTERN.search(line)
+						match = SYMBOL_PATTERN.findall(line)
 						if not match:
 							continue
-						for group in match.groups():
+						for group in match:
 							if group.isnumeric():
 								line = line.replace('$'+ group, 'ARG_' + group)
 							else:
@@ -197,7 +205,7 @@ def load_definition(path : str, allow_imports : bool = True) -> Command:
 						value = ' '.join(trail)
 
 						match token:
-							case 'VALUE' | 'PATH':
+							case 'VALUE':
 								return_output['value'] = value
 							case 'TEXT':
 								match = FUNCTION_PARAMS.match(value)
@@ -205,6 +213,10 @@ def load_definition(path : str, allow_imports : bool = True) -> Command:
 									raise SyntaxError('Invalid syntax in text method parameters')
 								name, args = match.groups()
 								return_output['text'] = f'_TextMethod({name}, {args})'
+							case 'PATH':
+								return_output['path'] = value
+							case _:
+								raise SyntaxError(f'Unknown token "{token}"')
 						continue
 
 					body.write(line)
@@ -231,7 +243,7 @@ def load_definition(path : str, allow_imports : bool = True) -> Command:
 			body.write(f'{key}= {return_output[key]}, ')
 		body.write(f')')
 	body.seek(0)
-	print(body.getvalue())
+	# print(body.getvalue())
 	code = compile(body.getvalue(), filename= name, mode= 'exec')
 	return Command(name, file = path, arguments = args, doc_offsets = (doc_start, doc_end), code= code)
 

@@ -1,0 +1,26 @@
+# Startrak command format version 1.0
+# Header (name + arg:type:default)
+ls $0:str:* -a:bool -r:bool
+
+# Documentation
+<!DOC>
+Usage:
+	ls PATTERN
+
+Description:
+	List files matching the pattern provided by $PATTERN$. By default lists the files inside the current working directory.
+<!END>
+
+<!BODY>
+import os
+import glob
+var1 = '*'
+cwd = os.getcwd() + '/'
+files_iterator = glob.iglob($0, root_dir= cwd, include_hidden= $a, recursive= $r)
+
+if not files_iterator:
+	raise  "No files match the pattern."
+
+for file in files_iterator:
+	print(file)
+<!END>

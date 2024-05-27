@@ -1,0 +1,19 @@
+# Startrak command format version 1.0
+# Header (name + arg:type:default)
+cwd
+
+# Documentation
+<!DOC>
+Usage:
+	cwd
+
+Description:
+	Prints the current working directory. Can be used in concatenation with other commands.
+<!END>
+
+<!BODY>
+import os
+path = os.getcwd().replace('\\', '/')
+print(path)
+RETURN PATH path
+<!END>
