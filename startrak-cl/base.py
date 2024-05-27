@@ -1,25 +1,19 @@
 from __future__ import annotations
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from email.policy import default
-import os
 import re
-import sys
-from typing import Callable, Generic, NamedTuple, Type, TypeVar
-# sys.path.append(os.getcwd() + '/startrak-cl')
-
+from typing import Callable, Generic, Type, TypeVar
 from io import StringIO
 from types import CodeType
+
+from numpy import mat
+from numpy.core.defchararray import rstrip
 import startrak
 import base
-from base.interface import INTERACTIVE_ADD, INTERACTIVE_EDIT, INTERACTIVE_LIST, INTERACTIVE_SERVER
 from processing.protocols import STException
-
-
-EXEC_GLOBALS =  {var : vars(startrak)[var] for var in dir(startrak)} |\
-					{var : vars(base)[var] for var in dir(base)} | {'STException' : STException}
+__all__ = ['load_definition']
 
 SYMBOL_PATTERN = re.compile(r'\$([\w-]*\b|\d*\b)')
+FUNCTION_PARAMS = re.compile(r'(.+)\s*\((.*?)\)')
 
 @dataclass(frozen= True)
 class Command:
@@ -85,27 +79,9 @@ class Argument(Generic[T]):
 	def __repr__(self) -> str:
 		return f'({self.key} : {self.caster.__name__} : {self.default})'
 
-@dataclass(frozen= True, slots= True)
-class ReturnValue:
-	value : object = None
-	text : TextRetriever = None
-	path : str = None
-
-class TextRetriever:
-	def __init__(self, source : Callable[..., str], *args, **kwargs) -> None:
-		self.source = source
-		self.args = args
-		self.kwargs = kwargs
-	def __str__(self) -> str:
-		if type(self.source) is str:
-			return self.source
-		return self.source(*self.args, **self.kwargs)
-	def get_str(self) -> str:
-		return self.__str__()
-	
 class _Types:
 	@staticmethod
-	def text(ret : ReturnValue | str):
+	def text(ret : _ReturnValue | str):
 		if type(ret) is str:
 			return ret
 		if ret.text:
@@ -114,14 +90,14 @@ class _Types:
 			return str(ret.value)
 		return None
 	@staticmethod
-	def path(ret : ReturnValue | str):
+	def path(ret : _ReturnValue | str):
 		if type(ret) is str:
 			return ret.replace(r'\\', '/')
 		if ret.path:
 			return str(ret.path).replace(r'\\', '/')
 		return None
 	@staticmethod
-	def name(ret : ReturnValue | str):
+	def name(ret : _ReturnValue | str):
 		if type(ret) is str:
 			return ret
 		if ret.value:
@@ -130,25 +106,25 @@ class _Types:
 			return type(ret.value).__name__
 		return None
 	@staticmethod
-	def int(ret : ReturnValue | str):
+	def int(ret : _ReturnValue | str):
 		value = ret if type(ret) is str else ret.value
 		if value:
 			return int(value)
 		return None
 	@staticmethod
-	def float(ret : ReturnValue | str):
+	def float(ret : _ReturnValue | str):
 		value = ret if type(ret) is str else ret.value
 		if value:
 			return float(value)
 		return None
 	@staticmethod
-	def str(ret : ReturnValue | str):
+	def str(ret : _ReturnValue | str):
 		value = ret if type(ret) is str else ret.value
 		if value:
 			return str(value)
 		return None
 	@staticmethod
-	def vector(ret : ReturnValue | str):
+	def vector(ret : _ReturnValue | str):
 		value = ret if type(ret) is str else ret.value
 		if type(value) is tuple:
 			return value
@@ -170,14 +146,15 @@ def load_definition(path : str, allow_imports : bool = True) -> Command:
 		doc_start = 0
 		doc_end = 0
 		body = StringIO()
+		return_output = dict[str, object]()
 		
 		for line in iter(f.readline, ''):
 			if not line or line.startswith('#'):
 				continue
-
 			if 'import' in line and not allow_imports:
 				continue
-
+			
+			mod = False
 			if status == -1:
 				header = line
 				status = 0
@@ -197,15 +174,43 @@ def load_definition(path : str, allow_imports : bool = True) -> Command:
 			current_byte = f.tell()
 			
 			match status:
-				case 0 | 2:
+				case 0 | 2:		# parsing nothing or docs
 					continue
-				case 1:
-					if line.startswith('return'):
-						line = line.replace('return', 'RETVAL = ')
+				case 1:			# Parsing Body
+					if '$' in line:
+						match = SYMBOL_PATTERN.search(line)
+						if not match:
+							continue
+						for group in match.groups():
+							if group.isnumeric():
+								line = line.replace('$'+ group, 'ARG_' + group)
+							else:
+								line = line.replace('$'+ group, group.removeprefix('-').replace('-', '_').upper())
+
+					if line.lstrip().startswith('ERROR'):
+						_, msg = line.split(maxsplit= 1)
+						body.write(line.replace('ERROR', 'raise STException(').rstrip() + ')\n')
+						continue
+
+					if line.startswith('RETURN'):
+						_, token, *trail = line.split()
+						value = ' '.join(trail)
+
+						match token:
+							case 'VALUE' | 'PATH':
+								return_output['value'] = value
+							case 'TEXT':
+								match = FUNCTION_PARAMS.match(value)
+								if not match:
+									raise SyntaxError('Invalid syntax in text method parameters')
+								name, args = match.groups()
+								return_output['text'] = f'_TextMethod({name}, {args})'
+						continue
+
 					body.write(line)
+
 				case _:
 					raise IOError('Invalid syntax in command definition.')
-	body.seek(0)
 
 	# Second pass: Extract definition from header
 	name, *tokens = header.strip().split(' ')
@@ -220,26 +225,35 @@ def load_definition(path : str, allow_imports : bool = True) -> Command:
 		
 
 	# Third pass: Format body tags
-	offset = body.tell()
-	for line in body:
-		if '$' in line:
-			match = SYMBOL_PATTERN.search(line)
-			if not match:
-				continue
-			newline = line
-
-			for group in match.groups():
-				if group.isnumeric():
-					newline = newline.replace('$'+ group, 'ARG_' + group)
-				else:
-					newline = newline.replace('$'+ group, group.removeprefix('-').replace('-', '_').upper())
-
-			body.seek(offset)
-			if len(newline) < len(line):
-				newline = newline.rstrip() + ' ' * (len(line) - len(newline)) + '\n'
-
-			body.write(newline)
-		offset = body.tell()
-
+	if return_output:
+		body.write(f'RETVAL = _ReturnValue(')
+		for key in return_output:
+			body.write(f'{key}= {return_output[key]}, ')
+		body.write(f')')
+	body.seek(0)
+	print(body.getvalue())
 	code = compile(body.getvalue(), filename= name, mode= 'exec')
 	return Command(name, file = path, arguments = args, doc_offsets = (doc_start, doc_end), code= code)
+
+@dataclass(frozen= True, slots= True)
+class _ReturnValue:
+	value : object = None
+	text : _TextMethod = None
+	path : str = None
+
+class _TextMethod:
+	def __init__(self, source : Callable[..., str], *args, **kwargs) -> None:
+		self.source = source
+		self.args = args
+		self.kwargs = kwargs
+	def __str__(self) -> str:
+		if type(self.source) is str:
+			return self.source
+		return self.source(*self.args, **self.kwargs)
+	def get_str(self) -> str:
+		return self.__str__()
+	
+
+EXEC_GLOBALS =  {var : vars(startrak)[var] for var in dir(startrak)} |\
+					{var : vars(base)[var] for var in dir(base)}
+					# {'STException' : STException, 'ReturnValue' : _ReturnValue, 'TextMethod' : _TextMethod}

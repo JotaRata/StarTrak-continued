@@ -36,13 +36,15 @@ if $new:
 				dir = os.getcwd()
 			session = new_session($new, 'scan', dir)
 		case _:
-			raise STException(f'Unknown mode "{$mode}"')
+			ERROR f'Unknown mode "{$mode}"'
 else:
 	if not session:
-		raise STException('There is no session created, use the "-new" keyword to create one.')
+		ERROR 'There is no session created, use the "-new" keyword to create one.'
 
 if $v != None:
 	print(session.__pprint__(0, $v))
-return ReturnInfo(session.name, text= get_text(session.__pprint__, 0, $v if $v else 4), obj= session)
 
+RETURN VALUE session
+RETURN TEXT session.__pprint__(0, $v if $v else 4)
 <!END>
+
