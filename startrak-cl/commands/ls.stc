@@ -1,6 +1,6 @@
 # Startrak command format version 1.0
 # Header (name + arg:type:default)
-ls $0:str:* -a:bool -r:bool
+ls $0:path:* -a:bool -r:bool
 
 # Documentation
 <!DOC>
@@ -14,13 +14,23 @@ Description:
 <!BODY>
 import os
 import glob
-var1 = '*'
+
+print($0, $a, $r)
+if os.path.isfile($0):
+	ERROR f"{$0} is a file."
+if not $0.endswith('*'):
+	$0 = $0 + '/*'
+
 cwd = os.getcwd() + '/'
-files_iterator = glob.iglob($0, root_dir= cwd, include_hidden= $a, recursive= $r)
+files_iterator = glob.iglob($0, root_dir= cwd, include_hidden= $a)
 
 if not files_iterator:
-	raise  "No files match the pattern."
+	ERROR  "No files match the pattern."
 
 for file in files_iterator:
-	print(file)
+	file = file.replace('\\', '/')
+	if os.path.isdir(file):
+		print(file + '/')
+	else:
+		print(file)
 <!END>

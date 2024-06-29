@@ -3,9 +3,7 @@ import os
 import subprocess
 from .protocols import ChainedOutput, Output, ParsedOutput, PipedOutput, STException
 from .protocols import Executor
-import base.commands
 from base import get_command
-import startrak
 
 class PythonExcecutioner(Executor):
 	def __init__(self, execution_context: dict[str, object], **kwagrs) -> None:
@@ -54,8 +52,8 @@ class StartrakExecutioner(Executor):
 			command, args, printable = parsed_data
 			if not command: return
 
-			call = get_command(command)
-			retval = call(args, printable)
+			command = get_command(command)
+			retval = command.execute(args, printable= printable)
 
 		elif type(parsed_data) is ChainedOutput:
 			retval = None
@@ -71,8 +69,8 @@ class StartrakExecutioner(Executor):
 				else:
 					new_args = args
 
-				call = get_command(command)
-				retval = call(new_args, printable)
+				command = get_command(command)
+				retval = command.execute(new_args, printable= printable)
 
 		if varname:
 			if not retval or not retval.obj:

@@ -1,15 +1,14 @@
 from __future__ import annotations
 from dataclasses import dataclass
+import os
 import re
 from typing import Callable, Generic, Type, TypeVar
 from io import StringIO
 from types import CodeType
-
-from numpy import mat
-from numpy.core.defchararray import rstrip
+from _globals import BASE_DIR
 import startrak
-import base
 from processing.protocols import STException
+import base
 __all__ = ['load_definition']
 
 SYMBOL_PATTERN = re.compile(r'\$([\w-]+\b|\d+\b)')
@@ -23,14 +22,43 @@ class Command:
 	doc_offsets : tuple[int, int]
 	code : CodeType
 	
-	def execute(self, *params : str):
-
-		args = {('ARG_' + str(arg.key)) if type(arg.key) is int else 
-					(arg.key.removeprefix('-').replace('-','_').upper()) : arg.get_value(params)
-					for arg in self.arguments}
-		exec(self.code, EXEC_GLOBALS, args)
-		return args.get('RETVAL', None)
+	# todo: move parsing logic to dedicated module
+	def execute(self, params : list[str], printable : bool = True):
+		parsed_args = self.parse_arguments(params)
+		variables = {arg.name : value for arg, value in parsed_args.items()}
+		
+		exec(self.code, EXEC_GLOBALS, variables)
+		return variables.get('RETVAL', None)
 	
+	def parse_arguments(self, params : list[str]):
+		positional = [arg for arg in self.arguments if arg.positional]
+		keywords = [arg for arg in self.arguments if not arg.positional]
+
+		output = dict[Argument, object]()
+		for argument in keywords:
+			if argument.key in params:
+				if argument.caster is arg_type['bool']:
+					output[argument] = True
+					params.remove(argument.key)
+					continue
+				index = params.index(argument.key)
+				output[argument] = argument.get_value(params[index + 1])
+				params.remove(argument.key)
+			elif argument.default is not None:
+				output[argument] = argument.default
+			elif argument.caster is arg_type['bool']:
+				output[argument] = False
+
+		for argument in positional:
+			if argument.key < len(params):
+				output[argument] = argument.get_value(params[argument.key])
+			elif argument.default is not None:
+				output[argument] = argument.default
+			else:
+				raise STException(f'Expected argument at position #{argument.key + 1}')
+		
+		return output
+
 	@property
 	def docstring(self):
 		with open(self.file, 'r') as f:
@@ -48,38 +76,26 @@ class Argument(Generic[T]):
 	default : T = None
 
 	def __init__(self, key : str,  caster : Callable[..., T] | Type[T], default: T = None):
-		self.key = int(key) if key.isdigit() else key
+		self.key = int(key) if key.isdigit() else '-' + key
+		self.positional = type(self.key) is int
 		self.caster = caster
 		self.default = default
-
-	def get_value(self, arg_list : list[str]) -> T:
-		positional = type(self.key) is int
-		index : int
-
-		if positional:
-			index = self.key
-		else:
-			if not self.key in arg_list:
-				return False if self.caster is bool else None
-			elif self.caster is bool:
-				return True
-			index = arg_list.index(self.key) + 1
-
-		if index >= len(arg_list):
-			if self.default == None:
-				raise STException(f'Expected argument at position #{index + 1}')
-			raw_value = self.default
-		else:
-			raw_value = arg_list[index]
+	
+	@property
+	def name(self) -> str:
+		if self.positional:
+			return 'ARG_' + str(self.key)
+		return self.key.removeprefix('-').replace('-','_').upper()
 		
+	def get_value(self, raw_value : str) -> T:
 		try:
 			value = self.caster(raw_value)
 		except:
-			raise STException(f'Invalid argument type at position #{index + 1}')
+			raise STException(f'Invalid argument type: {raw_value}')
 		return value
 	
-	def __repr__(self) -> str:
-		return f'({self.key} : {self.caster.__name__} : {self.default})'
+	def __str__(self) -> str:
+		return f'Argument ({self.key} : {self.caster.__name__} : {self.default})'
 
 class _Types:
 	@staticmethod
@@ -264,8 +280,26 @@ class _TextMethod:
 		return self.source(*self.args, **self.kwargs)
 	def get_str(self) -> str:
 		return self.__str__()
-	
+
+def get_command(name : str) -> Command:
+	if name not in REGISTERED_COMMANDS:
+		raise NameError(f'Command not found: {name}')
+	return REGISTERED_COMMANDS[name]
+
+def get_commands():
+	return REGISTERED_COMMANDS
 
 EXEC_GLOBALS =  {var : vars(startrak)[var] for var in dir(startrak)} |\
 					{var : vars(base)[var] for var in dir(base)}
 					# {'STException' : STException, 'ReturnValue' : _ReturnValue, 'TextMethod' : _TextMethod}
+
+COMMAND_DIR = BASE_DIR + '/commands/'
+REGISTERED_COMMANDS = dict[str, Command]()
+
+for file in os.scandir(COMMAND_DIR):
+	if not file.path.endswith('.stc'):
+		continue
+	
+	command = load_definition(file.path, True)
+	REGISTERED_COMMANDS[command.name] = command
+	print('Command registered: ', file.path)

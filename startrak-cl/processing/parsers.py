@@ -60,24 +60,25 @@ class StartrakParser(Parser):
 		if not command:
 			raise STException(f'No command named "{cmd_name}"')
 		
-		excess = len(args)
-		for p in command.args:
-				if 0 <= p.index < len(args) and not args[p.index].startswith('-'):
-					excess -= 1
+		# excess = len(args)
+		# for p in command.arguments:
+		# 	if type(p.key) is int:
+
+
+		# 	if 0 <= p.key < len(args) and not args[p.key].startswith('-'):
+		# 		excess -= 1
+		# 	if type(k).__name__ == 'Keyword':
+		# 		if k.key in args:
+		# 			excess -= len(k.types) + 1
+		# 	if type(k).__name__ == 'OptionalKeyword':
+		# 		if k.key in args:
+		# 			index = args.index(k.key)
+		# 			excess -= 1 if index + 1 >= len(args) else 2
 		
-		for k in command._kws:
-			if type(k).__name__ == 'Keyword':
-				if k.key in args:
-					excess -= len(k.types) + 1
-			if type(k).__name__ == 'OptionalKeyword':
-				if k.key in args:
-					index = args.index(k.key)
-					excess -= 1 if index + 1 >= len(args) else 2
-		
-		if excess > 0:
-			raise STException(f'Too many parameters for "{cmd_name}"')
-		if excess < 0:
-			raise STException(f'Not enough parameters for "{cmd_name}"')
+		# if excess > 0:
+		# 	raise STException(f'Too many parameters for "{cmd_name}"')
+		# if excess < 0:
+		# 	raise STException(f'Not enough parameters for "{cmd_name}"')
 
 		output = ParsedOutput(cmd_name, args, printable)
 		if var_name:
