@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+import glob
 import os
 import re
 from typing import Callable, Generic, Type, TypeVar
@@ -43,7 +44,8 @@ class Command:
 					continue
 				index = params.index(argument.key)
 				output[argument] = argument.get_value(params[index + 1])
-				params.remove(argument.key)
+				params.pop(index + 1)
+				params.pop(index)
 			elif argument.default is not None:
 				output[argument] = argument.default
 			elif argument.caster is arg_type['bool']:
@@ -56,7 +58,7 @@ class Command:
 				output[argument] = argument.default
 			else:
 				raise STException(f'Expected argument at position #{argument.key + 1}')
-		
+		print(params)
 		return output
 
 	@property
@@ -79,13 +81,13 @@ class Argument(Generic[T]):
 		self.key = int(key) if key.isdigit() else '-' + key
 		self.positional = type(self.key) is int
 		self.caster = caster
-		self.default = default
+		self.default = caster(default) if default else None
 	
 	@property
 	def name(self) -> str:
 		if self.positional:
 			return 'ARG_' + str(self.key)
-		return self.key.removeprefix('-').replace('-','_').upper()
+		return self.key.removeprefix('--').removeprefix('-').replace('-','_').upper()
 		
 	def get_value(self, raw_value : str) -> T:
 		try:
@@ -108,12 +110,22 @@ class _Types:
 			return str(ret.value)
 		return None
 	@staticmethod
-	def path(ret : _ReturnValue | str):
+	def path(ret : _ReturnValue | str | list | tuple):
+		value : list[str]
 		if type(ret) is str:
-			return ret.replace(r'\\', '/')
-		if ret.path:
-			return str(ret.path).replace(r'\\', '/')
-		return None
+			if '*' in ret:
+				value = glob.glob(ret, root_dir= os.getcwd() + '/')
+			else:
+				value = [ret]
+		elif isinstance(ret, (list, tuple)):
+			value = [str(item) for item in ret]
+		elif isinstance(ret, _ReturnValue):
+			value = [str(item) for item in ret.path]
+		else:
+			return None
+		if os.name == 'nt':
+			value = [item.replace(r'\\', '/') for item in value]
+		return value
 	@staticmethod
 	def name(ret : _ReturnValue | str):
 		if type(ret) is str:
@@ -209,7 +221,7 @@ def load_definition(path : str, allow_imports : bool = True) -> Command:
 							if group.isnumeric():
 								line = line.replace('$'+ group, 'ARG_' + group)
 							else:
-								line = line.replace('$'+ group, group.removeprefix('-').replace('-', '_').upper())
+								line = line.replace('$'+ group, group.removeprefix('--').removeprefix('-').replace('-', '_').upper())
 
 					if line.lstrip().startswith('ERROR'):
 						_, msg = line.split(maxsplit= 1)

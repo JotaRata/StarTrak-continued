@@ -127,7 +127,7 @@ class ConsoleApp:
 		
 		if len(possible) > 1:
 				self.output.write('\n')
-				self.output.write('\n'.join(possible) + '\n')
+				self.output.write('\n'.join(possible) + '\n'*2)
 
 				common = common_string(possible)
 				if common:
