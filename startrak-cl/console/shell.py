@@ -130,11 +130,39 @@ class ShellConsole(ConsoleApp):
 		match format:
 			case 'highlight':
 				return f"\033[7m{text}\033[0m"
+			case 'italic':
+				return f"\033[3m{text}\033[0m"
 			case 'bold':
 				return f"\033[1m{text}\033[0m"
 			case 'underline':
 				return f"\033[4m{text}\033[0m"
 			case 'blink':
 				return f"\033[5m{text}\033[0m"
+			
+			case 'red':
+				return f"\033[91m{text}\033[0m"
+			case 'green':
+				return f"\033[92m{text}\033[0m"
+			case 'yellow':
+				return f"\033[93m{text}\033[0m"
+			case 'cyan':
+				return f"\033[96m{text}\033[0m"
+			case 'blue':
+				return f"\033[94m{text}\033[0m"
+			case 'purple':
+				return f"\033[95m{text}\033[0m"
+			
+			case 'highlight-red':
+				return f"\033[41m{text}\033[0m"
+			case 'highlight-green':
+				return f"\033[42m{text}\033[0m"
+			case 'highlight-yellow':
+				return f"\033[43m{text}\033[0m"
+			case 'highlight-cyan':
+				return f"\033[46m{text}\033[0m"
+			case 'highlight-blue':
+				return f"\033[44m{text}\033[0m"
+			case 'highlight-purple':
+				return f"\033[45m{text}\033[0m"
 			case _:
 				return text
