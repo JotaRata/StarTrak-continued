@@ -3,13 +3,16 @@ from dataclasses import dataclass
 import glob
 import os
 import re
-from typing import Callable, Generic, Type, TypeVar
+from typing import Callable, Generic, Type, TypeVar, TYPE_CHECKING
 from io import StringIO
 from types import CodeType
-from _globals import BASE_DIR
+import _globals
 import startrak
 from processing.protocols import STException
 import base
+
+if TYPE_CHECKING:
+	from console.consoleapp import ConsoleApp
 __all__ = ['load_definition']
 
 SYMBOL_PATTERN = re.compile(r'\$([\w-]+\b|\d+\b)')
@@ -26,7 +29,8 @@ class Command:
 	# todo: move parsing logic to dedicated module
 	def execute(self, params : list[str], printable : bool = True):
 		parsed_args = self.parse_arguments(params)
-		variables = {arg.name : value for arg, value in parsed_args.items()}
+		variables = {arg.name : value for arg, value in parsed_args.items()} |\
+						{'console' : _ConsoleHelper(_globals.CONSOLE_INSTANCE)}
 		
 		exec(self.code, EXEC_GLOBALS, variables)
 		return variables.get('RETVAL', None)
@@ -99,6 +103,8 @@ class Argument(Generic[T]):
 	def __str__(self) -> str:
 		return f'Argument ({self.key} : {self.caster.__name__} : {self.default})'
 
+
+#! ----------------------- Helper classes -------------------------------
 class _Types:
 	@staticmethod
 	def text(ret : _ReturnValue | str):
@@ -169,9 +175,47 @@ class _Types:
 			if match:
 				return tuple(float(group) for group in match.groups())
 		return None
-
 arg_type = { key : getattr(_Types, key) for key in dir(_Types) if not key.startswith('_')}
 
+@dataclass(frozen= True, slots= True)
+class _ReturnValue:
+	value : object = None
+	text : _TextMethod = None
+	path : str = None
+
+class _TextMethod:
+	def __init__(self, source : Callable[..., str], *args, **kwargs) -> None:
+		self.source = source
+		self.args = args
+		self.kwargs = kwargs
+	def __str__(self) -> str:
+		if type(self.source) is str:
+			return self.source
+		return self.source(*self.args, **self.kwargs)
+	def get_str(self) -> str:
+		return self.__str__()
+
+class _ConsoleHelper:
+	def __init__(self, console : ConsoleApp) -> None:
+		self._get_size = console.size
+		self._get_name = lambda: getattr(type(console), '__name__', 'NULL')
+		self.execute = console.process
+		self.format = console.format
+		self.clear = console.clear
+		self.write = console.write
+		self.flush = console.flush
+	@property
+	def width(self) -> int:
+		return self._get_size()[1]
+	@property
+	def height(self) -> int:
+		return self._get_size()[0]
+	@property
+	def name(self) -> str:
+		return self._get_name()
+
+
+#! -------------------- Definition loading -------------------------------
 def load_definition(path : str, allow_imports : bool = True) -> Command:
 	# First pass: Read and parse file by sections
 	with open(path, 'r') as f:
@@ -273,25 +317,8 @@ def load_definition(path : str, allow_imports : bool = True) -> Command:
 	body.seek(0)
 	# print(body.getvalue())
 	code = compile(body.getvalue(), filename= name, mode= 'exec')
+
 	return Command(name, file = path, arguments = args, doc_offsets = (doc_start, doc_end), code= code)
-
-@dataclass(frozen= True, slots= True)
-class _ReturnValue:
-	value : object = None
-	text : _TextMethod = None
-	path : str = None
-
-class _TextMethod:
-	def __init__(self, source : Callable[..., str], *args, **kwargs) -> None:
-		self.source = source
-		self.args = args
-		self.kwargs = kwargs
-	def __str__(self) -> str:
-		if type(self.source) is str:
-			return self.source
-		return self.source(*self.args, **self.kwargs)
-	def get_str(self) -> str:
-		return self.__str__()
 
 def get_command(name : str) -> Command:
 	if name not in REGISTERED_COMMANDS:
@@ -301,11 +328,13 @@ def get_command(name : str) -> Command:
 def get_commands():
 	return REGISTERED_COMMANDS
 
+
+#! ---------------------- Global scope -------------------------------------
 EXEC_GLOBALS =  {var : vars(startrak)[var] for var in dir(startrak)} |\
 					{var : vars(base)[var] for var in dir(base)}
 					# {'STException' : STException, 'ReturnValue' : _ReturnValue, 'TextMethod' : _TextMethod}
 
-COMMAND_DIR = BASE_DIR + '/commands/'
+COMMAND_DIR = _globals.BASE_DIR + '/commands/'
 REGISTERED_COMMANDS = dict[str, Command]()
 
 for file in os.scandir(COMMAND_DIR):

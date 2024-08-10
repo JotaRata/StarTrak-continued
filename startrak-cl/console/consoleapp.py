@@ -1,7 +1,7 @@
 import os
 import sys
-from time import sleep
-from typing import Callable, Literal
+import _globals
+from typing import Literal
 from processing.protocols import Executor, Parser, STException
 from processing import parsers as parser
 from processing import executors as execs
@@ -9,7 +9,6 @@ from alias import InputMode, LanguageMode
 from streams import ConsoleInput, ConsoleOutput
 from base import get_command, get_commands
 from _utils import word_index, common_string
-import _globals
 import startrak
 
 FormatMode = Literal['highlight', 'underline', 'bold', 'blink', 'red', 'yellow', 'blue', 'green', 'magenta']
