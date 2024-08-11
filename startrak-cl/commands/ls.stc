@@ -1,6 +1,6 @@
 # Startrak command format version 1.0
 # Header (name + arg:type:default)
-ls $0:path:. --cols:int:6
+ls $0:path:. --cols:int:0 -l:bool
 
 # Documentation
 <!DOC>
@@ -13,42 +13,17 @@ Description:
 
 <!BODY>
 import os
+import time
 from io import StringIO
 
-cwd = os.getcwd()
-paths = dict[str, list]()
-
-match $0:
-	case None:
-		paths['.'] = [(e.name, e.is_dir()) for e in os.scandir(cwd)]
-	case [path]:
-		if not os.path.exists(path):
-			ERROR 'Path not found'
-		paths['.'] = [(e.name, e.is_dir()) for e in os.scandir(path)]
-	case _:
-		for entry in $0:
-			dir_name = os.path.dirname(entry)
-			rel = os.path.relpath(entry, dir_name)
-			is_dir = os.path.isdir(entry)
-			if dir_name not in paths:
-				paths[dir_name] = [(rel, is_dir)]
-			else:
-				paths[dir_name].append((rel, is_dir))
-col_width = console.width // $cols
-buffer = StringIO()
-
-for dir in paths:
-	if os.name == 'nt':
-		dir = dir.replace(r'\\', '/')	
-	if len(paths) > 1:
-		buffer.write(f'{dir}: \n')
+def list_columns(buffer, paths, columns):
+	max_length = max([len(file) for (file, _) in paths])
+	if columns == 0:
+		columns = console.width // max_length
+	col_width = console.width // columns
 
 	col_chars = 0
-	long_names = list[str]()
-	for file, is_dir in paths[dir]:
-		if len(file) > col_width:
-			long_names.append(console.format(file, 'blue' if is_dir else 'green'))
-			continue
+	for file, is_dir in paths:
 		if ' ' in file:
 			file = f"'{file}'"
 		file = file.ljust(col_width)
@@ -58,9 +33,60 @@ for dir in paths:
 			buffer.write('\n')
 			col_chars = 0
 		buffer.write(console.format(file, 'blue' if is_dir else 'green'))
-
-	buffer.write('\n' + '\n'.join(long_names))
 	buffer.write('\n' * 2)
+
+def list_stats(buffer, paths, directory):
+	buffer.write(f'Total: {len(paths)}\n')
+	columns = list[str]()
+	for file, is_dir in paths:
+		stats = os.stat(f'{directory}/{file}')
+		if ' ' in file:
+			file = f"'{file}'"
+		
+		columns.append( bin(stats.st_mode)[-8:] )
+		columns.append( str(stats.st_uid) )
+		columns.append( str(stats.st_gid) )
+		columns.append( str(stats.st_size) )
+		columns.append( time.ctime(stats.st_mtime) )
+		buffer.write(' '.join( (str.rjust(col, 8) for col in columns) ) + ' ')
+		buffer.write(console.format(file, 'blue' if is_dir else 'green'))
+		
+		buffer.write('\n')
+		columns.clear()
+
+	buffer.write('\n' * 2)
+
+cwd = os.getcwd()
+paths = dict[str, list]()
+
+match $0:
+	case None:
+		paths[cwd] = [(e.name, e.is_dir()) for e in os.scandir(cwd)]
+	case [path]:
+		if not os.path.exists(path):
+			ERROR 'Path not found'
+		paths[path] = [(e.name, e.is_dir()) for e in os.scandir(path)]
+	case _:
+		for entry in $0:
+			dir_name = os.path.dirname(entry)
+			rel = os.path.relpath(entry, dir_name)
+			is_dir = os.path.isdir(entry)
+			if dir_name not in paths:
+				paths[dir_name] = [(rel, is_dir)]
+			else:
+				paths[dir_name].append((rel, is_dir))
+
+buffer = StringIO()
+for dir in paths:
+	if os.name == 'nt':
+		dir = dir.replace(r'\\', '/')	
+	if len(paths) > 1:
+		buffer.write(f'{dir}: \n')
+
+	if not $l:
+		list_columns(buffer, paths[dir], $cols)
+	else:
+		list_stats(buffer, paths[dir], dir)
 
 print(buffer.getvalue())
 RETURN TEXT buffer.getvalue()
