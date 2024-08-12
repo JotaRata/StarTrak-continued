@@ -1,0 +1,55 @@
+# Startrak command format version 1.0
+# Header (name + arg:type:default)
+help $0:str
+
+# Documentation
+<!DOC>
+Usage:
+ help COMMAND_NAME
+
+Description:
+ Prints the help page for the provided command.
+<!END>
+
+<!DATA>
+format_map = {'$' : 'highlight', '%' : 'bold'}
+SAVE format_map
+<!END>
+
+# Python-like code
+<!BODY>
+from io import StringIO
+
+buffer = StringIO()
+docstring = console.read_documentation($0)
+for line in docstring:
+	if '<!END' in line:
+		break
+
+	skip_line = False
+	for key, fmt in format_map.items():
+		if not key in line:
+			continue
+		index = 0
+		closure = False
+		while True:
+			new_index = line.find(key, index)
+			if new_index == -1:
+				buffer.write(line[index:])
+				closure = False
+				skip_line = True
+				break
+			
+			if closure == False:
+				buffer.write(line[index : new_index])
+				closure = True
+			else:
+				buffer.write(console.format(line[index : new_index], fmt))
+				closure = False
+			index = new_index + 1
+	
+	if not skip_line:
+		buffer.write(line)
+print(buffer.getvalue())
+<!END>
+
