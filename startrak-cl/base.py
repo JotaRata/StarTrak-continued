@@ -25,15 +25,18 @@ class Command:
 	arguments : list[Argument]
 	doc_offsets : tuple[int, int]
 	code : CodeType
+	persistent : dict[str, object] = None
 	
 	# todo: move parsing logic to dedicated module
 	def execute(self, params : list[str], printable : bool = True):
 		parsed_args = self.parse_arguments(params)
 		variables = {arg.name : value for arg, value in parsed_args.items()} |\
 						{'console' : _ConsoleHelper(_globals.CONSOLE_INSTANCE)}
-		
-		exec(self.code, EXEC_GLOBALS | variables)
-		return variables.get('RETVAL', None)
+		if self.persistent:
+			variables |= self.persistent
+		body_locals = {}
+		exec(self.code, EXEC_GLOBALS | variables, body_locals)
+		return body_locals.get('RETVAL', None)
 	
 	def parse_arguments(self, params : list[str]):
 		positional = [arg for arg in self.arguments if arg.positional]
@@ -64,15 +67,28 @@ class Command:
 				raise STException(f'Expected argument at position #{argument.key + 1}')
 		return output
 
-	@property
-	def docstring(self):
+	def get_documentation(self):
 		with open(self.file, 'r') as f:
 			f.seek(self.doc_offsets[0])
 			text = f.read(self.doc_offsets[1] - self.doc_offsets[0])
 		return text
 	
+	def read_documentation(self):
+		f = open(self.file, 'r')
+		f.seek(self.doc_offsets[0])
+
+		def iterator(file):
+			offset = self.doc_offsets[0]
+			for line in file:
+				if offset >= self.doc_offsets[1]:
+					break
+				offset += len(line)
+				yield line
+			file.close()
+		return iterator(f)
+	
 	def __repr__(self) -> str:
-		return f'{self.name} {" ".join(arg.key for arg in self.arguments)}'
+		return f'{self.name} {" ".join(str(arg.key) for arg in self.arguments)}'
 
 T = TypeVar('T')
 class Argument(Generic[T]):
@@ -156,7 +172,10 @@ class _Types:
 	def str(ret : _ReturnValue | str):
 		value = ret if type(ret) is str else ret.value
 		if value:
-			return str(value)
+			value = str(value)
+			if value == '$null': # Return a falsely non-null string
+				return ''
+			return value
 		return None
 	@staticmethod
 	def bool(ret : _ReturnValue | bool):
@@ -212,6 +231,16 @@ class _ConsoleHelper:
 	@property
 	def name(self) -> str:
 		return self._get_name()
+	
+	def get_commands(self):
+		return [cmd for cmd in get_commands()]
+	
+	def read_documentation(self, command_name):
+		command = get_command(command_name)
+		return command.read_documentation()
+	def get_documentation(self, command_name):
+		command = get_command(command_name)
+		return command.get_documentation()
 
 
 #! -------------------- Definition loading -------------------------------
@@ -224,7 +253,9 @@ def load_definition(path : str, allow_imports : bool = True) -> Command:
 		current_byte = 0
 		doc_start = 0
 		doc_end = 0
-		body = StringIO()
+		body_buffer = StringIO()
+		data_buffer = StringIO()
+		data_names = list[str]()
 		return_output = dict[str, object]()
 		
 		for line in iter(f.readline, ''):
@@ -233,7 +264,6 @@ def load_definition(path : str, allow_imports : bool = True) -> Command:
 			if 'import' in line and not allow_imports:
 				continue
 			
-			mod = False
 			if status == -1:
 				header = line
 				status = 0
@@ -244,6 +274,9 @@ def load_definition(path : str, allow_imports : bool = True) -> Command:
 				if '<!DOC>' in line:
 					status = 2
 					doc_start = f.tell()
+					continue
+				if '<!DATA>' in line:
+					status = 3
 					continue
 				if '<!END>' in line:
 					if status == 2:
@@ -265,16 +298,15 @@ def load_definition(path : str, allow_imports : bool = True) -> Command:
 								line = line.replace('$'+ group, 'ARG_' + group)
 							else:
 								line = line.replace('$'+ group, group.removeprefix('--').removeprefix('-').replace('-', '_').upper())
-
+					
 					if line.lstrip().startswith('ERROR'):
 						_, msg = line.split(maxsplit= 1)
-						body.write(line.replace('ERROR', 'raise STException(').rstrip() + ')\n')
+						body_buffer.write(line.replace('ERROR', 'raise STException(').rstrip() + ')\n')
 						continue
 
 					if line.startswith('RETURN'):
 						_, token, *trail = line.split()
 						value = ' '.join(trail)
-
 						match token:
 							case 'VALUE':
 								return_output['value'] = value
@@ -282,21 +314,28 @@ def load_definition(path : str, allow_imports : bool = True) -> Command:
 								match = FUNCTION_PARAMS.match(value)
 								if not match:
 									raise SyntaxError('Invalid syntax in text method parameters')
-								name, args = match.groups()
-								return_output['text'] = f'_TextMethod({name}, {args})'
+								command_name, args = match.groups()
+								return_output['text'] = f'_TextMethod({command_name}, {args})'
 							case 'PATH':
 								return_output['path'] = value
 							case _:
 								raise SyntaxError(f'Unknown token "{token}"')
 						continue
+					body_buffer.write(line)
 
-					body.write(line)
-
+				case 3:			# Parsing data blocks
+					if line.startswith('SAVE'):
+						_, var_name, *trail = line.split()
+						if not var_name or trail:
+							raise SyntaxError('Invalid syntax at data block.')
+						data_names.append(var_name)
+						continue
+					data_buffer.write(line)
 				case _:
 					raise IOError('Invalid syntax in command definition.')
 
 	# Second pass: Extract definition from header
-	name, *tokens = header.strip().split(' ')
+	command_name, *tokens = header.strip().split(' ')
 	args = list[Argument]()
 
 	for token in tokens:
@@ -308,16 +347,29 @@ def load_definition(path : str, allow_imports : bool = True) -> Command:
 		
 
 	# Third pass: Format body tags
-	if return_output:
-		body.write(f'RETVAL = _ReturnValue(')
-		for key in return_output:
-			body.write(f'{key}= {return_output[key]}, ')
-		body.write(f')')
-	body.seek(0)
-	# print(body.getvalue())
-	code = compile(body.getvalue(), filename= name, mode= 'exec')
+	data_block = None
+	if data_names:
+		data_buffer.write('PERSISTENT = {')
+		for var_name in data_names:
+			data_buffer.write(f'"{var_name}" : {var_name}, ')
+		data_buffer.write('}')
+		data_buffer.seek(0)
 
-	return Command(name, file = path, arguments = args, doc_offsets = (doc_start, doc_end), code= code)
+		block_locals = {}
+		block_compiled = compile(data_buffer.getvalue(), filename= command_name + '_persistent', mode= 'exec')
+		exec(block_compiled, EXEC_GLOBALS, block_locals)
+		data_block = block_locals.get('PERSISTENT', None)
+	
+	if return_output:
+		body_buffer.write(f'RETVAL = _ReturnValue(')
+		for key in return_output:
+			body_buffer.write(f'{key}= {return_output[key]}, ')
+		body_buffer.write(f')')
+	body_buffer.seek(0)
+	body_code = compile(body_buffer.getvalue(), filename= command_name, mode= 'exec')
+
+	return Command(command_name, file = path, arguments = args, 
+						doc_offsets = (doc_start, doc_end), code= body_code, persistent= data_block)
 
 def get_command(name : str) -> Command:
 	if name not in REGISTERED_COMMANDS:
