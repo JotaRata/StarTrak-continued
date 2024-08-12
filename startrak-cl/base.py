@@ -62,7 +62,6 @@ class Command:
 				output[argument] = argument.default
 			else:
 				raise STException(f'Expected argument at position #{argument.key + 1}')
-		print(params)
 		return output
 
 	@property

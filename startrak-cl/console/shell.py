@@ -85,8 +85,8 @@ class ShellConsole(ConsoleApp):
 				self.index = 0
 				self.cursor = 0
 				self.output.write('\n') 
-				self._prepare_line(_PREFIXES[self._language_mode])
 				self.process(output)
+				self._prepare_line(_PREFIXES[self._language_mode])
 				return
 		
 		if key == 'up':
