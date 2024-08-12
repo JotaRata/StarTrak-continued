@@ -12,7 +12,7 @@ Description:
 <!END>
 
 <!BODY>
-import os
+import os, stat
 import time
 from io import StringIO
 
@@ -43,7 +43,7 @@ def list_stats(buffer, paths, directory):
 		if ' ' in file:
 			file = f"'{file}'"
 		
-		columns.append( bin(stats.st_mode)[-8:] )
+		columns.append( stat.filemode(stats.st_mode) )
 		columns.append( str(stats.st_uid) )
 		columns.append( str(stats.st_gid) )
 		columns.append( str(stats.st_size) )
@@ -54,7 +54,7 @@ def list_stats(buffer, paths, directory):
 		buffer.write('\n')
 		columns.clear()
 
-	buffer.write('\n' * 2)
+	buffer.write('\n')
 
 cwd = os.getcwd()
 paths = dict[str, list]()
@@ -69,6 +69,8 @@ match $0:
 	case _:
 		for entry in $0:
 			dir_name = os.path.dirname(entry)
+			if len(dir_name) == 0:
+				dir_name = '.'
 			rel = os.path.relpath(entry, dir_name)
 			is_dir = os.path.isdir(entry)
 			if dir_name not in paths:
