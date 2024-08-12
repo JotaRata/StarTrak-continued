@@ -32,7 +32,7 @@ class Command:
 		variables = {arg.name : value for arg, value in parsed_args.items()} |\
 						{'console' : _ConsoleHelper(_globals.CONSOLE_INSTANCE)}
 		
-		exec(self.code, EXEC_GLOBALS, variables)
+		exec(self.code, EXEC_GLOBALS | variables)
 		return variables.get('RETVAL', None)
 	
 	def parse_arguments(self, params : list[str]):
