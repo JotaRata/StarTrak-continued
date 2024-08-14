@@ -1,0 +1,17 @@
+# Startrak command format version 1.0
+echo $0:text
+
+<!DOC>
+%Usage:%
+echo ARG
+
+%Description:%
+Writes argument to the standard output.
+
+Display the provided argument as text on the standard output, if the argument is a startrak object then it recursively prints its contents.
+The argument can also have a text returning function that will be evaluated when executing the command.
+<!END>
+
+<!BODY>
+print($0)
+<!END>

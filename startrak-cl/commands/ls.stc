@@ -4,11 +4,11 @@ ls $0:path:. --cols:int:0 -l:bool
 
 # Documentation
 <!DOC>
-Usage:
-	ls PATTERN
+%Usage:%
+ls PATTERN
 
-Description:
-	List files matching the pattern provided by $PATTERN$. By default lists the files inside the current working directory.
+%Description:%
+List files matching the pattern provided by $PATTERN$. By default lists the files inside the current working directory.
 <!END>
 
 <!BODY>

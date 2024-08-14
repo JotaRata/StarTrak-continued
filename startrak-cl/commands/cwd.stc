@@ -4,11 +4,11 @@ cwd
 
 # Documentation
 <!DOC>
-Usage:
-	cwd
+%Usage:%
+cwd
 
-Description:
-	Prints the current working directory. Can be used in concatenation with other commands.
+%Description:%
+Prints the current working directory. Can be used in concatenation with other commands.
 <!END>
 
 <!BODY>

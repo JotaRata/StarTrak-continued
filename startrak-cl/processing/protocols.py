@@ -1,8 +1,6 @@
-from dataclasses import dataclass
 import re
-from typing import Literal, NamedTuple, Protocol
+from typing import NamedTuple, Protocol
 
-from isort import output
 
 class Output(Protocol):
 	pass

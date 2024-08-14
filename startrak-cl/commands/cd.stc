@@ -1,0 +1,24 @@
+# Startrak command format version 1.0
+# Header (name + arg:type:default)
+cd $0:path
+
+<!DOC>
+%Usage:%
+cd DIR
+
+%Description:%
+Set the current working directory to the provided directory path.
+<!END>
+
+<!BODY>
+import os
+
+match $0:
+	case [path]:
+		if not os.path.isdir(path):
+			ERROR f'"{path}" is not a directory.'
+		os.chdir(path)
+	case _:
+		ERROR 'Too many arguments.'
+
+<!END>

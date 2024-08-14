@@ -4,19 +4,19 @@ session --new:str:$null --mode:str:$null --scan-dir:str:$null -v:int:0
 
 # Documentation
 <!DOC>
-Usage:
- session --new NAME --mode [inspect, scan]
+%Usage:%
+session --new NAME --mode [inspect, scan]
 
-Description:
- Displays or creates a new session with the given name and session mode.
+%Description:%
+Displays or creates a new session with the given name and session mode.
 
- If no arguments are given it will print the current session name, if $-v$ is given, then it will recursively print the elements of the current session, the recursion depth can be defined by passing a positive integer after -v.
+If no arguments are given it will print the current session name, if $-v$ is given, then it will recursively print the elements of the current session, the recursion depth can be defined by passing a positive integer after -v.
 
- If $--new$ is given, then the name of the new session must be followed. Names containing a space should be enclosed using double quotes.
- By default $--mode$ is set to $inspect$, you can currently select two options: $inspect$ and $scan$.
+If $--new$ is given, then the name of the new session must be followed. Names containing a space should be enclosed using double quotes.
+By default $--mode$ is set to $inspect$, you can currently select two options: $inspect$ and $scan$.
 
- inspect: Creates a new inspection session to read and analyze local stored files
- scan: Creates a session that will constantly read changes from a given directory, if this option is selected then passing a proper $--scan-dir$ is mandatory.
+inspect: Creates a new inspection session to read and analyze local stored files
+scan: Creates a session that will constantly read changes from a given directory, if this option is selected then passing a proper $--scan-dir$ is mandatory.
 <!END>
 
 # Python-like code

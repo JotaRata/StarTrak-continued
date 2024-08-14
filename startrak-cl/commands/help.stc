@@ -4,11 +4,11 @@ help $0:str
 
 # Documentation
 <!DOC>
-Usage:
- help COMMAND_NAME
+%Usage:%
+help COMMAND_NAME
 
-Description:
- Prints the help page for the provided command.
+%Description:%
+Prints the help page for the provided command.
 <!END>
 
 <!DATA>

@@ -373,7 +373,7 @@ def load_definition(path : str, allow_imports : bool = True) -> Command:
 
 def get_command(name : str) -> Command:
 	if name not in REGISTERED_COMMANDS:
-		raise NameError(f'Command not found: {name}')
+		raise STException(f'Command not found: {name}')
 	return REGISTERED_COMMANDS[name]
 
 def get_commands():

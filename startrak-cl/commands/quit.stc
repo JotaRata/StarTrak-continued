@@ -1,0 +1,14 @@
+# Startrak command format version 1.0
+quit
+
+<!DOC>
+%Usage:%
+quit
+
+%Description:%
+Exits the program.
+<!END>
+
+<!BODY>
+quit()
+<!END>

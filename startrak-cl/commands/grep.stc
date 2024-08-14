@@ -1,0 +1,71 @@
+# Startrak command format version 1.0
+# todo: Add support for type unions (text, path)
+grep $0:str $1:text --regex:bool
+
+<!DOC>
+%Usage:%
+grep PATTERN SOURCE --regex
+
+%Description:%
+Finds the text matching the pattern $PATTERN$ in the source.
+
+$PATTERN$ can be a python-compatible regular expression if $--regex$ is given or a pure text pattern, in the latter case wildcards (*) will be interpreted as well.
+$SOURCE$ can be a text input or a path to a file.
+If $SOURCE$ has a text returning function, it will be evaluated first and $PATTERN$ will be matched for the returned string.
+<!END>
+
+<!BODY>
+import os, re, glob
+from io import StringIO
+
+if not $regex:
+	pattern = re.escape($0).replace(r'\*', '.*')
+else:
+	pattern = $0
+
+def read_file(path, pattern):
+	lines = list()
+	file = open(path, 'r')
+	for line in file:
+		match =  re.search(pattern, line)
+		if match:
+			lines.append((line, match.span()))
+	file.close()
+	return lines
+
+def read_text(source, pattern):
+	lines = list()
+	for line in source.split('\n'):
+		match =  re.search(pattern, line)
+		if match:
+			lines.append((line, match.span()))
+	return lines
+
+buffer = StringIO()
+matches = list()
+if type($1) is str:
+	if os.path.exists($1) and os.path.isfile($1):
+		matches = read_file($1, pattern)
+
+	elif '*' in $1:
+		paths = glob.glob($1, root_dir= os.getcwd())
+		if paths:
+			for path in paths:
+				matches.append((f'{path}:', ()))
+				matches.extend(read_file(path, pattern))
+if not matches:
+	matches = read_text($1, pattern)
+
+for line, span in matches:
+	if len(span) == 0:
+		buffer.write(line)
+	else:
+		buffer.write(line[:span[0]])
+		buffer.write( console.format(line[span[0]:span[1]], 'red') )
+		buffer.write(line[span[1]:])
+	buffer.write('\n')
+print(buffer.getvalue())
+
+text_generator = (l.strip() for l, s in matches if len(s) == 2)
+RETURN TEXT str.join('\n', text_generator )
+<!END>
