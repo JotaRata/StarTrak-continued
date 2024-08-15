@@ -14,9 +14,11 @@ $SOURCE$ can be a text input or a path to a file.
 If $SOURCE$ has a text returning function, it will be evaluated first and $PATTERN$ will be matched for the returned string.
 <!END>
 
-<!BODY>
+<!INCLUDE>
 import os, re, glob
-from io import StringIO
+<!END>
+
+<!BODY>
 
 if not $regex:
 	pattern = re.escape($0).replace(r'\*', '.*')
@@ -41,7 +43,6 @@ def read_text(source, pattern):
 			lines.append((line, match.span()))
 	return lines
 
-buffer = StringIO()
 matches = list()
 if type($1) is str:
 	if os.path.exists($1) and os.path.isfile($1):
@@ -56,15 +57,17 @@ if type($1) is str:
 if not matches:
 	matches = read_text($1, pattern)
 
-for line, span in matches:
-	if len(span) == 0:
-		buffer.write(line)
-	else:
-		buffer.write(line[:span[0]])
-		buffer.write( console.format(line[span[0]:span[1]], 'red') )
-		buffer.write(line[span[1]:])
-	buffer.write('\n')
-print(buffer.getvalue())
+if $printable:
+	buffer = console.buffer()
+	for line, span in matches:
+		if len(span) == 0:
+			buffer.write(line)
+		else:
+			buffer.write(line[:span[0]])
+			buffer.write( console.format(line[span[0]:span[1]], 'red') )
+			buffer.write(line[span[1]:])
+		buffer.write('\n')
+	console.write(buffer.getvalue())
 
 text_generator = (l.strip() for l, s in matches if len(s) == 2)
 RETURN TEXT str.join('\n', text_generator )

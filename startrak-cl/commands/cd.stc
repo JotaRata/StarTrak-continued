@@ -10,8 +10,11 @@ cd DIR
 Set the current working directory to the provided directory path.
 <!END>
 
-<!BODY>
+<!INCLUDE>
 import os
+<!END>
+
+<!BODY>
 
 match $0:
 	case [path]:

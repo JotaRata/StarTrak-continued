@@ -18,9 +18,7 @@ SAVE format_map
 
 # Python-like code
 <!BODY>
-from io import StringIO
-
-buffer = StringIO()
+buffer = console.buffer()
 docstring = console.read_documentation($0)
 for line in docstring:
 	if '<!END' in line:
@@ -50,6 +48,6 @@ for line in docstring:
 	
 	if not skip_line:
 		buffer.write(line)
-print(buffer.getvalue())
+console.write(buffer.getvalue())
 <!END>
 

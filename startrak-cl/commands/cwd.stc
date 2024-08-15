@@ -11,9 +11,15 @@ cwd
 Prints the current working directory. Can be used in concatenation with other commands.
 <!END>
 
-<!BODY>
+<!INCLUDE>
 import os
+<!END>
+
+<!BODY>
 path = os.getcwd().replace('\\', '/')
-print(path)
+
+if $printable:
+	console.write(path)
+	console.write('\n')
 RETURN PATH path
 <!END>

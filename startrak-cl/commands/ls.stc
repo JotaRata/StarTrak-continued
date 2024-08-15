@@ -11,11 +11,13 @@ ls PATTERN
 List files matching the pattern provided by $PATTERN$. By default lists the files inside the current working directory.
 <!END>
 
-<!BODY>
-import os, stat
+<!INCLUDE>
+import os
+import stat
 import time
-from io import StringIO
+<!END>
 
+<!BODY>
 def list_columns(buffer, paths, columns):
 	max_length = max([len(file) for (file, _) in paths])
 	if columns == 0:
@@ -53,7 +55,6 @@ def list_stats(buffer, paths, directory):
 		
 		buffer.write('\n')
 		columns.clear()
-
 	buffer.write('\n')
 
 cwd = os.getcwd()
@@ -78,20 +79,25 @@ match $0:
 			else:
 				paths[dir_name].append((rel, is_dir))
 
-buffer = StringIO()
-for dir in paths:
-	if os.name == 'nt':
-		dir = dir.replace(r'\\', '/')	
-	if len(paths) > 1:
-		buffer.write(f'{dir}: \n')
+if $printable:
+	buffer = console.buffer()
+	for dir in paths:
+		if os.name == 'nt':
+			dir = dir.replace(r'\\', '/')	
+		if len(paths) > 1:
+			buffer.write(f'{dir}: \n')
 
-	if not $l:
-		list_columns(buffer, paths[dir], $cols)
-	else:
-		list_stats(buffer, paths[dir], dir)
+		if not $l:
+			list_columns(buffer, paths[dir], $cols)
+		else:
+			list_stats(buffer, paths[dir], dir)
+	console.write(buffer.getvalue())
 
-print(buffer.getvalue())
-RETURN TEXT buffer.getvalue()
-RETURN PATH paths.values()
+def text_generator_method(paths):
+	for path in paths.values():
+		for p in path:
+			yield p[0]
+text_generator = text_generator_method(paths)
+RETURN TEXT str.join('\n', text_generator)
 		
 <!END>

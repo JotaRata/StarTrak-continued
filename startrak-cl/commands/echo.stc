@@ -13,5 +13,6 @@ The argument can also have a text returning function that will be evaluated when
 <!END>
 
 <!BODY>
-print($0)
+console.write($0)
+console.write('\n')
 <!END>
