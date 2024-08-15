@@ -3,9 +3,14 @@ from dataclasses import dataclass
 import glob
 import os
 import re
-from typing import Callable, Generic, Type, TypeVar, TYPE_CHECKING
-from io import StringIO
+import stat
+import sys
+import time
+from typing import Any, Callable, Generic, Type, TypeVar, TYPE_CHECKING
+from io import IOBase, StringIO
 from types import CodeType
+
+from pygments import console
 import _globals
 import startrak
 from processing.protocols import STException
@@ -17,6 +22,7 @@ __all__ = ['load_definition']
 
 SYMBOL_PATTERN = re.compile(r'\$([\w-]+\b|\d+\b)')
 FUNCTION_PARAMS = re.compile(r'(.+)\s*\((.*?)\)')
+SPLIT_LIST = re.compile(r',|\s')
 
 @dataclass(frozen= True)
 class Command:
@@ -26,12 +32,14 @@ class Command:
 	doc_offsets : tuple[int, int]
 	code : CodeType
 	persistent : dict[str, object] = None
+	imports : list[str] = None
 	
 	# todo: move parsing logic to dedicated module
 	def execute(self, params : list[str], printable : bool = True):
 		parsed_args = self.parse_arguments(params)
 		variables = {arg.name : value for arg, value in parsed_args.items()} |\
-						{'console' : _ConsoleHelper(_globals.CONSOLE_INSTANCE)}
+						{	'console' : _ConsoleHelper(_globals.CONSOLE_INSTANCE),
+							'PRINTABLE' : printable}
 		if self.persistent:
 			variables |= self.persistent
 		body_locals = {}
@@ -111,8 +119,8 @@ class Argument(Generic[T]):
 	def get_value(self, raw_value : str) -> T:
 		try:
 			value = self.caster(raw_value)
-		except:
-			raise STException(f'Invalid argument type: {raw_value}')
+		except Exception as e:
+			raise STException(f'Invalid argument type: {raw_value}', e)
 		return value
 	
 	def __str__(self) -> str:
@@ -224,7 +232,7 @@ class _ConsoleHelper:
 		self.flush = console.flush
 	@property
 	def width(self) -> int:
-		return self._get_size()[1]
+		return self._get_size()[1] - 1
 	@property
 	def height(self) -> int:
 		return self._get_size()[0]
@@ -241,7 +249,30 @@ class _ConsoleHelper:
 	def get_documentation(self, command_name):
 		command = get_command(command_name)
 		return command.get_documentation()
-
+	def redirect(self, buffer : IOBase, close_buffer : bool = True):
+		return _ConsoleOutputContext(buffer, close_buffer)
+	def buffer(self, *args):
+		return StringIO(*args)
+	
+class _ConsoleOutputContext:
+	def __init__(self, buffer : IOBase, close_buffer : bool):
+		self._buffer = buffer
+		self._stdout = sys.stdout
+		self._close = close_buffer
+	def write(self, *args):
+		return self._buffer.write(*args)
+	def read(self, *args):
+		return self._buffer.read(*args)
+	def seek(self, *args):
+		return self._buffer.seek(*args)
+	def tell(self, ):
+		return self._buffer.tell()
+	def __enter__(self):
+		sys.stdout = self._buffer
+	def __exit__(self, *args):
+		sys.stdout = self._stdout
+		if self._close:
+			self._buffer.close()
 
 #! -------------------- Definition loading -------------------------------
 def load_definition(path : str, allow_imports : bool = True) -> Command:
@@ -253,31 +284,35 @@ def load_definition(path : str, allow_imports : bool = True) -> Command:
 		current_byte = 0
 		doc_start = 0
 		doc_end = 0
+		include_buffer = StringIO()
 		body_buffer = StringIO()
 		data_buffer = StringIO()
 		data_names = list[str]()
 		return_output = dict[str, object]()
+		imports = list[str]()
 		
 		for line in iter(f.readline, ''):
 			if not line or line.startswith('#'):
 				continue
-			if 'import' in line and not allow_imports:
-				continue
-			
+
 			if status == -1:
 				header = line
 				status = 0
 			else:
-				if '<!BODY>' in line:
-					status = 1
-					continue
-				if '<!DOC>' in line:
-					status = 2
-					doc_start = f.tell()
-					continue
-				if '<!DATA>' in line:
-					status = 3
-					continue
+				if status == 0:
+					if '<!BODY>' in line:
+						status = 1
+						continue
+					if '<!DOC>' in line:
+						status = 2
+						doc_start = f.tell()
+						continue
+					if '<!DATA>' in line:
+						status = 3
+						continue
+					if '<!INCLUDE>' in line:
+						status = 4
+						continue
 				if '<!END>' in line:
 					if status == 2:
 						doc_end = current_byte
@@ -285,6 +320,7 @@ def load_definition(path : str, allow_imports : bool = True) -> Command:
 					continue
 			current_byte = f.tell()
 			
+			lstrip = line.lstrip()
 			match status:
 				case 0 | 2:		# parsing nothing or docs
 					continue
@@ -299,7 +335,10 @@ def load_definition(path : str, allow_imports : bool = True) -> Command:
 							else:
 								line = line.replace('$'+ group, group.removeprefix('--').removeprefix('-').replace('-', '_').upper())
 					
-					if line.lstrip().startswith('ERROR'):
+					if lstrip.startswith(('import', 'from')):
+						raise SyntaxError('Imports are not allowed inside <!BODY>. Use <!INCLUDE> instead')
+					
+					if lstrip.startswith('ERROR'):
 						_, msg = line.split(maxsplit= 1)
 						body_buffer.write(line.replace('ERROR', 'raise STException(').rstrip() + ')\n')
 						continue
@@ -322,15 +361,25 @@ def load_definition(path : str, allow_imports : bool = True) -> Command:
 								raise SyntaxError(f'Unknown token "{token}"')
 						continue
 					body_buffer.write(line)
-
 				case 3:			# Parsing data blocks
-					if line.startswith('SAVE'):
+					if lstrip.startswith('SAVE'):
 						_, var_name, *trail = line.split()
 						if not var_name or trail:
 							raise SyntaxError('Invalid syntax at data block.')
 						data_names.append(var_name)
 						continue
 					data_buffer.write(line)
+				case 4:			# Parsing includes
+					if not allow_imports:
+						continue
+					if lstrip.startswith('import'):
+						_, *module = SPLIT_LIST.split(lstrip)
+						imports.extend(module)
+						include_buffer.write(line)
+					elif lstrip.startswith('from'):
+						_, module, _, *inner = SPLIT_LIST.split(lstrip)
+						imports.extend( inner)
+						include_buffer.write(line)
 				case _:
 					raise IOError('Invalid syntax in command definition.')
 
@@ -359,17 +408,32 @@ def load_definition(path : str, allow_imports : bool = True) -> Command:
 		block_compiled = compile(data_buffer.getvalue(), filename= command_name + '_persistent', mode= 'exec')
 		exec(block_compiled, EXEC_GLOBALS, block_locals)
 		data_block = block_locals.get('PERSISTENT', None)
-	
+
 	if return_output:
 		body_buffer.write(f'RETVAL = _ReturnValue(')
 		for key in return_output:
 			body_buffer.write(f'{key}= {return_output[key]}, ')
 		body_buffer.write(f')')
+	
+	if imports:
+		imports = list(set(imports))
+		include_buffer.write('globals().update({')
+		include_buffer.write(', '.join( [f'"{i}" : {i}' for i in imports if i] ))
+		include_buffer.write('})\n')
+
+	include_buffer.seek(0)
 	body_buffer.seek(0)
-	body_code = compile(body_buffer.getvalue(), filename= command_name, mode= 'exec')
+
+	main_buffer = StringIO()
+	main_buffer.writelines(include_buffer.readlines())
+	main_buffer.writelines(body_buffer.readlines())
+
+	body_code = compile(main_buffer.getvalue(), 
+							filename= command_name, mode= 'exec')
 
 	return Command(command_name, file = path, arguments = args, 
-						doc_offsets = (doc_start, doc_end), code= body_code, persistent= data_block)
+						doc_offsets = (doc_start, doc_end), code= body_code,
+						persistent= data_block, imports=  imports)
 
 def get_command(name : str) -> Command:
 	if name not in REGISTERED_COMMANDS:
@@ -381,8 +445,9 @@ def get_commands():
 
 
 #! ---------------------- Global scope -------------------------------------
-EXEC_GLOBALS =  {var : vars(startrak)[var] for var in dir(startrak)} |\
-					{var : vars(base)[var] for var in dir(base)}
+EXEC_GLOBALS =  {method.__name__ : method for method in [
+						STException, _ReturnValue, _TextMethod,
+					]}
 					# {'STException' : STException, 'ReturnValue' : _ReturnValue, 'TextMethod' : _TextMethod}
 
 COMMAND_DIR = _globals.BASE_DIR + '/commands/'
