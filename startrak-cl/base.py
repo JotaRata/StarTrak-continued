@@ -3,18 +3,14 @@ from dataclasses import dataclass
 import glob
 import os
 import re
-import stat
 import sys
-import time
-from typing import Any, Callable, Generic, Type, TypeVar, TYPE_CHECKING
+from typing import Callable, Generic, Type, TypeVar, TYPE_CHECKING
 from io import IOBase, StringIO
 from types import CodeType
 
-from pygments import console
 import _globals
 import startrak
 from processing.protocols import STException
-import base
 
 if TYPE_CHECKING:
 	from console.consoleapp import ConsoleApp
