@@ -21,7 +21,7 @@ import time
 def list_columns(buffer, paths, columns):
 	max_length = max([len(file) for (file, _) in paths])
 	if columns == 0:
-		columns = console.width // max_length
+		columns = max(1, console.width // max_length)
 	col_width = console.width // columns
 
 	col_chars = 0

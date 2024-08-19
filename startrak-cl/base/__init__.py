@@ -1,16 +1,14 @@
 from __future__ import annotations
 from dataclasses import dataclass
-import glob
 import os
 import re
-import sys
 from typing import Callable, Generic, Type, TypeVar, TYPE_CHECKING
 from io import IOBase, StringIO
 from types import CodeType
-
 import _globals
-import startrak
+from base.helper import _ConsoleOutputContext, _ReturnValue, _TextMethod
 from processing.protocols import STException
+from base.params import arg_type
 
 if TYPE_CHECKING:
 	from console.consoleapp import ConsoleApp
@@ -34,7 +32,7 @@ class Command:
 	def execute(self, params : list[str], printable : bool = True):
 		parsed_args = self.parse_arguments(params)
 		variables = {arg.name : value for arg, value in parsed_args.items()} |\
-						{	'console' : _ConsoleHelper(_globals.CONSOLE_INSTANCE),
+						{	'console' : ConsoleHelper(_globals.CONSOLE_INSTANCE),
 							'PRINTABLE' : printable}
 		if self.persistent:
 			variables |= self.persistent
@@ -122,102 +120,7 @@ class Argument(Generic[T]):
 	def __str__(self) -> str:
 		return f'Argument ({self.key} : {self.caster.__name__} : {self.default})'
 
-
-#! ----------------------- Helper classes -------------------------------
-class _Types:
-	@staticmethod
-	def text(ret : _ReturnValue | str):
-		if type(ret) is str:
-			return ret
-		if ret.text:
-			return ret.text.get_str()
-		if ret.value:
-			return str(ret.value)
-		return None
-	@staticmethod
-	def path(ret : _ReturnValue | str | list | tuple):
-		value : list[str]
-		if type(ret) is str:
-			if '*' in ret:
-				value = glob.glob(ret, root_dir= os.getcwd() + '/')
-			else:
-				value = [ret]
-		elif isinstance(ret, (list, tuple)):
-			value = [str(item) for item in ret]
-		elif isinstance(ret, _ReturnValue):
-			value = [str(item) for item in ret.path]
-		else:
-			return None
-		if os.name == 'nt':
-			value = [item.replace(r'\\', '/') for item in value]
-		return value
-	@staticmethod
-	def name(ret : _ReturnValue | str):
-		if type(ret) is str:
-			return ret
-		if ret.value:
-			if isinstance(ret.value, startrak.native.classes.STObject):
-				return ret.value.name
-			return type(ret.value).__name__
-		return None
-	@staticmethod
-	def int(ret : _ReturnValue | str):
-		value = ret if type(ret) is str else ret.value
-		if value:
-			return int(value)
-		return None
-	@staticmethod
-	def float(ret : _ReturnValue | str):
-		value = ret if type(ret) is str else ret.value
-		if value:
-			return float(value)
-		return None
-	@staticmethod
-	def str(ret : _ReturnValue | str):
-		value = ret if type(ret) is str else ret.value
-		if value:
-			value = str(value)
-			if value == '$null': # Return a falsely non-null string
-				return ''
-			return value
-		return None
-	@staticmethod
-	def bool(ret : _ReturnValue | bool):
-		value = ret if type(ret) is bool else ret.value
-		if value:
-			return bool(value)
-		return False
-	@staticmethod
-	def vector(ret : _ReturnValue | str):
-		value = ret if type(ret) is str else ret.value
-		if type(value) is tuple:
-			return value
-		elif type(value) is str:
-			match = re.match(r'(\d+)', value)
-			if match:
-				return tuple(float(group) for group in match.groups())
-		return None
-arg_type = { key : getattr(_Types, key) for key in dir(_Types) if not key.startswith('_')}
-
-@dataclass(frozen= True, slots= True)
-class _ReturnValue:
-	value : object = None
-	text : _TextMethod = None
-	path : str = None
-
-class _TextMethod:
-	def __init__(self, source : Callable[..., str], *args, **kwargs) -> None:
-		self.source = source
-		self.args = args
-		self.kwargs = kwargs
-	def __str__(self) -> str:
-		if type(self.source) is str:
-			return self.source
-		return self.source(*self.args, **self.kwargs)
-	def get_str(self) -> str:
-		return self.__str__()
-
-class _ConsoleHelper:
+class ConsoleHelper:
 	def __init__(self, console : ConsoleApp) -> None:
 		self._get_size = console.size
 		self._get_name = lambda: getattr(type(console), '__name__', 'NULL')
@@ -249,26 +152,6 @@ class _ConsoleHelper:
 		return _ConsoleOutputContext(buffer, close_buffer)
 	def buffer(self, *args):
 		return StringIO(*args)
-	
-class _ConsoleOutputContext:
-	def __init__(self, buffer : IOBase, close_buffer : bool):
-		self._buffer = buffer
-		self._stdout = sys.stdout
-		self._close = close_buffer
-	def write(self, *args):
-		return self._buffer.write(*args)
-	def read(self, *args):
-		return self._buffer.read(*args)
-	def seek(self, *args):
-		return self._buffer.seek(*args)
-	def tell(self, ):
-		return self._buffer.tell()
-	def __enter__(self):
-		sys.stdout = self._buffer
-	def __exit__(self, *args):
-		sys.stdout = self._stdout
-		if self._close:
-			self._buffer.close()
 
 #! -------------------- Definition loading -------------------------------
 def load_definition(path : str, allow_imports : bool = True) -> Command:
