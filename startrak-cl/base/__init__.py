@@ -179,19 +179,24 @@ def load_definition(path : str, allow_imports : bool = True) -> Command:
 				status = 0
 			else:
 				if status == 0:
-					if '<!BODY>' in line:
-						status = 1
-						continue
-					if '<!DOC>' in line:
-						status = 2
-						doc_start = f.tell()
-						continue
-					if '<!DATA>' in line:
-						status = 3
-						continue
-					if '<!INCLUDE>' in line:
-						status = 4
-						continue
+					match line.strip():
+						case '<!BODY>':
+							status = 1
+						case '<!DOC>':
+							status = 2
+							doc_start = f.tell()
+						case '<!DATA>':
+							status = 3
+						case '<!INCLUDE>':
+							status = 4
+						case '<!END>':
+							status = 0
+							if status == 2:
+								doc_end = current_byte
+						case _:
+							pass
+					continue
+
 				if '<!END>' in line:
 					if status == 2:
 						doc_end = current_byte
@@ -200,6 +205,7 @@ def load_definition(path : str, allow_imports : bool = True) -> Command:
 			current_byte = f.tell()
 			
 			lstrip = line.lstrip()
+			indent = len(line) - len(lstrip)
 			match status:
 				case 0 | 2:		# parsing nothing or docs
 					continue
@@ -217,12 +223,12 @@ def load_definition(path : str, allow_imports : bool = True) -> Command:
 					if lstrip.startswith(('import', 'from')):
 						raise SyntaxError('Imports are not allowed inside <!BODY>. Use <!INCLUDE> instead')
 					
-					if lstrip.startswith('ERROR'):
-						_, msg = line.split(maxsplit= 1)
+					if lstrip.startswith('ERROR '):
+						# _, msg = line.split(maxsplit= 1)
 						body_buffer.write(line.replace('ERROR', 'raise STException(').rstrip() + ')\n')
 						continue
 
-					if line.startswith('RETURN'):
+					if line.startswith('RETURN '):
 						_, token, *trail = line.split()
 						value = ' '.join(trail)
 						match token:
@@ -241,7 +247,7 @@ def load_definition(path : str, allow_imports : bool = True) -> Command:
 						continue
 					body_buffer.write(line)
 				case 3:			# Parsing data blocks
-					if lstrip.startswith('SAVE'):
+					if lstrip.startswith('SAVE '):
 						_, var_name, *trail = line.split()
 						if not var_name or trail:
 							raise SyntaxError('Invalid syntax at data block.')

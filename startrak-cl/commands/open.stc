@@ -1,0 +1,38 @@
+# Startrak command version 1.0
+open $0:path -v:int:0
+
+<!DOC>
+%Usage:%
+session [FILE]
+
+%Description:%
+Opens a startrak session.
+
+Opens a startrak session file provided by the $FILE$ parameter.
+<!END>
+
+<!INCLUDE>
+import os
+import startrak
+<!END>
+
+<!BODY>
+current = startrak.get_session()
+is_default = current.name == 'default' and len(current.included_files) + len(current.included_stars) == 0
+
+if not is_default:
+	console.write(f'Overwriting current session {current.name}')
+
+match $0:
+	case [path]:
+		session = startrak.load_session(path)
+	case _:
+		ERROR 'Multiple inputs are not allowed'
+	
+if $v != None and $printable:
+	console.write(session.__pprint__(0, $v))
+	console.write('\n')
+
+RETURN VALUE session
+RETURN TEXT session.__pprint__(0, $v if $v else 4)
+<!END>
