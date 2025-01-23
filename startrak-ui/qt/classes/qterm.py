@@ -12,9 +12,9 @@ from PySide6.QtWidgets import QLineEdit, QTextEdit, QWidget
 
 import startrak
 
-sys.path.append(os.getcwd() + '/startrak-cl')
-consoleapp = SourceFileLoader('consoleapp', 'startrak-cl/console/consoleapp.py').load_module()
-streams = SourceFileLoader('consoleapp', 'startrak-cl/streams.py').load_module()
+sys.path.append(os.getcwd() + '/startrak_cl')
+consoleapp = SourceFileLoader('consoleapp', 'startrak_cl/console/consoleapp.py').load_module()
+streams = SourceFileLoader('consoleapp', 'startrak_cl/streams.py').load_module()
 ConsoleApp = consoleapp.ConsoleApp
 ConsoleOutput = streams.ConsoleOutput
 ConsoleInput = streams.ConsoleInput
