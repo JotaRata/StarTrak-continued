@@ -335,7 +335,7 @@ EXEC_GLOBALS =  {method.__name__ : method for method in [
 					]}
 					# {'STException' : STException, 'ReturnValue' : _ReturnValue, 'TextMethod' : _TextMethod}
 
-COMMAND_DIR = _globals.BASE_DIR + '/commands/'
+COMMAND_DIR = _globals.BASE_DIR + '/stc/'
 REGISTERED_COMMANDS = dict[str, Command]()
 
 for file in os.scandir(COMMAND_DIR):

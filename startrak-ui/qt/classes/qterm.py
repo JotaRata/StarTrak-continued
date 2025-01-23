@@ -11,14 +11,9 @@ from PySide6.QtGui import QKeyEvent, QTextBlockFormat
 from PySide6.QtWidgets import QLineEdit, QTextEdit, QWidget
 
 import startrak
+from startrak_cl.console.consoleapp import ConsoleApp, _PREFIXES
+from startrak_cl.streams import ConsoleOutput, ConsoleInput
 
-sys.path.append(os.getcwd() + '/startrak_cl')
-consoleapp = SourceFileLoader('consoleapp', 'startrak_cl/console/consoleapp.py').load_module()
-streams = SourceFileLoader('consoleapp', 'startrak_cl/streams.py').load_module()
-ConsoleApp = consoleapp.ConsoleApp
-ConsoleOutput = streams.ConsoleOutput
-ConsoleInput = streams.ConsoleInput
-_PREFIXES = consoleapp._PREFIXES
 
 class QTerminal(ConsoleApp, QTextEdit):
 	on_sessionUpdate = Signal()
