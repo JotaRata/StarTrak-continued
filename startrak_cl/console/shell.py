@@ -1,7 +1,4 @@
-from distutils.command import clean
 from .consoleapp import ConsoleApp, _PREFIXES, FormatMode
-from base import get_command, get_commands
-from _utils import word_index, common_string
 # import keyboard
 from console import keyboard
 import os
@@ -14,6 +11,7 @@ class ShellConsole(ConsoleApp):
 		self._prepare_line(_PREFIXES[self._language_mode])
 	
 	def _prepare_shell(self):
+		return
 		match os.name:
 			case 'posix':
 				os.system('clear')

@@ -5,9 +5,9 @@ from typing import Literal
 from processing.protocols import Executor, Parser, STException
 from processing import parsers as parser
 from processing import executors as execs
+from processing.executors import get_command, get_commands
 from alias import InputMode, LanguageMode
 from streams import ConsoleInput, ConsoleOutput
-from base import get_command, get_commands
 from _utils import word_index, common_string
 import startrak
 
@@ -58,13 +58,13 @@ class ConsoleApp:
 		match mode:
 			case 'py':
 				self._parser = parser.PythonParser()
-				self._exc = execs.PythonExcecutioner(ConsoleApp._globals)
+				self._exc = execs.PythonExecutor(ConsoleApp._globals)
 			case 'sh':
 				self._parser = parser.ShellParser()
-				self._exc = execs.ShellExecutioner({})
+				self._exc = execs.ShellExecutor({})
 			case 'st':
 				self._parser = parser.StartrakParser()
-				self._exc = execs.StartrakExecutioner(ConsoleApp._globals)
+				self._exc = execs.StartrakExecutor(ConsoleApp._globals)
 		self._language_mode = mode
 
 	def process(self, string : str):

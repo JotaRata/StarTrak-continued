@@ -30,6 +30,7 @@ class _AbstractCommandMeta(type):
 		klass.__author__ = author
 		klass.__version__ = Version(version)
 
+		print(f'Registered command "{alias}" from {klass}')
 		_AbstractCommandMeta.registered_commands[klass.__alias__] = klass
 		return klass
 	
@@ -40,11 +41,15 @@ class Command(metaclass= _AbstractCommandMeta):
 	def __init_subclass__(cls):
 		if cls.__base__ != Command:
 			raise TypeError(f'Cannot derive from class "{cls.__base__.__name__}"')
+		
+	@classmethod
+	def get_name(cls) -> str:
+		return cls.__alias__
 	
 	def init_params() -> list[Parameter]:
 		raise NotImplementedError()
 
-	def execute(*args : tuple[Parameter, ...]) -> None:
+	def execute(*args : tuple[Parameter, ...], **kwargs) -> None:
 		raise NotImplementedError()
 
 
@@ -55,6 +60,11 @@ class Parameter:
 	def with_type(self, parameter_type : type) -> Self:
 		assert type(parameter_type) is type
 		self._type = parameter_type
+		return self
+	
+	def with_mapping(self, map : Callable[[str], object]) -> Self:
+		assert callable(map)
+		self._map = map
 		return self
 	
 	def with_validation(self, validator : Callable[[object], bool]) -> Self:
@@ -69,10 +79,12 @@ class Parameter:
 	
 
 class Optional(Parameter):
-	def __init__(self, name : str, short_name : str = None):
+	def __init__(self, name : str, short_name : str = None, implicit : bool = False):
 		super().__init__(name)
 		self._short = short_name
+		self._imp = implicit
 		self._type = bool
+		self._default = None
 
 	def with_default(self, default : object) -> Self:
 		self._default = default
