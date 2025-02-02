@@ -1,6 +1,10 @@
 from __future__ import annotations
-from typing import Any, Callable, Self
+from io import StringIO
+from typing import TYPE_CHECKING, Any, Callable, Self
 from packaging.version import Version
+
+if TYPE_CHECKING:
+	from startrak_cl.console.consoleapp import ConsoleApp
 
 __all__ = ['Command', 'Parameter', 'Optional']
 
@@ -51,8 +55,7 @@ class Command(metaclass= _AbstractCommandMeta):
 
 	def execute(*args : tuple[Parameter, ...], **kwargs) -> None:
 		raise NotImplementedError()
-
-
+	
 class Parameter:
 	def __init__(self, name : str):
 		self.name = name
@@ -90,3 +93,30 @@ class Optional(Parameter):
 		self.default_value = default
 		return self
 	
+class ConsoleHelper:
+	def __init__(self, console : ConsoleApp) -> None:
+		self._get_size = console.size
+		self._get_name = lambda: getattr(type(console), '__name__', 'NULL')
+		self.execute = console.process
+		self.format = console.format
+		self.clear = console.clear
+		self.write = console.write
+		self.flush = console.flush
+	@property
+	def width(self) -> int:
+		return self._get_size()[1] - 1
+	@property
+	def height(self) -> int:
+		return self._get_size()[0]
+	@property
+	def name(self) -> str:
+		return self._get_name()
+	def buffer(self, *args):
+		return StringIO(*args)
+	
+def get_active_console() -> ConsoleHelper:
+		try:
+			import _globals
+			return ConsoleHelper(_globals.CONSOLE_INSTANCE)
+		except:
+			raise 

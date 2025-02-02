@@ -94,11 +94,11 @@ class StartrakExecutor(Executor):
 
 		def apply_attributes(parameter : Parameter, arg : str):
 			value = arg
-			if hasattr(parameter, '_map'):
+			if hasattr(parameter, 'map_function'):
 				value = parameter.map_function(value)
-			if hasattr(parameter, '_type'):
+			if hasattr(parameter, 'type_cast'):
 				value = parameter.type_cast(value)
-			if hasattr(parameter, '_validator'):
+			if hasattr(parameter, 'validate_function'):
 				if parameter.validate_function(value) == False:
 					raise STException(f'Invalid parameter "{arg}" for command "{command.get_name()}"')
 			return value
@@ -118,14 +118,13 @@ class StartrakExecutor(Executor):
 				elif param.is_implicit:
 					value = apply_attributes(param, args[arg_index])
 					output_values[param.name] = value
-					args.pop(arg_index)
 				else:
 					if arg_index + 1 >= len(args):
 						raise STException(f'Missing parameter value for parameter "{param.name}" in command "{command.get_name()}"')
 					value = apply_attributes(param, args[arg_index + 1])
 					output_values[param.name] = value
 					args.pop(arg_index + 1)
-					args.pop(arg_index)
+				args.pop(arg_index)
 			else:
 				value = apply_attributes(param, param.default_value)
 				output_values[param.name] = value
