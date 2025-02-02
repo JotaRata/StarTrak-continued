@@ -107,15 +107,16 @@ class StartrakExecutor(Executor):
 			arg_index = -1
 			for j, arg in enumerate(args):
 				is_keyword = (arg.startswith('--') and param.name == arg[2:]) or (arg.startswith('-') and param.short_name == arg[1:])
+				is_implicit = param.is_implicit and not arg.startswith('-')
 				
-				if is_keyword or (param.is_implicit and not arg.startswith('-')):
+				if is_keyword or is_implicit:
 					arg_index = j
 					break
 			
 			if arg_index >= 0:
 				if param.type_cast is bool:
 					output_values[param.name] = True
-				elif param.is_implicit:
+				elif is_implicit:
 					value = apply_attributes(param, args[arg_index])
 					output_values[param.name] = value
 				else:
@@ -130,8 +131,9 @@ class StartrakExecutor(Executor):
 				output_values[param.name] = value
 				
 		for i, param in enumerate(positional):
-			value = apply_attributes(param, args[i])
+			value = apply_attributes(param, args.pop(i))
 			output_values[param.name] = value
+			
 		if len(args) != 0:
 			raise STException(f'Unexpected parameters: {args} for command {command.get_name()}')
 		return [output_values[param.name] for param in parameters]

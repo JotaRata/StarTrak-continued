@@ -4,8 +4,6 @@ import sys
 sys.path.append(os.getcwd())
 from console.shell import ShellConsole
 import startrak
-
+import source
 
 app = ShellConsole()
-
-from source import base_commands

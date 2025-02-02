@@ -105,7 +105,9 @@ class ConsoleApp:
 			command = get_command(words[0])
 			if not command or (words[word_idx].startswith('-') or (words[0]=='add' and words[1]=='star')):
 				return False
-			if getattr(command.arguments[word_idx - 1].caster, '__name__', None) == 'path':
+			
+			parameters = command.init_params()
+			if getattr(parameters[word_idx - 1].type_cast, '__name__', None) == 'path':
 				scan_path = os.getcwd()
 				dir_idx = 0
 				curr_indx = 0
