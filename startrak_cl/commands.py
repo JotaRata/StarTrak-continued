@@ -55,38 +55,38 @@ class Command(metaclass= _AbstractCommandMeta):
 
 class Parameter:
 	def __init__(self, name : str):
-		self._name = name
+		self.name = name
 	
 	def with_type(self, parameter_type : type) -> Self:
 		assert type(parameter_type) is type
-		self._type = parameter_type
+		self.type_cast = parameter_type
 		return self
 	
 	def with_mapping(self, map : Callable[[str], object]) -> Self:
 		assert callable(map)
-		self._map = map
+		self.map_function = map
 		return self
 	
 	def with_validation(self, validator : Callable[[object], bool]) -> Self:
 		assert callable(validator)
-		self._validator = validator
+		self.validate_function = validator
 		return self
 	
 	def with_description(self, description : str) -> Self:
 		assert isinstance(description, str)
-		self._desc = description
+		self.description = description
 		return self
 	
 
 class Optional(Parameter):
 	def __init__(self, name : str, short_name : str = None, implicit : bool = False):
 		super().__init__(name)
-		self._short = short_name
-		self._imp = implicit
-		self._type = bool
-		self._default = None
+		self.short_name = short_name
+		self.is_implicit = implicit
+		self.type_cast = bool
+		self.default_value = None
 
 	def with_default(self, default : object) -> Self:
-		self._default = default
+		self.default_value = default
 		return self
 	

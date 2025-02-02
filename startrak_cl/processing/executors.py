@@ -88,48 +88,51 @@ class StartrakExecutor(Executor):
 
 		output_values = dict[str, Any]()
 
-		assert len(args) >= len(positional), f'Not enough parameters for command "{command.get_name()}"'
+		if len(args) < len(positional):
+			raise STException(f'Not enough parameters for command "{command.get_name()}"')
 
 
 		def apply_attributes(parameter : Parameter, arg : str):
 			value = arg
 			if hasattr(parameter, '_map'):
-				value = parameter._map(value)
+				value = parameter.map_function(value)
 			if hasattr(parameter, '_type'):
-				value = parameter._type(value)
+				value = parameter.type_cast(value)
 			if hasattr(parameter, '_validator'):
-				assert parameter._validator(value), f'Invalid parameter "{arg}" for command "{command.get_name()}"'
+				if parameter.validate_function(value) == False:
+					raise STException(f'Invalid parameter "{arg}" for command "{command.get_name()}"')
 			return value
 		
-		for i, param in enumerate(sorted(optional, key= lambda x: x._imp)):
+		for i, param in enumerate(sorted(optional, key= lambda x: x.is_implicit)):
 			arg_index = -1
 			for j, arg in enumerate(args):
-				is_keyword = (arg.startswith('--') and param._name == arg[2:]) or (arg.startswith('-') and param._short == arg[1:])
+				is_keyword = (arg.startswith('--') and param.name == arg[2:]) or (arg.startswith('-') and param.short_name == arg[1:])
 				
-				if is_keyword or (param._imp and not arg.startswith('-')):
+				if is_keyword or (param.is_implicit and not arg.startswith('-')):
 					arg_index = j
 					break
 			
 			if arg_index >= 0:
-				if param._type is bool:
-					output_values[param._name] = True
-				elif param._imp:
+				if param.type_cast is bool:
+					output_values[param.name] = True
+				elif param.is_implicit:
 					value = apply_attributes(param, args[arg_index])
-					output_values[param._name] = value
+					output_values[param.name] = value
 					args.pop(arg_index)
 				else:
-					assert arg_index + 1 < len(args), f'Missing parameter value for parameter "{param._name}" in command "{command.get_name()}"'
+					if arg_index + 1 >= len(args):
+						raise STException(f'Missing parameter value for parameter "{param.name}" in command "{command.get_name()}"')
 					value = apply_attributes(param, args[arg_index + 1])
-					output_values[param._name] = value
+					output_values[param.name] = value
 					args.pop(arg_index + 1)
 					args.pop(arg_index)
 			else:
-				value = apply_attributes(param, param._default)
-				output_values[param._name] = value
+				value = apply_attributes(param, param.default_value)
+				output_values[param.name] = value
 				
 		for i, param in enumerate(positional):
 			value = apply_attributes(param, args[i])
-			output_values[param._name] = value
-
-		assert len(args) == 0, f'Unexpected parameters: {args} for command {command.get_name()}'
-		return [output_values[param._name] for param in parameters]
+			output_values[param.name] = value
+		if len(args) != 0:
+			raise STException(f'Unexpected parameters: {args} for command {command.get_name()}')
+		return [output_values[param.name] for param in parameters]
