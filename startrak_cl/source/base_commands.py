@@ -4,6 +4,7 @@ import stat
 import time
 from startrak_cl.commands import Command, Optional, Parameter, get_active_console
 from startrak_cl.processing.protocols import STException
+from startrak_cl.utils.casters import path
 
 class ListCommand(Command,
 						alias = 'ls',
@@ -14,7 +15,7 @@ class ListCommand(Command,
 		return [
 			Optional('path', implicit= True)
 				.with_description('The path to the directory for which files will be listed')
-				.with_type(list)
+				.with_type(path)
 				.with_default([]),
 			
 			Optional('list', 'l'),
@@ -49,6 +50,8 @@ class ListCommand(Command,
 
 		if printable:
 			buffer = console.buffer()
+
+			max_length = max([len(file) for dir in paths for (file, _) in paths[dir]])
 			for dir in paths:
 				if os.name == 'nt':
 					dir = dir.replace(r'\\', '/')	
@@ -56,6 +59,13 @@ class ListCommand(Command,
 					buffer.write(f'{dir}: \n')
 
 				if not list_mode:
+					if cols == 0:
+						cols = min(max(1, console.width // max_length), 4)
+						col_width = console.width // cols
+					else:
+						col_width = console.width // cols
+						max_length = min(max_length, col_width - 3)
+						
 					ListCommand.list_columns(buffer, paths[dir], cols)
 				else:
 					ListCommand.list_stats(buffer, paths[dir], dir)
@@ -64,15 +74,8 @@ class ListCommand(Command,
 	def list_columns(buffer, paths, columns):
 		console = get_active_console()
 
-		max_length = max([len(file) for (file, _) in paths])
-		if columns == 0:
-			columns = max(1, console.width // max_length)
-			col_width = console.width // columns
-		else:
-			col_width = console.width // columns
-			max_length = min(max_length, col_width - 3)
 		rows = math.ceil(len(paths) / columns)
-
+		col_width = console.width // columns
 
 		for row in range(rows):
 			for column in range(columns):
@@ -81,16 +84,15 @@ class ListCommand(Command,
 					break
 				
 				file, is_dir = paths[index]
-				if len(file) > max_length:
-					file = file[:max_length] + '..'
+				if len(file) > col_width:
+					file = file[:col_width] + '..'
 				if ' ' in file:
 					file = f"'{file}'"
 
 				file = file.ljust(col_width)
 				buffer.write(console.format( file, 'blue' if is_dir else 'green'))
 			buffer.write('\n')
-		buffer.write('\n' * 2)
-		print(len(paths))
+		buffer.write('\n')
 
 	def list_stats(buffer, paths, directory):
 		console = get_active_console()

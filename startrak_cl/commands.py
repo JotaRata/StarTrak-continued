@@ -60,8 +60,8 @@ class Parameter:
 	def __init__(self, name : str):
 		self.name = name
 	
-	def with_type(self, parameter_type : type) -> Self:
-		assert type(parameter_type) is type
+	def with_type(self, parameter_type : type | callable) -> Self:
+		assert type(parameter_type) is type or callable(parameter_type)
 		self.type_cast = parameter_type
 		return self
 	

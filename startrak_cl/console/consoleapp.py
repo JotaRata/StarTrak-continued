@@ -8,7 +8,7 @@ from processing import executors as execs
 from processing.executors import get_command, get_commands
 from alias import InputMode, LanguageMode
 from streams import ConsoleInput, ConsoleOutput
-from _utils import word_index, common_string
+from startrak_cl.utils.string_operations import word_index, common_string
 import startrak
 
 FormatMode = Literal['highlight', 'underline', 'bold', 'blink', 'red', 'yellow', 'blue', 'green', 'magenta']
