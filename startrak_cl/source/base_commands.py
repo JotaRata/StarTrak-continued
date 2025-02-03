@@ -55,6 +55,17 @@ class EchoCommand(Command,
 		text = console.remove_format(text)
 		print(text)
 
+class ClearCommand(Command,
+						alias= 'clear',
+						description= 'Clears the screen.',
+						author= 'JotaRata - Adapted from GNU'):
+	def init_params():
+		return []
+
+	def execute(*args, **kwargs):
+		console = get_active_console()
+		console.clear()
+
 class QuitCommand(Command,
 						alias= 'quit',
 						description= 'Immediatly quits the program.',
