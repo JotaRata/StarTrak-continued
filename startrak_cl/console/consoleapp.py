@@ -2,11 +2,12 @@ import os
 import sys
 import _globals
 from typing import Literal
-from processing.protocols import Executor, Parser, STException
+from processing.protocols import Executor, Parser
 from processing import parsers as parser
 from processing import executors as execs
 from processing.executors import get_command, get_commands
 from alias import InputMode, LanguageMode
+from startrak_cl import STException
 from streams import ConsoleInput, ConsoleOutput
 from startrak_cl.utils.string_operations import word_index, common_string
 import startrak

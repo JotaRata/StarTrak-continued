@@ -1,7 +1,7 @@
 import importlib.util
 import os
 
-from startrak_cl.processing.protocols import STException
+from startrak_cl import STException
 
 SOURCE_PATH = 'startrak_cl/source/'
 files = os.listdir(SOURCE_PATH)

@@ -1,7 +1,8 @@
 
 import os
+import sys
+from startrak_cl import STException
 from startrak_cl.commands import Command, Parameter
-from startrak_cl.processing.protocols import STException
 from startrak_cl.utils.casters import path
 
 
@@ -19,6 +20,7 @@ class ChangeDirectoryCommand(Command,
 	
 	def execute(paths : list[str], *args, **kwargs):
 		path = paths[0]
+		print(paths)
 		if not os.path.isdir(path):
 			raise STException('Path is not a directory.')
 		os.chdir(path)

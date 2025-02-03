@@ -1,10 +1,13 @@
 from ast import literal_eval
+from io import StringIO
 import os
 import subprocess
+import sys
 from typing import Any
 
+from startrak_cl import STException
 from startrak_cl.commands import Command, _AbstractCommandMeta, Optional, Parameter
-from .protocols import ChainedOutput, Output, ParsedOutput, PipedOutput, STException
+from .protocols import ChainedOutput, Output, ParsedOutput, PipedOutput
 from .protocols import Executor
 
 def get_commands():
@@ -64,21 +67,31 @@ class StartrakExecutor(Executor):
 
 		elif type(parsed_data) is ChainedOutput:
 			retval = None
+			stdout = sys.stdout
 			for out in parsed_data.outputs:
 				if type(out) is ParsedOutput:
 					command, args, printable = out
-				elif type(out) is PipedOutput:
-					command, args, printable = out.output
-					varname = out.varname
+				
 				if not command: return
 				if retval:
-					new_args = args + [retval]
+					new_args = [retval.strip()] + args
 				else:
 					new_args = args
 
 				command = get_command(command)
 				parameters = self.parse_arguments(command, new_args)
-				retval = command.execute(*parameters, printable= printable)
+
+				try:
+					output_buffer = StringIO()
+					sys.stdout = output_buffer
+					command.execute(*parameters, printable= True)
+					retval = output_buffer.getvalue()
+				except:
+					raise
+				finally:
+					output_buffer.close()
+					sys.stdout = stdout
+					
 
 	def parse_arguments(self, command : type[Command], args : list[str]):
 		parameters = command.init_params()
