@@ -99,6 +99,7 @@ class ConsoleHelper:
 		self._get_name = lambda: getattr(type(console), '__name__', 'NULL')
 		self.execute = console.process
 		self.format = console.format
+		self.remove_format = console.remove_format
 		self.clear = console.clear
 		self.write = console.write
 		self.flush = console.flush

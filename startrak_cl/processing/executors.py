@@ -65,10 +65,9 @@ class StartrakExecutor(Executor):
 
 		elif type(parsed_data) is ChainedOutput:
 			retval = None
-			stdout = console.output.stdout
 			for out in parsed_data.outputs:
 				if type(out) is ParsedOutput:
-					command, args, printable = out
+					command, args, last = out
 				
 				if not command: return
 				if retval:
@@ -79,19 +78,14 @@ class StartrakExecutor(Executor):
 				command = get_command(command)
 				parameters = self.parse_arguments(command, new_args)
 
-				if printable:
+				if last:
 					command.execute(*parameters, printable= True)
 					return
-				try:
-					output_buffer = StringIO()
-					console.output.stdout = output_buffer
+				
+				with console.redirect_output() as output:
 					command.execute(*parameters, printable= True)
-					retval = output_buffer.getvalue()
-				except:
-					raise
-				finally:
-					output_buffer.close()
-					console.output.stdout = stdout
+					retval = output.getvalue()
+
 
 
 	def parse_arguments(self, command : type[Command], args : list[str]):

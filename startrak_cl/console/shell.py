@@ -4,6 +4,28 @@ from console import keyboard
 import os
 
 class ShellConsole(ConsoleApp):
+	FORMATS = {
+		'highlight': "\033[7m",
+		'italic': "\033[3m",
+		'bold': "\033[1m",
+		'underline': "\033[4m",
+		'blink': "\033[5m",
+		'red': "\033[91m",
+		'green': "\033[92m",
+		'yellow': "\033[93m",
+		'cyan': "\033[96m",
+		'blue': "\033[94m",
+		'purple': "\033[95m",
+		'highlight-red': "\033[41m",
+		'highlight-green': "\033[42m",
+		'highlight-yellow': "\033[43m",
+		'highlight-cyan': "\033[46m",
+		'highlight-blue': "\033[44m",
+		'highlight-purple': "\033[45m"
+	}
+
+	END_CODE = '\033[0m'
+
 	def __init__(self, *args: str) -> None:
 		super().__init__(*args)
 		self._prepare_shell()
@@ -26,9 +48,9 @@ class ShellConsole(ConsoleApp):
 		return super().set_mode(mode, **kwargs)
 	
 	def _prepare_line(self, prompt):
-		self.output.stdout.write(prompt)
+		self.output._stdout.write(prompt)
 		input_text =self.input.getvalue()
-		self.output.stdout.write(input_text)
+		self.output._stdout.write(input_text)
 		self.output.flush()
 	
 	def on_keyEvent(self, key : str):
@@ -40,8 +62,8 @@ class ShellConsole(ConsoleApp):
 		def clear_newline():
 			prompt = _PREFIXES[self._language_mode]
 			new_text = self.input.get_text() 
-			self.output.stdout.write('\r' + ' ' * len(prompt + input_text) + '\r' + (prompt + new_text)) 
-			self.output.stdout.flush()
+			self.output._stdout.write('\r' + ' ' * len(prompt + input_text) + '\r' + (prompt + new_text)) 
+			self.output._stdout.flush()
 
 		if len(key) == 1:
 			if (key == '>' or key == '!') and len(input_text.strip()) == 0:
@@ -50,7 +72,7 @@ class ShellConsole(ConsoleApp):
 				elif key == '!':
 					self.set_language('sh')
 				self.input.clear()
-				self.output.stdout.write('\r' + ' ' * len(input_text)) 
+				self.output._stdout.write('\r' + ' ' * len(input_text)) 
 				self._prepare_line(_PREFIXES[self._language_mode])
 				return
 			else:
@@ -82,7 +104,7 @@ class ShellConsole(ConsoleApp):
 				self.input.clear()
 				self.index = 0
 				self.cursor = 0
-				self.output.stdout.write('\n') 
+				self.output._stdout.write('\n') 
 				self.process(output)
 				self._prepare_line(_PREFIXES[self._language_mode])
 				return
@@ -124,43 +146,13 @@ class ShellConsole(ConsoleApp):
 				os.system('cls')
 		return super().clear()
 	
-	def format(self, text : str, format : FormatMode) -> str:
-		match format:
-			case 'highlight':
-				return f"\033[7m{text}\033[0m"
-			case 'italic':
-				return f"\033[3m{text}\033[0m"
-			case 'bold':
-				return f"\033[1m{text}\033[0m"
-			case 'underline':
-				return f"\033[4m{text}\033[0m"
-			case 'blink':
-				return f"\033[5m{text}\033[0m"
-			
-			case 'red':
-				return f"\033[91m{text}\033[0m"
-			case 'green':
-				return f"\033[92m{text}\033[0m"
-			case 'yellow':
-				return f"\033[93m{text}\033[0m"
-			case 'cyan':
-				return f"\033[96m{text}\033[0m"
-			case 'blue':
-				return f"\033[94m{text}\033[0m"
-			case 'purple':
-				return f"\033[95m{text}\033[0m"
-			
-			case 'highlight-red':
-				return f"\033[41m{text}\033[0m"
-			case 'highlight-green':
-				return f"\033[42m{text}\033[0m"
-			case 'highlight-yellow':
-				return f"\033[43m{text}\033[0m"
-			case 'highlight-cyan':
-				return f"\033[46m{text}\033[0m"
-			case 'highlight-blue':
-				return f"\033[44m{text}\033[0m"
-			case 'highlight-purple':
-				return f"\033[45m{text}\033[0m"
-			case _:
-				return text
+	def format(self, text: str, format: FormatMode) -> str:
+		format_code = ShellConsole.FORMATS.get(format, None)
+		if format_code:
+			return f"{format_code}{text}{ShellConsole.END_CODE}"
+		return text
+
+	def remove_format(self, text):
+		for code in ShellConsole.FORMATS.values():
+			text = text.replace(code, '')
+		return text.replace(ShellConsole.END_CODE, '')

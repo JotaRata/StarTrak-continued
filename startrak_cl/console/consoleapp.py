@@ -1,3 +1,5 @@
+from contextlib import contextmanager
+from io import StringIO
 import os
 import sys
 import _globals
@@ -152,9 +154,21 @@ class ConsoleApp:
 	def flush(self):
 		return self.output.flush()
 	
+	@contextmanager
+	def redirect_output(self):
+		new_output = StringIO()
+		self.output.redirect(new_output)
+		yield new_output
+
+		self.output.reset_output()
+		new_output.close()
+	
 	def format(self, text : str, format : FormatMode):
 		match format:
 			case 'highlight':
 				return f'[{text}]'
 			case _:
 				return text
+			
+	def remove_format(self, text : str):
+		return text.strip('[]')

@@ -58,26 +58,34 @@ class ConsoleInput(StringIO):
 class ConsoleOutput(StringIO):
 	def __init__(self, stdout : TextIO) -> None:
 		super().__init__()
-		self.stdout = stdout if stdout else NoStream()
-		self.out = open(r'C:\Users\jjbar\Documents\GitHub\StarTrak-continued\output.txt', 'w')
+		self._stdout = stdout if stdout else NoStream()
+		self._redirect : TextIO = None
 
 	def write(self, __s: str) -> int:
 		if (l:=len(__s)) > DEFAULT_BUFFER_SIZE:
 			for i in range(0, l, DEFAULT_BUFFER_SIZE):
 				_slice = __s[i : i + DEFAULT_BUFFER_SIZE]
-				self.out.write(_slice)
-				self.stdout.write(_slice)
-				v = super().write(_slice)
+				v = self._writeto(_slice)
 			return v
-
-		self.out.write(__s)
-		self.stdout.write(__s)
+		return self._writeto(__s)
+	
+	def _writeto(self, __s: str):
+		if self._redirect and not self._redirect.closed:
+			self._redirect.write(__s)
+			return
+		self._stdout.write(__s)
 		return super().write(__s)
+	
 	def clear(self):
 		self.truncate(0)
 		self.seek(0)
+
 	def flush(self) -> None:
-		self.stdout.flush()
-		self.out.flush()
+		self._stdout.flush()
 		return super().flush()
 	
+	def redirect(self, output : TextIO):
+		self._redirect = output
+
+	def reset_output(self):
+		self._redirect = None

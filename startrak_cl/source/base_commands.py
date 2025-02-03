@@ -2,9 +2,8 @@
 import os
 import sys
 from startrak_cl import STException
-from startrak_cl.commands import Command, Parameter
+from startrak_cl.commands import Command, Parameter, get_active_console
 from startrak_cl.utils.casters import path
-
 
 class ChangeDirectoryCommand(Command,
 							alias='cd',
@@ -52,6 +51,8 @@ class EchoCommand(Command,
 		]
 	
 	def execute(text : str, *args, **kwargs):
+		console = get_active_console()
+		text = console.remove_format(text)
 		print(text)
 
 class QuitCommand(Command,
