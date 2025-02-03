@@ -20,7 +20,6 @@ class ChangeDirectoryCommand(Command,
 	
 	def execute(paths : list[str], *args, **kwargs):
 		path = paths[0]
-		print(paths)
 		if not os.path.isdir(path):
 			raise STException('Path is not a directory.')
 		os.chdir(path)
@@ -39,6 +38,21 @@ class CurrentDirectoryCommand(Command,
 		if os.name == 'nt':
 			cwd = cwd.replace('\\', '/')
 		print(cwd)
+
+
+class EchoCommand(Command,
+						alias= 'echo',
+						description= 'Prints the input to the screen.',
+						author= 'JotaRata - Adapted from GNU'):
+	def init_params():
+		return [
+			Parameter('text')
+				.with_description('The text to print to the screen.')
+				.with_type(str)
+		]
+	
+	def execute(text : str, *args, **kwargs):
+		print(text)
 
 class QuitCommand(Command,
 						alias= 'quit',

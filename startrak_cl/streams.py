@@ -59,15 +59,18 @@ class ConsoleOutput(StringIO):
 	def __init__(self, stdout : TextIO) -> None:
 		super().__init__()
 		self.stdout = stdout if stdout else NoStream()
+		self.out = open(r'C:\Users\jjbar\Documents\GitHub\StarTrak-continued\output.txt', 'w')
 
 	def write(self, __s: str) -> int:
 		if (l:=len(__s)) > DEFAULT_BUFFER_SIZE:
 			for i in range(0, l, DEFAULT_BUFFER_SIZE):
 				_slice = __s[i : i + DEFAULT_BUFFER_SIZE]
+				self.out.write(_slice)
 				self.stdout.write(_slice)
 				v = super().write(_slice)
 			return v
 
+		self.out.write(__s)
 		self.stdout.write(__s)
 		return super().write(__s)
 	def clear(self):
@@ -75,5 +78,6 @@ class ConsoleOutput(StringIO):
 		self.seek(0)
 	def flush(self) -> None:
 		self.stdout.flush()
+		self.out.flush()
 		return super().flush()
 	

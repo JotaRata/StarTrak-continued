@@ -26,9 +26,9 @@ class ShellConsole(ConsoleApp):
 		return super().set_mode(mode, **kwargs)
 	
 	def _prepare_line(self, prompt):
-		self.output.write(prompt)
+		self.output.stdout.write(prompt)
 		input_text =self.input.getvalue()
-		self.output.write(input_text)
+		self.output.stdout.write(input_text)
 		self.output.flush()
 	
 	def on_keyEvent(self, key : str):
@@ -40,8 +40,8 @@ class ShellConsole(ConsoleApp):
 		def clear_newline():
 			prompt = _PREFIXES[self._language_mode]
 			new_text = self.input.get_text() 
-			self.output.write('\r' + ' ' * len(prompt + input_text) + '\r' + (prompt + new_text)) 
-			self.output.flush()
+			self.output.stdout.write('\r' + ' ' * len(prompt + input_text) + '\r' + (prompt + new_text)) 
+			self.output.stdout.flush()
 
 		if len(key) == 1:
 			if (key == '>' or key == '!') and len(input_text.strip()) == 0:
@@ -50,7 +50,7 @@ class ShellConsole(ConsoleApp):
 				elif key == '!':
 					self.set_language('sh')
 				self.input.clear()
-				self.output.write('\r' + ' ' * len(input_text)) 
+				self.output.stdout.write('\r' + ' ' * len(input_text)) 
 				self._prepare_line(_PREFIXES[self._language_mode])
 				return
 			else:
@@ -82,7 +82,7 @@ class ShellConsole(ConsoleApp):
 				self.input.clear()
 				self.index = 0
 				self.cursor = 0
-				self.output.write('\n') 
+				self.output.stdout.write('\n') 
 				self.process(output)
 				self._prepare_line(_PREFIXES[self._language_mode])
 				return
