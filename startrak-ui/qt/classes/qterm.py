@@ -11,7 +11,7 @@ from PySide6.QtGui import QKeyEvent, QTextBlockFormat
 from PySide6.QtWidgets import QLineEdit, QTextEdit, QWidget
 
 import startrak
-from startrak_cl.console.consoleapp import ConsoleApp, _PREFIXES
+from startrak_cl import ConsoleApp, _PREFIXES
 from startrak_cl.streams import ConsoleOutput, ConsoleInput
 
 

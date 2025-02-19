@@ -1,6 +1,6 @@
 from startrak_cl import STException
 from .protocols import ChainedOutput, Parser, ParsedOutput, PipedOutput
-from processing.executors import get_command
+from startrak_cl.processing.executors import get_command
 
 _DISALLOWED_PY_KW = ('import', 'os', 'sys', 'raise', 
 							'input', 'class', 'open', 'with', 

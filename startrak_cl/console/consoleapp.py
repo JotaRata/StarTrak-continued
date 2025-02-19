@@ -2,15 +2,15 @@ from contextlib import contextmanager
 from io import StringIO
 import os
 import sys
-import _globals
+from startrak_cl import _globals
 from typing import Literal
-from processing.protocols import Executor, Parser
-from processing import parsers as parser
-from processing import executors as execs
-from processing.executors import get_command, get_commands
-from alias import InputMode, LanguageMode
+from startrak_cl.processing.protocols import Executor, Parser
+from startrak_cl.processing import parsers as parser
+from startrak_cl.processing import executors as execs
+from startrak_cl.processing.executors import get_command, get_commands
+from startrak_cl.alias import InputMode, LanguageMode
 from startrak_cl import STException
-from streams import ConsoleInput, ConsoleOutput
+from startrak_cl.streams import ConsoleInput, ConsoleOutput
 from startrak_cl.utils.string_operations import word_index, common_string
 import startrak
 

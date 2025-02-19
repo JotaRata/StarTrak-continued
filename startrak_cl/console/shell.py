@@ -33,7 +33,6 @@ class ShellConsole(ConsoleApp):
 		self._prepare_line(_PREFIXES[self._language_mode])
 	
 	def _prepare_shell(self):
-		return
 		match os.name:
 			case 'posix':
 				os.system('clear')

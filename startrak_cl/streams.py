@@ -1,6 +1,6 @@
 from io import DEFAULT_BUFFER_SIZE, StringIO
 from typing import TextIO
-from alias import LanguageMode
+from startrak_cl.alias import LanguageMode
 
 class NoStream(StringIO):
 	def write(self, __s: str):
