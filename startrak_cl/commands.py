@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Callable, Self
 from packaging.version import Version
 
 if TYPE_CHECKING:
-	from startrak_cl.console.consoleapp import ConsoleApp
+	from startrak_cl import ConsoleApp
 
 __all__ = ['Command', 'Parameter', 'Optional']
 
@@ -117,7 +117,7 @@ class ConsoleHelper:
 	
 def get_active_console() -> ConsoleHelper:
 		try:
-			import _globals
-			return ConsoleHelper(_globals.CONSOLE_INSTANCE)
+			import startrak_cl._globals as GLOBALS
+			return ConsoleHelper(GLOBALS.CONSOLE_INSTANCE)
 		except:
 			raise 

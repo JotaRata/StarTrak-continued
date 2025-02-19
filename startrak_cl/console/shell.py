@@ -1,6 +1,5 @@
-from .consoleapp import ConsoleApp, _PREFIXES, FormatMode
-# import keyboard
-from console import keyboard
+from startrak_cl import ConsoleApp, _PREFIXES, FormatMode
+from startrak_cl.console import keyboard
 import os
 
 class ShellConsole(ConsoleApp):

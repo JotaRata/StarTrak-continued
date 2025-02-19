@@ -10,9 +10,11 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QKeyEvent, QTextBlockFormat
 from PySide6.QtWidgets import QLineEdit, QTextEdit, QWidget
 
-import startrak
 from startrak_cl import ConsoleApp, _PREFIXES
 from startrak_cl.streams import ConsoleOutput, ConsoleInput
+
+import startrak
+import startrak_cl.source
 
 
 class QTerminal(ConsoleApp, QTextEdit):
