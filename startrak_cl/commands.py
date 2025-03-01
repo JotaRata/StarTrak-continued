@@ -37,6 +37,7 @@ class _AbstractCommandMeta(type):
 		print(f'Registered command "{alias}" from {klass}')
 		_AbstractCommandMeta.registered_commands[klass.__alias__] = klass
 		return klass
+
 	
 class Command(metaclass= _AbstractCommandMeta):
 	def __init__(self):
@@ -50,15 +51,26 @@ class Command(metaclass= _AbstractCommandMeta):
 	def get_name(cls) -> str:
 		return cls.__alias__
 	
-	def init_params() -> list[Parameter]:
+	def init_params() -> list[ParameterBase]:
 		raise NotImplementedError()
 
-	def execute(*args : tuple[Parameter, ...], **kwargs) -> None:
+	def execute(*args, **kwargs) -> None:
 		raise NotImplementedError()
-	
-class Parameter:
+
+class ParameterBase:
 	def __init__(self, name : str):
+		if type(self) is ParameterBase:
+			raise TypeError('Cannot instantiate class ParameterBase')
 		self.name = name
+
+	def with_description(self, description : str) -> Self:
+		assert isinstance(description, str)
+		self.description = description
+		return self
+
+class Parameter(ParameterBase):
+	def __init__(self, name : str):
+		super().__init__(name)
 	
 	def with_type(self, parameter_type : type | callable) -> Self:
 		assert type(parameter_type) is type or callable(parameter_type)
@@ -75,11 +87,6 @@ class Parameter:
 		self.validate_function = validator
 		return self
 	
-	def with_description(self, description : str) -> Self:
-		assert isinstance(description, str)
-		self.description = description
-		return self
-	
 
 class Optional(Parameter):
 	def __init__(self, name : str, short_name : str = None, implicit : bool = False):
@@ -92,6 +99,23 @@ class Optional(Parameter):
 	def with_default(self, default : object) -> Self:
 		self.default_value = default
 		return self
+
+class Subcommand(ParameterBase):
+	def __init__(self, name : str):
+		super().__init__(name)
+	
+	def with_parameters(self, params : list[ParameterBase]):
+		self.parameters = params
+		return self
+
+	def executes(self, method : Callable):
+		self.method = method
+		return self
+
+	def get_name(self):
+		return self.name
+
+
 	
 class ConsoleHelper:
 	def __init__(self, console : ConsoleApp) -> None:
