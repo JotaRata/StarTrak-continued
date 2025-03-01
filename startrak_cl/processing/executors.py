@@ -3,7 +3,7 @@ import subprocess
 from typing import Any
 
 from startrak_cl import STException, _globals
-from startrak_cl.commands import Command, _AbstractCommandMeta, Optional, Parameter
+from startrak_cl.commands import Command, _AbstractCommandMeta,ParameterBase, Optional, Parameter, Subcommand
 from .protocols import ChainedOutput, Output, ParsedOutput
 from .protocols import Executor
 
@@ -88,20 +88,29 @@ class StartrakExecutor(Executor):
 
 
 
-	def parse_arguments(self, command : type[Command], args : list[str]):
-		parameters = command.init_params()
+	def parse_arguments(self, command : type[Command] | Subcommand, args : list[str]):
+		
+		if isinstance(command, Subcommand):
+			parameters = command.parameters
+		elif issubclass(command, Command):
+			parameters = command.init_params()
+		else:
+			raise TypeError(f'Invalid type: {command}')
 
+		subcommands = [param for param in parameters if type(param) is Subcommand]
 		positional = [param for param in parameters if type(param) is Parameter]
 		optional  = [param for param in parameters if type(param) is Optional]
-
+		
 		output_values = dict[str, Any]()
 
 		if len(args) < len(positional):
 			raise STException(f'Not enough parameters for command "{command.get_name()}"')
 
 
-		def apply_attributes(parameter : Parameter, arg : str):
+		def apply_attributes(parameter : ParameterBase, arg : str):
 			value = arg
+			if type(parameter) is Subcommand:
+				value = [parameter.name] + self.parse_arguments(parameter, args)
 			if hasattr(parameter, 'map_function'):
 				value = parameter.map_function(value)
 			if hasattr(parameter, 'type_cast'):
@@ -141,7 +150,18 @@ class StartrakExecutor(Executor):
 		for i, param in enumerate(positional):
 			value = apply_attributes(param, args.pop(i))
 			output_values[param.name] = value
+
+		for i, param in enumerate(subcommands):
+			arg_index = -1
+			for j, arg in enumerate(args):
+				if arg == param.name:
+					arg_index = j
+					break
+
+			if arg_index >= 0:
+				value = apply_attributes(param, args.pop(arg_index))
+				output_values[param.name] = value
 			
 		if len(args) != 0:
 			raise STException(f'Unexpected parameters: {args} for command {command.get_name()}')
-		return [output_values[param.name] for param in parameters]
+		return [output_values[param.name] for param in parameters if param.name in output_values]

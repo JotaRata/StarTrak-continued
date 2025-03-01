@@ -1,7 +1,7 @@
 class STException(Exception):
 	pass
 
-from .commands import Command, Parameter, Optional, get_active_console
+from .commands import Command, Parameter, Optional, get_active_console, Subcommand
 from . import _globals
 from .utils import casters
 from .utils import string_operations

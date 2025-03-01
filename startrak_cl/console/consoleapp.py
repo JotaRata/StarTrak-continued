@@ -110,7 +110,11 @@ class ConsoleApp:
 				return False
 			
 			parameters = command.init_params()
-			if getattr(parameters[word_idx - 1].type_cast, '__name__', None) == 'path':
+			current_parameter = parameters[word_idx - 1]
+
+			if type(current_parameter).__name__ == 'Subcommand':
+				current_parameter = current_parameter.parameters[word_idx - 2]
+			if getattr(current_parameter.type_cast, '__name__', None) == 'path':
 				scan_path = os.getcwd()
 				dir_idx = 0
 				curr_indx = 0
