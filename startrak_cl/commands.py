@@ -101,8 +101,9 @@ class Optional(Parameter):
 		return self
 
 class Subcommand(ParameterBase):
-	def __init__(self, name : str):
+	def __init__(self, name : str, implicit= True):
 		super().__init__(name)
+		self.implicit = implicit
 	
 	def with_parameters(self, params : list[ParameterBase]):
 		self.parameters = params

@@ -161,7 +161,9 @@ class StartrakExecutor(Executor):
 			if arg_index >= 0:
 				value = apply_attributes(param, args.pop(arg_index))
 				output_values[param.name] = value
+			elif not param.implicit:
+				output_values[param.name] = None
 			
-		if len(args) != 0:
+		if len(args) != 0 and not isinstance(command, Subcommand):
 			raise STException(f'Unexpected parameters: {args} for command {command.get_name()}')
 		return [output_values[param.name] for param in parameters if param.name in output_values]
