@@ -183,4 +183,6 @@ class StartrakExecutor(Executor):
 			
 		if len(args) != 0 and not isinstance(command, Subcommand):
 			raise STException(f'Unexpected parameters: {args} for command {command.get_name()}')
-		return output_values
+		
+		# Create a copy of the processed dictionary
+		return {key.replace('-', '_') : value for key, value in output_values.items()}
