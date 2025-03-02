@@ -71,7 +71,7 @@ class StartrakExecutor(Executor):
 				
 				if not command: return
 				if retval:
-					new_args = [retval.strip()] + args
+					new_args = args + [retval.strip()]
 				else:
 					new_args = args
 
@@ -79,11 +79,11 @@ class StartrakExecutor(Executor):
 				parameters = self.parse_arguments(command, new_args)
 
 				if last:
-					command.execute(*parameters, printable= True)
+					command.execute(**parameters, printable= True)
 					return
 				
 				with console.redirect_output() as output:
-					command.execute(*parameters, printable= True)
+					command.execute(**parameters, printable= True)
 					retval = output.getvalue()
 
 
@@ -120,18 +120,19 @@ class StartrakExecutor(Executor):
 					raise STException(f'Invalid parameter "{arg}" for command "{command.get_name()}"')
 			return value
 		
-		for i, param in enumerate(positional):
-			value = apply_attributes(param, args.pop(i))
-			output_values[param.name] = value
-		
+		# Process optional parameters first
+		implicit_opt = []
 		for i, param in enumerate(sorted(optional, key= lambda x: x.is_implicit)):
 			arg_index = -1
 			for j, arg in enumerate(args):
 				is_keyword = (arg.startswith('--') and param.name == arg[2:]) or (arg.startswith('-') and param.short_name == arg[1:])
 				is_implicit = param.is_implicit and not arg.startswith('-')
 				
-				if is_keyword or is_implicit:
+				if is_keyword:
 					arg_index = j
+					break
+				if is_implicit:
+					implicit_opt.append(param)
 					break
 			
 			if arg_index >= 0:
@@ -146,13 +147,27 @@ class StartrakExecutor(Executor):
 					value = apply_attributes(param, args[arg_index + 1])
 					output_values[param.name] = value
 					args.pop(arg_index + 1)
+
 				args.pop(arg_index)
 			else:
 				value = apply_attributes(param, param.default_value)
 				output_values[param.name] = value
-				
 		
+		# Then process positional parameters after any optional was processed
+		for i, param in enumerate(positional):
+			value = apply_attributes(param, args.pop(0))
+			output_values[param.name] = value
 
+		# Then process implicit optional parameters and handle default value if missing AFTER positional have been processed
+		for i, param in enumerate(implicit_opt):
+			if i < len(args):
+				value = apply_attributes(param, args.pop(0))
+				output_values[param.name] = value
+			else:
+				value = apply_attributes(param, param.default_value)
+				output_values[param.name] = value
+
+		# Finally process subcommand to avoid conflicts with positionals
 		for i, param in enumerate(subcommands):
 			arg_index = -1
 			for j, arg in enumerate(args):
