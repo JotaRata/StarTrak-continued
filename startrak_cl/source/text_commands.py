@@ -48,13 +48,24 @@ class FindTextCommand(Command,
         if printable:
             buffer = console.buffer()
             
-            for line, span in matches:
-                if len(span) == 0:
-                    buffer.write(line)
-                else:
-                    buffer.write(line[:span[0]])
-                    buffer.write( console.format(line[span[0]:span[1]], 'red') )
-                    buffer.write(line[span[1]:])
+            for line, line_span in matches:
+                if not line_span:
+                    continue
+
+                span_idx = 0
+                while span_idx < len(line_span):
+                    span = line_span[span_idx]
+                    if len(span) == 0:
+                        buffer.write(line)
+                    else:
+                        prev_span = line_span[span_idx - 1][1]  if span_idx > 0 else None 
+
+                        buffer.write(line[prev_span : span[0]])
+                        buffer.write( console.format(line[span[0]:span[1]], 'red') )
+                        if span_idx + 1 >= len(line_span):
+                            buffer.write(line[span[1] : ])
+                    span_idx += 1
+
                 buffer.write('\n')
             console.write(buffer.getvalue())
 
@@ -70,9 +81,8 @@ class FindTextCommand(Command,
             return lines
 
     def read_text(source, pattern, no_case):
-        lines = list()
-        for line in source.split('\n'):
-            match =  re.search(pattern, line.lower() if no_case else line)
-            if match:
-                lines.append((line, match.span()))
-        return lines
+        line_matches = []
+        for i, line in enumerate(source.split('\n')):
+            matches =  re.finditer(pattern, line, re.IGNORECASE if no_case else 0)
+            line_matches.append((line, [match.span() for match in matches]))
+        return line_matches
