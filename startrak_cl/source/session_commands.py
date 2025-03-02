@@ -12,10 +12,15 @@ class SessionCommands(Command,
                 .with_parameters([
                     Parameter('name')
                         .with_type(str),
+
                     Optional('mode', 'm')
                         .with_type(str)
                         .with_validation(lambda x: x in ['inspect', 'scan'])
-                        .with_default('inspect')
+                        .with_default('inspect'),
+
+                    Optional('dir', 'd', implicit= True)
+                        .with_type(casters.path)
+                        .with_default('.')
                 ]),
 
             Subcommand('open')
@@ -31,22 +36,22 @@ class SessionCommands(Command,
         ]
     
     
-    def execute(*args, **kwargs):
+    def execute(new, open, levels, **kwargs):
         console = get_active_console()
-        
-        levels = args[-1] if args else 4
-        if not args or not args[0] or type(args[0]) is not list:
+
+        if not new and not open:
             session = startrak.get_session()
             console.write(session.__pprint__(0, 4 if levels == -1 else levels))
         else:
-            subcommand = args[0]
-            match subcommand[0]:
-                case 'new':
-                    session = startrak.new_session(subcommand[1], subcommand[2])
-                    console.write(session.__pprint__(0, 0 if levels == -1 else levels))
-                case 'open':
-                    session = startrak.load_session(subcommand[1])
-                    console.write(session.__pprint__(0, 1 if levels == -1 else levels))
+            if new and open:
+                raise STException('Invalid parameters for session')           
+
+            if new:
+                session = startrak.new_session(new['name'], new['mode'], *new['dir'])
+                console.write(session.__pprint__(0, 0 if levels == -1 else levels))
+            if open:
+                session = startrak.load_session(open['path'])
+                console.write(session.__pprint__(0, 1 if levels == -1 else levels))
 
         console.write('\n')
 

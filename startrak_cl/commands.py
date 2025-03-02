@@ -54,7 +54,7 @@ class Command(metaclass= _AbstractCommandMeta):
 	def init_params() -> list[ParameterBase]:
 		raise NotImplementedError()
 
-	def execute(*args, **kwargs) -> None:
+	def execute(**kwargs) -> None:
 		raise NotImplementedError()
 
 class ParameterBase:

@@ -110,22 +110,24 @@ class ConsoleApp:
 				return False
 			
 			parameters = command.init_params()
-			current_parameter = parameters[word_idx - 1]
+			current_parameter = parameters[word_idx - 1] if word_idx - 1 < len(parameters) else None
 
 			if type(current_parameter).__name__ == 'Subcommand':
 				current_parameter = current_parameter.parameters[word_idx - 2]
-			if getattr(current_parameter.type_cast, '__name__', None) == 'path':
+				
+			if type(getattr(current_parameter, 'type_cast', None)).__name__ == 'path':
 				scan_path = os.getcwd()
 				dir_idx = 0
-				curr_indx = 0
+				curr_index = 0
+
 				if '/' in words[word_idx]:
-					dirs, dir_idx, curr_indx = word_index(words[word_idx], self.cursor - len(" ".join(words[:word_idx])) - 1, '/')
+					dirs, dir_idx, curr_index = word_index(words[word_idx], self.cursor - len(" ".join(words[:word_idx])) - 1, '/')
 					new_path = '/'.join(dirs[:-1])
 					if os.path.exists(new_path):
 						scan_path = new_path
 
 				for path in os.scandir(scan_path):
-					if (p:=os.path.basename(path)).lower().startswith(words[word_idx][curr_indx:].strip('"').lower()):
+					if (p:=os.path.basename(path)).lower().startswith(words[word_idx][curr_index:].strip('"').lower()):
 						if dir_idx == 0:
 							res = f'{" ".join(words[:word_idx])} {p}' if not ' ' in p else f'{command.name} "{p}"' 
 						else:

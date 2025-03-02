@@ -26,7 +26,7 @@ class ListCommand(Command,
 				.with_default(0)
 			]
 	
-	def execute(path, list_mode, cols, printable= True, **kwargs):
+	def execute(path, list, columns, printable= True, **kwargs):
 		cwd = os.getcwd()
 		paths = dict[str, list]()
 		console = get_active_console()
@@ -60,15 +60,15 @@ class ListCommand(Command,
 				if len(paths) > 1:
 					buffer.write(f'{dir}: \n')
 
-				if not list_mode:
-					if cols == 0:
-						cols = min(max(1, console.width // max_length), 4)
-						col_width = console.width // cols
+				if not list:
+					if columns == 0:
+						columns = min(max(1, console.width // max_length), 4)
+						col_width = console.width // columns
 					else:
-						col_width = console.width // cols
+						col_width = console.width // columns
 						max_length = min(max_length, col_width - 3)
 						
-					ListCommand.list_columns(buffer, paths[dir], cols)
+					ListCommand.list_columns(buffer, paths[dir], columns)
 				else:
 					ListCommand.list_stats(buffer, paths[dir], dir)
 			console.write(buffer.getvalue())

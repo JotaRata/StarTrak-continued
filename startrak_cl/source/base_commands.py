@@ -17,21 +17,21 @@ class ChangeDirectoryCommand(Command,
 				.with_validation(lambda l: len(l) == 1)
 		]
 	
-	def execute(paths : list[str], *args, **kwargs):
-		path = paths[0]
+	def execute(path : list[str], **kwargs):
+		path = path[0]
 		if not os.path.isdir(path):
 			raise STException('Path is not a directory.')
 		os.chdir(path)
 
 
 class CurrentDirectoryCommand(Command,
-										alias= 'pwd',
-										description= 'Prints the current working directory',
-										author= 'JotaRata - Adapted from GNU'):
+							alias= 'pwd',
+							description= 'Prints the current working directory',
+							author= 'JotaRata - Adapted from GNU'):
 	def init_params():
 		return []
 	
-	def execute(*args, **kwargs):
+	def execute(**kwargs):
 		cwd = os.getcwd()
 
 		if os.name == 'nt':
@@ -40,9 +40,9 @@ class CurrentDirectoryCommand(Command,
 
 
 class EchoCommand(Command,
-						alias= 'echo',
-						description= 'Prints the input to the screen.',
-						author= 'JotaRata - Adapted from GNU'):
+					alias= 'echo',
+					description= 'Prints the input to the screen.',
+					author= 'JotaRata - Adapted from GNU'):
 	def init_params():
 		return [
 			Parameter('text')
@@ -50,7 +50,7 @@ class EchoCommand(Command,
 				.with_type(str)
 		]
 	
-	def execute(text : str, *args, **kwargs):
+	def execute(text : str, **kwargs):
 		console = get_active_console()
 		text = console.remove_format(text)
 		print(text)
@@ -62,7 +62,7 @@ class ClearCommand(Command,
 	def init_params():
 		return []
 
-	def execute(*args, **kwargs):
+	def execute(**kwargs):
 		console = get_active_console()
 		console.clear()
 

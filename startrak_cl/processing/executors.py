@@ -61,7 +61,7 @@ class StartrakExecutor(Executor):
 
 			command = get_command(command)
 			parameters = self.parse_arguments(command, args)
-			retval = command.execute(*parameters, printable= printable)
+			retval = command.execute(**parameters, printable= printable)
 
 		elif type(parsed_data) is ChainedOutput:
 			retval = None
@@ -110,7 +110,7 @@ class StartrakExecutor(Executor):
 		def apply_attributes(parameter : ParameterBase, arg : str):
 			value = arg
 			if type(parameter) is Subcommand:
-				value = [parameter.name] + self.parse_arguments(parameter, args)
+				value = self.parse_arguments(parameter, args)
 			if hasattr(parameter, 'map_function'):
 				value = parameter.map_function(value)
 			if hasattr(parameter, 'type_cast'):
@@ -119,6 +119,10 @@ class StartrakExecutor(Executor):
 				if parameter.validate_function(value) == False:
 					raise STException(f'Invalid parameter "{arg}" for command "{command.get_name()}"')
 			return value
+		
+		for i, param in enumerate(positional):
+			value = apply_attributes(param, args.pop(i))
+			output_values[param.name] = value
 		
 		for i, param in enumerate(sorted(optional, key= lambda x: x.is_implicit)):
 			arg_index = -1
@@ -147,9 +151,7 @@ class StartrakExecutor(Executor):
 				value = apply_attributes(param, param.default_value)
 				output_values[param.name] = value
 				
-		for i, param in enumerate(positional):
-			value = apply_attributes(param, args.pop(i))
-			output_values[param.name] = value
+		
 
 		for i, param in enumerate(subcommands):
 			arg_index = -1
@@ -161,9 +163,9 @@ class StartrakExecutor(Executor):
 			if arg_index >= 0:
 				value = apply_attributes(param, args.pop(arg_index))
 				output_values[param.name] = value
-			elif not param.implicit:
+			else:
 				output_values[param.name] = None
 			
 		if len(args) != 0 and not isinstance(command, Subcommand):
 			raise STException(f'Unexpected parameters: {args} for command {command.get_name()}')
-		return [output_values[param.name] for param in parameters if param.name in output_values]
+		return output_values
