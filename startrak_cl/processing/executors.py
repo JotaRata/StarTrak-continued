@@ -4,7 +4,7 @@ from typing import Any
 
 from startrak_cl import STException, _globals
 from startrak_cl.commands import Command, _AbstractCommandMeta,ParameterBase, Optional, Parameter, Subcommand
-from .protocols import ChainedOutput, Output, ParsedOutput
+from .protocols import PipedOutput, Output, ParsedOutput
 from .protocols import Executor
 
 def get_commands():
@@ -56,14 +56,14 @@ class StartrakExecutor(Executor):
 	def execute(self, parsed_data: Output) -> str:
 		console = _globals.CONSOLE_INSTANCE
 		if type(parsed_data) is ParsedOutput:
-			command, args, printable = parsed_data
+			command, args, is_piped = parsed_data
 			if not command: return
 
 			command = get_command(command)
 			parameters = self.parse_arguments(command, args)
-			retval = command.execute(**parameters, printable= printable)
+			retval = command.execute(**parameters, is_piped= is_piped)
 
-		elif type(parsed_data) is ChainedOutput:
+		elif type(parsed_data) is PipedOutput:
 			retval = None
 			for out in parsed_data.outputs:
 				if type(out) is ParsedOutput:
@@ -79,11 +79,11 @@ class StartrakExecutor(Executor):
 				parameters = self.parse_arguments(command, new_args)
 
 				if last:
-					command.execute(**parameters, printable= True)
+					command.execute(**parameters, is_piped= False)
 					return
 				
 				with console.redirect_output() as output:
-					command.execute(**parameters, printable= True)
+					command.execute(**parameters, is_piped= True)
 					retval = output.getvalue()
 
 

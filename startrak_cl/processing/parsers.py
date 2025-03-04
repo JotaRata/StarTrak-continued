@@ -1,5 +1,5 @@
 from startrak_cl import STException
-from .protocols import ChainedOutput, Parser, ParsedOutput, PipedOutput
+from .protocols import PipedOutput, Parser, ParsedOutput, RedirectedOutput
 from startrak_cl.processing.executors import get_command
 
 _DISALLOWED_PY_KW = ('import', 'os', 'sys', 'raise', 
@@ -42,7 +42,7 @@ class StartrakParser(Parser):
 		words = self.match(text_input.strip())
 		varname = None
 		if '>>' in words:
-			pipe_idx, varname = self.parse_pipe(words)
+			pipe_idx, varname = self.parse_redirect(words)
 			words = words[:pipe_idx]
 
 		if not '|' in words:
@@ -61,29 +61,10 @@ class StartrakParser(Parser):
 		if not command:
 			raise STException(f'No command named "{cmd_name}"')
 		
-		# excess = len(args)
-		# for p in command.arguments:
-		# 	if type(p.key) is int:
-
-
-		# 	if 0 <= p.key < len(args) and not args[p.key].startswith('-'):
-		# 		excess -= 1
-		# 	if type(k).__name__ == 'Keyword':
-		# 		if k.key in args:
-		# 			excess -= len(k.types) + 1
-		# 	if type(k).__name__ == 'OptionalKeyword':
-		# 		if k.key in args:
-		# 			index = args.index(k.key)
-		# 			excess -= 1 if index + 1 >= len(args) else 2
-		
-		# if excess > 0:
-		# 	raise STException(f'Too many parameters for "{cmd_name}"')
-		# if excess < 0:
-		# 	raise STException(f'Not enough parameters for "{cmd_name}"')
 
 		output = ParsedOutput(cmd_name, args, printable)
 		if var_name:
-			output =  PipedOutput(output, var_name)
+			output =  RedirectedOutput(output, var_name)
 		return output
 	
 	def parse_multiple(self, words : list, var_name: str = None):
@@ -98,9 +79,9 @@ class StartrakParser(Parser):
 			index = next_index
 			parsed_output = self.parse_single(sliced, i > 0, i == count, var_name if i == count else None)
 			outputs.append(parsed_output)
-		return ChainedOutput(outputs)
+		return PipedOutput(outputs)
 
-	def parse_pipe(self, words : list[str], ):
+	def parse_redirect(self, words : list[str], ):
 		if words.count('>>') > 1 or words[-2] != '>>':
 			raise STException('Invalid syntax')
 		index = words.index('>>')

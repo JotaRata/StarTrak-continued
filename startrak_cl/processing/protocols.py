@@ -9,9 +9,9 @@ class ParsedOutput(NamedTuple):
 	command : str
 	args : list[str]
 	printable : bool = True
-class ChainedOutput(NamedTuple):
-	outputs : list[ParsedOutput]
 class PipedOutput(NamedTuple):
+	outputs : list[ParsedOutput]
+class RedirectedOutput(NamedTuple):
 	output : Output
 	varname : str
 

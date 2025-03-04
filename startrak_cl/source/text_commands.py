@@ -19,7 +19,7 @@ class FindTextCommand(Command,
             Optional('ignore-case', 'i'),
         ]
     
-    def execute(pattern, source, regex, ignore_case , printable = True, **kwargs):
+    def execute(pattern, source, regex, ignore_case , is_piped = False, **kwargs):
         console = get_active_console();
 
         if ignore_case:
@@ -45,7 +45,7 @@ class FindTextCommand(Command,
             source = console.remove_format(source)
             matches = FindTextCommand.read_text(source, pattern, ignore_case)
 
-        if printable:
+        if not is_piped:
             buffer = console.buffer()
             
             for line, line_span in matches:

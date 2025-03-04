@@ -19,6 +19,8 @@ class ListCommand(Command,
 			
 			Optional('list', 'l')
 				.with_description('Whether to show the output as a detailed list'),
+			Optional('simple', '1', short_only= True)
+				.with_description('One file/directory per line'),
 			Optional('columns', 'c')
 				.with_description('Number of columns to display, if zero then the columns will be set according to the available space')
 				.with_type(int)
@@ -26,7 +28,7 @@ class ListCommand(Command,
 				.with_default(0)
 			]
 	
-	def execute(path, list, columns, printable= True, **kwargs):
+	def execute(path, list, simple, columns, is_piped= False, **kwargs):
 		cwd = os.getcwd()
 		paths = dict[str, list]()
 		console = get_active_console()
@@ -50,28 +52,32 @@ class ListCommand(Command,
 					else:
 						paths[dir_name].append((rel, is_dir))
 
-		if printable:
-			buffer = console.buffer()
+		buffer = console.buffer()
+		max_length = max([len(file) for dir in paths for (file, _) in paths[dir]])
 
-			max_length = max([len(file) for dir in paths for (file, _) in paths[dir]])
-			for dir in paths:
-				if os.name == 'nt':
-					dir = dir.replace(r'\\', '/')	
-				if len(paths) > 1:
-					buffer.write(f'{dir}: \n')
+		for dir in paths:
+			if os.name == 'nt':
+				dir = dir.replace(r'\\', '/')	
+			if len(paths) > 1:
+				buffer.write(f'{dir}: \n')
 
-				if not list:
-					if columns == 0:
-						columns = min(max(1, console.width // max_length), 4)
-						col_width = console.width // columns
-					else:
-						col_width = console.width // columns
-						max_length = min(max_length, col_width - 3)
-						
-					ListCommand.list_columns(buffer, paths[dir], columns)
+			if simple or is_piped:
+				ListCommand.list_simple(buffer, paths[dir], dir)
+			elif list:
+				ListCommand.list_stats(buffer, paths[dir], dir)
+			else:
+				if columns == 0:
+					columns = min(max(1, console.width // max_length), 4)
+					col_width = console.width // columns
 				else:
-					ListCommand.list_stats(buffer, paths[dir], dir)
+					col_width = console.width // columns
+					max_length = min(max_length, col_width - 3)
+					
+				ListCommand.list_columns(buffer, paths[dir], columns)
+
 			console.write(buffer.getvalue())
+
+
 
 	def list_columns(buffer, paths, columns):
 		console = get_active_console()
@@ -116,6 +122,16 @@ class ListCommand(Command,
 			
 			buffer.write('\n')
 			columns.clear()
+		buffer.write('\n')
+
+	def list_simple(buffer, paths, directory):
+		console = get_active_console()
+		buffer.write(f'Total: {len(paths)}\n')
+		
+		for file, is_dir in paths:
+			buffer.write(console.format(file, 'blue' if is_dir else 'green'))
+			buffer.write('\n')
+
 		buffer.write('\n')
 
 	

@@ -89,17 +89,20 @@ class Parameter(ParameterBase):
 	
 
 class Optional(Parameter):
-	def __init__(self, name : str, short_name : str = None, implicit : bool = False):
+	def __init__(self, name : str, short_name : str = None, 
+			implicit : bool = False, short_only : bool = False):
 		super().__init__(name)
 		self.short_name = short_name
 		self.is_implicit = implicit
 		self.type_cast = bool
 		self.default_value = None
+		self.short_only = short_only
+
 
 	def with_default(self, default : object) -> Self:
 		self.default_value = default
 		return self
-
+	
 class Subcommand(ParameterBase):
 	def __init__(self, name : str, implicit= True):
 		super().__init__(name)
