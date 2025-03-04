@@ -50,7 +50,7 @@ class StartrakParser(Parser):
 		else:
 			return self.parse_multiple(words, var_name= varname)
 
-	def parse_single(self, words, chained= False, printable= True, var_name: str = None):
+	def parse_single(self, words, chained= False, is_piped= False, var_name: str = None):
 		cmd_name, *args = words
 		if not args:
 			args = []
@@ -62,7 +62,7 @@ class StartrakParser(Parser):
 			raise STException(f'No command named "{cmd_name}"')
 		
 
-		output = ParsedOutput(cmd_name, args, printable)
+		output = ParsedOutput(cmd_name, args, is_piped)
 		if var_name:
 			output =  RedirectedOutput(output, var_name)
 		return output

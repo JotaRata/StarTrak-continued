@@ -125,7 +125,8 @@ class StartrakExecutor(Executor):
 		for i, param in enumerate(sorted(optional, key= lambda x: x.is_implicit)):
 			arg_index = -1
 			for j, arg in enumerate(args):
-				is_keyword = (arg.startswith('--') and param.name == arg[2:]) or (arg.startswith('-') and param.short_name == arg[1:])
+				is_keyword =  arg.startswith('--') and param.name == arg[2:] and not param.short_only
+				is_keyword |= arg.startswith('-') and param.short_name == arg[1:]
 				is_implicit = param.is_implicit and not arg.startswith('-')
 				
 				if is_keyword:
