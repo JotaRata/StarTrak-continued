@@ -21,8 +21,8 @@ class Event():
 		if callable(function): self._methods.append(function)
 	def remove(self, function : _TFunc):
 		if function in self._methods: self._methods.remove(function)
-	def __call__(self, *args : Any, **kwagrs : Any):
-		for function in self._methods: function(*args, **kwagrs)
+	def __call__(self, *args : Any, **kwargs : Any):
+		for function in self._methods: function(*args, **kwargs)
 	def __len__(self):
 		return self._methods.__len__()
 	def __repr__(self) -> str:

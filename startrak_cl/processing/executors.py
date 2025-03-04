@@ -3,7 +3,7 @@ import subprocess
 from typing import Any
 
 from startrak_cl import STException, _globals
-from startrak_cl.commands import Command, _AbstractCommandMeta,ParameterBase, Optional, Parameter, Subcommand
+from startrak_cl.commands import Command, _AbstractCommandMeta, ParameterBase, Optional, Parameter, Subcommand
 from .protocols import PipedOutput, Output, ParsedOutput
 from .protocols import Executor
 
@@ -17,7 +17,7 @@ def get_command(name : str) -> Command:
 
 
 class PythonExecutor(Executor):
-	def __init__(self, execution_context: dict[str, object], **kwagrs) -> None:
+	def __init__(self, execution_context: dict[str, object], **kwargs) -> None:
 		self._globals = execution_context
 
 	def execute(self, parsed_data: ParsedOutput) -> str:

@@ -169,7 +169,7 @@ class ConsoleApp:
 		self.output.reset_output()
 		new_output.close()
 	
-	def format(self, text : str, format : FormatMode):
+	def format(self, text : str, format : FormatMode) -> str:
 		match format:
 			case 'highlight':
 				return f'[{text}]'

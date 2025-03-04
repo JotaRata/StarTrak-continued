@@ -5,6 +5,7 @@ from packaging.version import Version
 
 if TYPE_CHECKING:
 	from startrak_cl import ConsoleApp
+from startrak_cl import STException
 
 __all__ = ['Command', 'Parameter', 'Optional']
 
@@ -92,11 +93,14 @@ class Optional(Parameter):
 	def __init__(self, name : str, short_name : str = None, 
 			implicit : bool = False, short_only : bool = False):
 		super().__init__(name)
+
+		if short_only and not short_name:
+			raise ValueError('Parameters marked as "short_only" must define a short name.')
 		self.short_name = short_name
+		self.short_only = short_only
 		self.is_implicit = implicit
 		self.type_cast = bool
 		self.default_value = None
-		self.short_only = short_only
 
 
 	def with_default(self, default : object) -> Self:
@@ -149,3 +153,83 @@ def get_active_console() -> ConsoleHelper:
 			return ConsoleHelper(GLOBALS.CONSOLE_INSTANCE)
 		except:
 			raise 
+
+
+class _HelpCommand(Command,
+					alias = 'help',
+					description = 'Prints help for the provided command.',
+					author = 'JotaRata'):
+
+	def init_params():
+		return [
+			Parameter('command')
+				.with_type(str)
+		]
+	
+	def execute(command, **kwargs):
+		cmd = _AbstractCommandMeta.registered_commands.get(command, None)
+		console = get_active_console()
+
+		if not cmd:
+			raise STException(f'Invalid command: "{command}".')
+		
+		console.write(console.format(f'Showing help for command: "{command}"'.center(console.width), 'highlight'))
+		console.write('\n\n')
+
+		console.write(console.format('DESCRIPTION', 'bold') + '\n')
+		console.write(cmd.__desc__)
+		console.write('\n\n')
+
+		console.write(console.format('USAGE', 'bold') + '\n ')
+		console.write(command)
+
+		parameters = cmd.init_params()
+		for param in parameters:
+			if type(param) is Parameter or type(param) is Subcommand:
+				console.write(f' [{param.name.upper()}')
+				if hasattr(param, 'type_cast'):
+					console.write(f':{param.type_cast.__name__}')
+				console.write(']')
+
+			if type(param) is Optional:
+				if param.is_implicit:
+					console.write(' ' + console.format(param.name.upper(), 'italic'))
+				elif not param.short_only:
+					console.write(f' --{param.name}')
+				elif param.short_name:
+					console.write(f' -{param.short_name}')
+
+				if hasattr(param, 'type_cast'):
+					console.write(f':{param.type_cast.__name__}')
+		console.write('\n\n')
+
+		console.write(console.format('PARAMETERS', 'bold') + '\n')
+
+		for param in parameters:
+			name = ''
+			if type(param) is Parameter or type(param) is Subcommand or (type(param) is Optional and param.is_implicit):
+				name = f'  {param.name.upper()}'
+			elif type(param) is Optional:
+				if not param.short_only:
+					name = f'  --{param.name}'
+				if param.short_name:
+					name += f'  -{param.short_name}'
+			console.write(name.ljust(console.width // 5))
+
+			desc_has_period = False
+			if hasattr(param, 'description'):
+				console.write(param.description)
+				desc_has_period = param.description.rstrip().endswith('.')
+			if not desc_has_period:
+				console.write('.')
+
+			console.write('\n')
+		console.write('\n')
+
+		console.write(console.format('VERSION', 'bold') + '\n')
+		console.write(f' {cmd.__version__}')
+		console.write('\n\n')
+
+		console.write(console.format('AUTHORS', 'bold') + '\n')
+		console.write(f' {cmd.__author__}')
+		console.write('\n\n')
