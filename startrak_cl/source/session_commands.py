@@ -1,5 +1,5 @@
 import startrak
-from startrak_cl import Command, Parameter, Optional, casters, get_active_console, STException, Subcommand
+from startrak_cl import Command, Parameter, Optional, alias, casters, get_active_console, STException, Subcommand
 
 class SessionCommands(Command,
         alias = 'session',
@@ -41,6 +41,8 @@ class SessionCommands(Command,
 
         if not new and not open:
             session = startrak.get_session()
+            if not session:
+                raise STException('There is no session created, use the "-new" keyword to create one.')        
             console.write(session.__pprint__(0, 4 if levels == -1 else levels))
         else:
             if new and open:
@@ -138,3 +140,72 @@ class StarManageCommand(Command,
             print(star)
         else:
             raise STException('Missing subcommand for "star"')
+
+
+class FileManageCommand(Command,
+                        alias = 'file',
+                        description = 'Command to manage the Files associated with the session',
+                        author = 'JotaRata'):
+
+    def init_params():
+        return [
+            Subcommand('open')
+                .with_description('Adds a file to the current session.')
+                .with_parameters([
+                    Parameter('path')
+                        .with_description('The path to the file to add.')
+                        .with_type(casters.path)
+                ]),
+
+            Subcommand('remove')
+                .with_description('Removes a file from the current session providing its name or index')
+                .with_parameters([
+                    Parameter('id')
+                        .with_description('The name or index of the element')
+                        .with_type(str),
+                    
+                    Optional('force-name')
+                ]),
+            Subcommand('info')
+                .with_description('Prints the info for the file given its name or index')
+                .with_parameters([
+                    Parameter('id')
+                        .with_description('The name or index of the element')
+                        .with_type(str),
+                    
+                    Optional('force-name')
+                ]),
+        ]
+    
+    def execute(open, remove, info, **kwargs):
+        if sum(x is not None for x in (open, remove, info)) != 1:
+            raise STException("Exactly one of 'add', 'remove', or 'info' must be provided.")
+        if open:
+            for path in open['path']:
+                file = startrak.load_file(path, append= True)
+                print('Added', repr(file))
+        elif remove:
+            if remove['force_name']:
+                id = remove['id']
+            else:
+                try:
+                    id = int(remove['id'])
+                except:
+                    id = remove['id']
+
+            file = startrak.get_file(id)
+            startrak.remove_file(file)
+            print('Removed', repr(file))
+        elif info:
+            if info['force_name']:
+                id = info['id']
+            else:
+                try:
+                    id = int(info['id'])
+                except:
+                    id = info['id']
+
+            file = startrak.get_file(id)
+            print(file)
+        else:
+            raise STException('Missing subcommand for "file"')
