@@ -65,7 +65,7 @@ class _bound_reader(NamedTuple):
 			_mmap.seek(BYTE_OFFSET)
 		else:
 			_mmap.seek(BYTE_OFFSET - offset)	
-		raw =  np.frombuffer( _mmap.read(), count= self.shape[0] * self.shape[1] ,dtype= _dtype.newbyteorder('>'))
+		raw =  np.frombuffer( _mmap.read(), count= self.shape[0] * self.shape[1] ,dtype= _dtype)
 		_mmap.close()
 		file.close()
 
@@ -104,9 +104,9 @@ def _validate_byteline(line : bytes):
 
 def get_bitsize(depth : int) -> np.dtype[RealDType]:
 	if depth == 8: return np.dtype(np.uint8)
-	elif depth == 16: return np.dtype(np.uint16)
-	elif depth == 32: return np.dtype(np.uint32)
-	elif depth == 64: return np.dtype(np.uint64)
+	elif depth == 16: return np.dtype(np.uint16).newbyteorder('>')
+	elif depth == 32: return np.dtype(np.uint32).newbyteorder('>')
+	elif depth == 64: return np.dtype(np.uint64).newbyteorder('>')
 	elif depth == -32: return np.dtype(np.float32)
 	elif depth == -64: return np.dtype(np.float64)
 	else: raise TypeError('Invalid bit depth: ', depth)

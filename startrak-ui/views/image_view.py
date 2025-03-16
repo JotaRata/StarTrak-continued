@@ -1,5 +1,6 @@
 from __future__ import annotations
 import enum
+import math
 from typing import Any, Callable
 from PySide6.QtWidgets import QGraphicsSceneMouseEvent, QWidget
 import numpy as np
@@ -39,6 +40,7 @@ class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
 		self.current_file = None
 		self.current_index = QtCore.QModelIndex()
 		self.view.scene().addText('Double click on a file to preview it').setDefaultTextColor(QtCore.Qt.GlobalColor.white)
+		self.view.setInteractive(False)
 		self.star_labels = []
 		self.selected_star = -1
 		self.level_slider.setRange(0, 125)
@@ -54,7 +56,8 @@ class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
 		
 		if self.current_file is not None:
 			array = self.current_file.get_data()
-			self.set_image(array)
+			downsample = math.ceil(array.shape[0] / self.view.height())
+			self.set_image(array[::downsample, ::downsample])
 
 	@QtCore.Slot(int, int)
 	def on_levelChange(self, min_value : int, max_value : int):
@@ -91,7 +94,7 @@ class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
 			case 'linear':
 				self.mapping_func = lambda x: x
 			case 'logarithmic':
-				self.mapping_func = lambda x: np.log10(x)
+				self.mapping_func = lambda x: np.log10(x + 1)
 			case 'negative linear':
 				self.mapping_func = lambda x: np.max(x) - x
 			case _:
@@ -101,7 +104,7 @@ class ImageViewer(QtWidgets.QWidget, UI_ImageViewer):	#type:ignore
 	def set_image(self, array):
 		# array = array[0:-1, 0:-1].copy()		# Trick usd to regenerate the array buffer
 		array = self.mapping_func(array)
-		_min, _max = array.min() + array.max() * self.level_min, array.min() + array.max() * self.level_max
+		_min, _max = np.nanpercentile(array, 0.1) * self.level_min, np.nanpercentile(array, 99.9) * self.level_max
 		array = np.clip((array - _min) / (_max - _min) * 255, 0, 255).astype(np.uint8)
 		setup_itemColors(np.mean(array) > 128)
 
