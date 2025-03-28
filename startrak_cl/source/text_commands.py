@@ -1,3 +1,4 @@
+import glob
 import startrak
 from startrak_cl import Command, Parameter, Optional, get_active_console
 import os
@@ -39,7 +40,7 @@ class FindTextCommand(Command,
             if paths:
                 for path in paths:
                     matches.append((f'{path}:', ()))
-                    matches.extend(read_file(path, pattern))
+                    matches.extend(FindTextCommand.read_file(path, pattern))
 
         if not matches:
             source = console.remove_format(source)
